@@ -17,7 +17,7 @@
 //! By default, this writes to `hubris.core.TASK_NAME.N` (where `N` is the
 //! lowest available value); use `--out` to specify a different path name.
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result, bail};
 use clap::{ArgGroup, CommandFactory, Parser};
 use humility::hubris::HubrisFlashMap;
 use humility_arch_arm::ARMRegister;
@@ -173,9 +173,7 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
 
     // compare archive ID
     let archive = &context.cli.archive()?;
-    let expected_id = archive
-        .image_id()
-        .ok_or_else(|| anyhow!("missing image ID in archive"))?;
+    let expected_id = archive.image_id();
     if archive_id != expected_id {
         bail!(
             "image ID mismatch: archive ID is {expected_id:02x?}, \

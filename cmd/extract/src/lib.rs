@@ -154,11 +154,14 @@ struct ExtractArgs {
 }
 
 fn extract(context: &mut ExecutionContext) -> Result<()> {
-    let archive = context.cli.raw_archive()?;
     let subargs = ExtractArgs::try_parse_from(&context.cli.cmd)?;
+    let archive = context.cli.raw_archive()?;
 
     if subargs.list {
-        let cursor = Cursor::new(archive);
+        // We convert the archive data back into a `ZipArchive` instead of using
+        // `RawHubrisArchive` functions for speed; the `ZipArchive` can report
+        // file size without uncompressing.
+        let cursor = Cursor::new(archive.zip);
         let mut archive = zip::ZipArchive::new(cursor)?;
 
         println!("{:>12} NAME", "SIZE");
@@ -172,7 +175,7 @@ fn extract(context: &mut ExecutionContext) -> Result<()> {
     }
 
     let buffer = if let Some(ref filename) = subargs.file {
-        let cursor = Cursor::new(archive);
+        let cursor = Cursor::new(archive.zip);
         let mut archive = zip::ZipArchive::new(cursor)?;
         let mut found = vec![];
 
@@ -211,7 +214,7 @@ fn extract(context: &mut ExecutionContext) -> Result<()> {
         file.read_to_end(&mut buffer)?;
         buffer
     } else {
-        archive.to_vec()
+        archive.zip.to_vec()
     };
 
     if let Some(output) = subargs.output {

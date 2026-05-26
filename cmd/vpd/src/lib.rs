@@ -107,7 +107,6 @@ use clap::{ArgGroup, CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
-use humility::reflect;
 use humility_cli::ExecutionContext;
 use humility_cmd::{Command, Dumper};
 use humility_hiffy::*;
@@ -125,9 +124,9 @@ struct VpdArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>
+        value_parser = parse_int::parse::<u64>
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// list all devices that have VPD (can be combined with --read)
     #[clap(long, short, conflicts_with_all = &[
@@ -205,7 +204,8 @@ fn list(
     subargs: &VpdArgs,
 ) -> Result<()> {
     let devices = vpd_devices(hubris).collect::<Vec<_>>();
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
     let read_op = hubris.get_idol_command("Vpd.read")?;
 
     let locked_op = hubris.get_idol_command("Vpd.is_locked").ok();
@@ -356,7 +356,8 @@ fn vpd_write(
     core: &mut dyn Core,
     subargs: &VpdArgs,
 ) -> Result<()> {
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
     let op = hubris.get_idol_command("Vpd.write")?;
     let target = target(hubris, subargs)?;
 
@@ -417,13 +418,9 @@ fn vpd_write(
         let results = context.run(core, ops.as_slice(), None)?;
 
         for (o, result) in results.iter().enumerate() {
-            if let Err(err) = context.idol_result(&op, result) {
-                bail!(
-                    "failed to write VPD at offset {}: {:?}",
-                    offset + o,
-                    err
-                );
-            }
+            context.idol_result::<()>(&op, result).with_context(|| {
+                format!("failed to write VPD at offset {}", offset + o)
+            })?;
         }
 
         offset += results.len();
@@ -471,21 +468,9 @@ fn vpd_read_at(
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    let r = context
-        .idol_result(op, &results[0])
-        .with_context(|| format!("failed to read at offset {offset}"))?;
-    let contents = r.as_struct()?["value"].as_array()?;
-    let mut rval = vec![];
-
-    for b in contents.iter() {
-        if let reflect::Base::U8(val) = b.as_base()? {
-            rval.push(*val);
-        } else {
-            bail!("expected array of U8; found {:?}", contents);
-        }
-    }
-
-    Ok(rval)
+    context
+        .idol_result::<Vec<u8>>(op, &results[0])
+        .with_context(|| format!("failed to read at offset {offset}"))
 }
 
 fn vpd_slurp(
@@ -540,7 +525,8 @@ fn vpd_read(
     core: &mut dyn Core,
     subargs: &VpdArgs,
 ) -> Result<()> {
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
     let op = hubris.get_idol_command("Vpd.read")?;
     let mut target = target(hubris, subargs)?;
 
@@ -582,7 +568,8 @@ fn vpd_lock(
     core: &mut dyn Core,
     subargs: &VpdArgs,
 ) -> Result<()> {
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
 
     let op = hubris.get_idol_command("Vpd.permanently_lock")?;
     let index = match target(hubris, subargs)? {
@@ -592,9 +579,7 @@ fn vpd_lock(
         }
     };
 
-    if let Err(err) = vpd_read(hubris, core, subargs) {
-        bail!("can't lock VPD: {err}");
-    }
+    vpd_read(hubris, core, subargs).context("can't lock VPD")?;
 
     let payload =
         op.payload(&[("index", idol::IdolArgument::Scalar(index as u64))])?;
@@ -606,9 +591,9 @@ fn vpd_lock(
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    if let Err(err) = context.idol_result(&op, &results[0]) {
-        bail!("failed to lock {index}: {err:?}");
-    }
+    context
+        .idol_result::<()>(&op, &results[0])
+        .with_context(|| format!("failed to lock {index}"))?;
 
     humility::msg!("successfully locked VPD");
 
@@ -620,7 +605,8 @@ fn vpd_lock_all(
     core: &mut dyn Core,
     subargs: &VpdArgs,
 ) -> Result<()> {
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
     let op = hubris.get_idol_command("Vpd.is_locked")?;
     let read_op = hubris.get_idol_command("Vpd.read")?;
     let lock_op = hubris.get_idol_command("Vpd.permanently_lock")?;
@@ -710,11 +696,10 @@ fn vpd_lock_all(
     let mut success = 0;
 
     for (ndx, r) in locking.iter().zip(results.iter()) {
-        if let Err(err) = context.idol_result(&lock_op, r) {
-            humility::warn!("failed to lock VPD {ndx}: {err:?}");
-        } else {
-            success += 1;
-        }
+        context
+            .idol_result::<()>(&lock_op, r)
+            .with_context(|| format!("failed to lock VPD {ndx}"))?;
+        success += 1;
     }
 
     if success != locking.len() {

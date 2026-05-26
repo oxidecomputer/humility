@@ -63,9 +63,9 @@ struct HiffyArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>
+        value_parser = parse_int::parse::<u64>
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// list HIF functions
     #[clap(long = "list-functions", short = 'L')]
@@ -257,7 +257,8 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
     }
 
     let core = &mut *context.cli.attach_live_booted(hubris)?;
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
 
     if let Some(call) = subargs.call {
         let func: Vec<&str> = call.split('.').collect();
@@ -311,7 +312,7 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
             };
 
             (
-                hiffy_call(
+                match hiffy_call(
                     hubris,
                     core,
                     &mut context,
@@ -319,7 +320,11 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
                     &args,
                     input.as_deref(),
                     output.as_deref_mut(),
-                )?,
+                ) {
+                    Ok(s) => Ok(s),
+                    Err(HiffyError::Hiffy(s)) => Err(s),
+                    Err(HiffyError::Other(e)) => return Err(e),
+                },
                 output,
             )
         };

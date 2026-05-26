@@ -137,29 +137,13 @@ impl Value {
         for f in f.split(".") {
             match v {
                 Value::Struct(s) => {
-                    v = s.get(f).ok_or_else(|| {
-                        anyhow!(
-                            "could not field field `{f}`; \
-                             available fields are {:?}",
-                            s.members
-                                .keys()
-                                .map(|s| s.as_str())
-                                .collect::<Vec<_>>()
-                                .join(", ")
-                        )
-                    })?;
+                    v = s.get(f)?;
                 }
                 Value::Tuple(t) => {
                     let index: usize = f.parse().with_context(|| {
                         format!("could not parse tuple index from `{f}`")
                     })?;
-                    v = t.1.get(index).ok_or_else(|| {
-                        anyhow!(
-                            "could not get field {index} from tuple \
-                             with {} elements",
-                            t.1.len()
-                        )
-                    })?;
+                    v = t.get(index)?;
                 }
                 _ => bail!(
                     "expected a struct or tuple when getting field `{f}`, \
@@ -490,7 +474,7 @@ impl Format for Base {
 #[derive(Clone, Debug, Default)]
 pub struct Struct {
     name: String,
-    members: IndexMap<String, Box<Value>>,
+    members: IndexMap<String, Value>,
 }
 
 impl Struct {
@@ -507,7 +491,7 @@ impl Struct {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)> {
-        self.members.iter().map(|(s, v)| (s.as_str(), &**v))
+        self.members.iter().map(|(s, v)| (s.as_str(), v))
     }
 
     /// Verifies that the struct contains _at least_ members with the given
@@ -521,13 +505,35 @@ impl Struct {
         Ok(())
     }
 
-    /// Returns a reference to the value of the member named `name`, if it
-    /// exists, or `None`, if no member with that name exists.
-    pub fn get<Q>(&self, name: &Q) -> Option<&Value>
+    /// Returns a reference to the value of the member named `name`
+    ///
+    /// If the name is not found, then an informative error is returned.
+    pub fn get<Q>(&self, name: &Q) -> Result<&Value>
     where
-        Q: std::hash::Hash + indexmap::Equivalent<String> + ?Sized,
+        Q: std::hash::Hash
+            + indexmap::Equivalent<String>
+            + ?Sized
+            + std::fmt::Display,
     {
-        self.members.get(name).map(Box::as_ref)
+        self.members.get(name).ok_or_else(|| {
+            anyhow!(
+                "could not find field `{}` in struct `{}`; \
+                 available fields are {:?}",
+                name,
+                self.name,
+                self.members
+                    .keys()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        })
+    }
+
+    /// Loads the field with name `name` if it exists
+    pub fn field<T: Load>(&self, name: &str) -> Result<T> {
+        let v = self.get(name)?;
+        T::from_value(v)
     }
 }
 
@@ -591,6 +597,25 @@ pub struct Tuple(String, Vec<Value>);
 impl Tuple {
     pub fn name(&self) -> &str {
         self.0.as_str()
+    }
+
+    /// Returns a reference to a value in the tuple, by index
+    pub fn get(&self, index: usize) -> Result<&Value> {
+        let Some(v) = self.1.get(index) else {
+            bail!(
+                "could not get field {} in tuple `{}` with {} elements",
+                index,
+                self.0,
+                self.1.len()
+            );
+        };
+        Ok(v)
+    }
+
+    /// Loads the field with index `i` if it exists
+    pub fn field<T: Load>(&self, index: usize) -> Result<T> {
+        let v = self.get(index)?;
+        T::from_value(v)
     }
 }
 
@@ -903,10 +928,7 @@ pub fn load_struct(
     for m in &ty.members {
         let maddr = addr + m.offset;
         let mty = hubris.lookup_type(m.goff)?;
-        s.members.insert(
-            m.name.clone(),
-            Box::new(load_value(hubris, buf, mty, maddr)?),
-        );
+        s.members.insert(m.name.clone(), load_value(hubris, buf, mty, maddr)?);
     }
 
     Ok(s)
@@ -1035,6 +1057,46 @@ impl Load for Enum {
     }
 }
 
+impl Load for Struct {
+    fn from_value(v: &Value) -> Result<Self> {
+        if let Value::Struct(v) = v {
+            Ok(v.clone())
+        } else {
+            bail!("expected struct, got {v:?}");
+        }
+    }
+}
+
+impl Load for Tuple {
+    fn from_value(v: &Value) -> Result<Self> {
+        if let Value::Tuple(v) = v {
+            Ok(v.clone())
+        } else {
+            bail!("expected tuple, got {v:?}");
+        }
+    }
+}
+
+impl Load for Array {
+    fn from_value(v: &Value) -> Result<Self> {
+        if let Value::Array(v) = v {
+            Ok(v.clone())
+        } else {
+            bail!("expected array, got {v:?}");
+        }
+    }
+}
+
+impl Load for Base {
+    fn from_value(v: &Value) -> Result<Self> {
+        if let Value::Base(v) = v {
+            Ok(v.clone())
+        } else {
+            bail!("expected base, got {v:?}");
+        }
+    }
+}
+
 impl Load for bool {
     fn from_value(v: &Value) -> Result<Self> {
         v.as_base()?.as_bool().ok_or_else(|| anyhow!("not a bool: {:?}", v))
@@ -1071,12 +1133,11 @@ impl Load for f32 {
     }
 }
 
-impl Load for Array {
+impl Load for () {
     fn from_value(v: &Value) -> Result<Self> {
-        if let Value::Array(v) = v {
-            Ok(v.clone())
-        } else {
-            bail!("expected array, got {v:?}");
+        match v.as_base()? {
+            Base::U0 => Ok(()),
+            b => bail!("expected U0, got base {b:?}"),
         }
     }
 }
@@ -1236,7 +1297,7 @@ fn deserialize_struct<'a>(
     for m in &ty.members {
         let mty = hubris.lookup_type(m.goff)?;
         let out = deserialize_value(hubris, buf, mty)?;
-        s.members.insert(m.name.clone(), Box::new(out.0));
+        s.members.insert(m.name.clone(), out.0);
         buf = out.1;
     }
 

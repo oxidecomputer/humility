@@ -111,9 +111,9 @@ struct QspiArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 30000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>
+        value_parser = parse_int::parse::<u64>
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// pull status string
     #[clap(long, short, group = "command")]
@@ -486,14 +486,15 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
 
     match subargs.slot {
         None => humility::msg!("Using existing slot settings"),
         s @ (Some(0) | Some(1)) => {
             let s = s.unwrap();
             humility::msg!("Setting slot to {s}");
-            let out = hiffy_call(
+            hiffy_call::<()>(
                 hubris,
                 core,
                 &mut context,
@@ -502,9 +503,6 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
                 None,
                 None,
             )?;
-            if let Err(e) = out {
-                bail!("set_dev failed: {e}");
-            }
         }
         _ => bail!("Bad slot setting"),
     }
@@ -1027,7 +1025,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
             1 => "Flash1",
             _ => bail!("dev_select must be 0 or 1"),
         };
-        let out = hiffy_call(
+        hiffy_call::<()>(
             hubris,
             core,
             &mut context,
@@ -1036,11 +1034,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
             None,
             None,
         )?;
-        if let Err(e) = out {
-            bail!("write_persistent_data failed: {e}");
-        } else {
-            humility::msg!("write_persistent_data succeeded");
-        }
+        humility::msg!("write_persistent_data succeeded");
         return Ok(());
     } else {
         bail!("expected an operation");

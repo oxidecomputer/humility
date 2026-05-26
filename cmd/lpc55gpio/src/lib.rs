@@ -119,9 +119,9 @@ struct GpioArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>
+        value_parser = parse_int::parse::<u64>
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// toggle specified pins
     #[clap(
@@ -167,7 +167,8 @@ fn gpio(context: &mut ExecutionContext) -> Result<()> {
     let subargs = GpioArgs::try_parse_from(&context.cli.cmd)?;
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
 
     let gpio_toggle = context.get_function("GpioToggle", 1)?;
     let gpio_set = context.get_function("GpioSet", 1)?;

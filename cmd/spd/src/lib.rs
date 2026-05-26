@@ -127,9 +127,9 @@ struct SpdArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>,
+        value_parser = parse_int::parse::<u64>,
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// verbose output (including raw SPD data)
     #[clap(long, short)]
@@ -372,14 +372,15 @@ fn dump_ddr4_over_i2c(
     subargs: &SpdArgs,
 ) -> Result<()> {
     // Warn the user that we probably can't talk to DDR4s on non-Gimlet hardware
-    if !hubris.manifest.target.as_ref().is_some_and(|t| t.contains("gimlet")) {
+    if !hubris.manifest.target.contains("gimlet") {
         humility::warn!(
             "trying to talk to DDR4 SPDs on an invalid target `{}`",
-            hubris.manifest.target.as_deref().unwrap_or("<unknown>")
+            hubris.manifest.target,
         );
     };
 
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
 
     let i2c_read = context.get_function("I2cRead", 7)?;
     let i2c_write = context.get_function("I2cWrite", 8)?;

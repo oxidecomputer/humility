@@ -9,6 +9,7 @@ use humility::{core::Core, hubris::HubrisArchive};
 use humility_hiffy::{HiffyContext, IpcError};
 use humility_idol::{self as idol, HubrisIdol};
 use humpty::{DumpAreaHeader, DumpSegment, DumpSegmentHeader};
+use std::time::Duration;
 
 /// Represents a dump agent that communicates through the `hiffy` task
 ///
@@ -25,7 +26,7 @@ impl<'a> HiffyDumpAgent<'a> {
     pub fn new(
         hubris: &'a HubrisArchive,
         core: &'a mut dyn Core,
-        timeout: u32,
+        timeout: Duration,
     ) -> Result<Self> {
         let context = HiffyContext::new(hubris, core, timeout)?;
 

@@ -65,7 +65,7 @@
 //! ```
 //!
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, bail};
 use clap::{ArgGroup, CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
@@ -93,9 +93,9 @@ struct DumpArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 20000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>,
+        value_parser = parse_int::parse::<u64>,
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// show dump agent status
     #[clap(long, conflicts_with_all = &["simulation", "task", "extract_all"])]
@@ -325,16 +325,13 @@ fn get_dump_agent<'a>(
     {
         humility::msg!("using UDP dump agent");
 
-        let imageid = &hubris
-            .imageid
-            .as_ref()
-            .ok_or_else(|| anyhow!("missing image ID"))?
-            .1;
+        let imageid = hubris.image_id();
 
         Ok(Box::new(UdpDumpAgent::new(core, imageid)?))
     } else {
         humility::msg!("using hiffy dump agent");
-        Ok(Box::new(HiffyDumpAgent::new(hubris, core, subargs.timeout)?))
+        let timeout = std::time::Duration::from_millis(subargs.timeout);
+        Ok(Box::new(HiffyDumpAgent::new(hubris, core, timeout)?))
     }
 }
 

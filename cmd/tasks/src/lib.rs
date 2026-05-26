@@ -565,18 +565,13 @@ fn stack_guess<'a>(
     let reflect::Value::Struct(s) = &task_value else {
         bail!("invalid type for task_value")
     };
-    let Some(reflect::Value::Struct(save)) = s.get("save") else {
-        bail!("invalid type for save")
-    };
-    let Some(reflect::Value::Base(reflect::Base::U32(addr))) = save.get("r7")
-    else {
-        bail!("invalid type for r7")
-    };
-    let pc = core.read_word_32(*addr + 4)? & !1;
+    let save = s.field::<reflect::Struct>("save")?;
+    let addr = save.field::<u32>("r7")?;
+    let pc = core.read_word_32(addr + 4)? & !1;
 
     let mut regs = BTreeMap::new();
-    regs.insert(ARMRegister::R7, *addr);
-    regs.insert(ARMRegister::LR, *addr);
+    regs.insert(ARMRegister::R7, addr);
+    regs.insert(ARMRegister::LR, addr);
 
     // Provide a dummy stack value to pick the
     // correct memory region

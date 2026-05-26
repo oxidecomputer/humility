@@ -108,9 +108,9 @@ struct TestArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 3000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>
+        value_parser = parse_int::parse::<u64>
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// dump full report even on success
     #[clap(long, short)]
@@ -201,7 +201,8 @@ fn test(context: &mut ExecutionContext) -> Result<()> {
     writeln!(out, "==== Test archive details")?;
     writeln!(out, "{:#?}", hubris.manifest)?;
 
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
 
     let run_test = context.get_function("RunTest", 1)?;
 

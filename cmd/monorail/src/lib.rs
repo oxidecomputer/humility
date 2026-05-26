@@ -172,10 +172,10 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::*;
 use humility_cli::ExecutionContext;
-use humility_hiffy::HiffyContext;
+use humility_hiffy::{HiffyContext, HiffyError};
 use humility_idol::{HubrisIdol, IdolArgument};
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow};
 
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
@@ -188,9 +188,9 @@ struct MonorailArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>
+        value_parser = parse_int::parse::<u64>
     )]
-    timeout: u32,
+    timeout: u64,
 
     #[clap(subcommand)]
     cmd: Command,
@@ -309,7 +309,7 @@ fn monorail_read(
     humility::msg!("Reading {reg} from {addr:#x}");
 
     let op = hubris.get_idol_command("Monorail.read_vsc7448_reg")?;
-    let value = humility_hiffy::hiffy_call(
+    let value = humility_hiffy::hiffy_call::<u32>(
         hubris,
         core,
         context,
@@ -318,30 +318,16 @@ fn monorail_read(
         None,
         None,
     )?;
-    match value {
-        Ok(v) => {
-            let value = if let Value::Base(Base::U32(v)) = v {
-                v
-            } else {
-                bail!("Got bad reflected value: expected U32, got {v:?}");
-            };
-            println!("{reg} => {value:#x}");
+    println!("{reg} => {value:#x}");
 
-            // The VSC7448 is configured to return 0x88888888 if a register is
-            // read too fast.  This should never happen, because the `monorail`
-            // task configures appropriate padding bytes between setting the
-            // target register and reading it back.
-            if value == 0x88888888 {
-                log::warn!(
-                    "0x88888888 typically indicates a communication issue!"
-                );
-            }
-            pretty_print_fields(value, reg.fields(), 0);
-        }
-        Err(e) => {
-            println!("Got error: {e}");
-        }
+    // The VSC7448 is configured to return 0x88888888 if a register is
+    // read too fast.  This should never happen, because the `monorail`
+    // task configures appropriate padding bytes between setting the
+    // target register and reading it back.
+    if value == 0x88888888 {
+        log::warn!("0x88888888 typically indicates a communication issue!");
     }
+    pretty_print_fields(value, reg.fields(), 0);
     Ok(())
 }
 
@@ -358,7 +344,7 @@ fn monorail_write(
     pretty_print_fields(value, reg.fields(), 0);
 
     let op = hubris.get_idol_command("Monorail.write_vsc7448_reg")?;
-    let value = humility_hiffy::hiffy_call(
+    humility_hiffy::hiffy_call::<()>(
         hubris,
         core,
         context,
@@ -370,16 +356,6 @@ fn monorail_write(
         None,
         None,
     )?;
-    match value {
-        Ok(v) => {
-            if !matches!(v, Value::Base(Base::U0)) {
-                bail!("Got unexpected value: expected (), got {v:?}")
-            }
-        }
-        Err(e) => {
-            println!("Got error: {e}");
-        }
-    }
     Ok(())
 }
 
@@ -446,7 +422,7 @@ fn monorail_phy_read(
     let reg = parse_phy_register(&reg)?;
     println!("Reading from port {} PHY, register {}", port, reg.name);
     let op = hubris.get_idol_command("Monorail.read_phy_reg")?;
-    let value = humility_hiffy::hiffy_call(
+    let value = humility_hiffy::hiffy_call::<u16>(
         hubris,
         core,
         context,
@@ -459,19 +435,8 @@ fn monorail_phy_read(
         None,
         None,
     )?;
-    match value {
-        Ok(v) => {
-            let value = v
-                .as_base()?
-                .as_u16()
-                .ok_or_else(|| anyhow!("Could not get U16 from {:?}", v))?;
-            println!("Got result {:#x}", value);
-            pretty_print_fields(value as u32, &reg.fields, 0);
-        }
-        Err(e) => {
-            println!("Got error: {}", e);
-        }
-    }
+    println!("Got result {:#x}", value);
+    pretty_print_fields(value as u32, &reg.fields, 0);
     Ok(())
 }
 
@@ -490,7 +455,7 @@ fn monorail_phy_write(
     );
     pretty_print_fields(value as u32, &reg.fields, 0);
     let op = hubris.get_idol_command("Monorail.write_phy_reg")?;
-    let value = humility_hiffy::hiffy_call(
+    humility_hiffy::hiffy_call::<()>(
         hubris,
         core,
         context,
@@ -504,16 +469,6 @@ fn monorail_phy_write(
         None,
         None,
     )?;
-    match value {
-        Ok(v) => {
-            if !matches!(v, Value::Base(Base::U0)) {
-                bail!("Got unexpected value: expected (), got {v:?}")
-            }
-        }
-        Err(e) => {
-            println!("Got error: {e}");
-        }
-    }
     Ok(())
 }
 
@@ -645,14 +600,9 @@ fn monorail_dump(
         results
             .into_iter()
             .map(move |r| humility_hiffy::hiffy_decode(hubris, &op_read, r))
-            .collect::<Result<Vec<Result<_, _>>>>()?
+            .collect::<Result<Vec<u32>, _>>()?
     };
-    for (i, v) in results.iter().enumerate() {
-        let value = if let Ok(Value::Base(Base::U32(v))) = v {
-            v
-        } else {
-            bail!("Got bad reflected value: expected U32, got {v:?}");
-        };
+    for (i, value) in results.iter().enumerate() {
         let addr = format!("{}", start_address as usize + i * 4);
         // XXX this is inefficient
         match parse_reg_or_addr(&addr) {
@@ -724,12 +674,20 @@ fn monorail_status(
 
         let port_results = port_results
             .into_iter()
-            .map(move |r| humility_hiffy::hiffy_decode(hubris, &op_port, r))
-            .collect::<Result<Vec<Result<_, _>>>>()?;
+            .map(move |r| {
+                humility_hiffy::hiffy_decode::<humility::reflect::Struct>(
+                    hubris, &op_port, r,
+                )
+            })
+            .collect::<Vec<_>>();
         let phy_results = phy_results
             .into_iter()
-            .map(move |r| humility_hiffy::hiffy_decode(hubris, &op_phy, r))
-            .collect::<Result<Vec<Result<_, _>>>>()?;
+            .map(move |r| {
+                humility_hiffy::hiffy_decode::<humility::reflect::Struct>(
+                    hubris, &op_phy, r,
+                )
+            })
+            .collect::<Vec<_>>();
 
         // Decode the port and phy status values into reflect::Value
         port_results.into_iter().zip(phy_results).collect::<Vec<_>>()
@@ -754,19 +712,10 @@ fn monorail_status(
         v => panic!("Expected enum, got {:?}", v),
     };
     // Extracts a device name from a reflected value, e.g. "DEV1G_0"
-    let decode_dev = |value: &Value| match value {
-        Value::Tuple(dev) => {
-            let d = match &dev[0] {
-                Value::Enum(d) => d.disc(),
-                d => panic!("Could not get enum from {:?}", d),
-            };
-            let n = match &dev[1] {
-                Value::Base(Base::U8(n)) => n,
-                d => panic!("Could not get U8 from {:?}", d),
-            };
-            format!("{}_{}", d.to_uppercase(), n)
-        }
-        dev => panic!("Expected tuple, got {:?}", dev),
+    let decode_dev = |dev: &Tuple| -> Result<_> {
+        let d = dev.field::<Enum>(0)?;
+        let n = dev.field::<u8>(1)?;
+        Ok(format!("{}_{}", d.disc().to_uppercase(), n))
     };
 
     let fmt_link = |v: &Value| match v {
@@ -794,23 +743,20 @@ fn monorail_status(
         }
         print!(" {:<3} | ", port);
         match port_value {
-            Ok(v) => {
-                let s = v.as_struct()?;
+            Ok(s) => {
                 assert_eq!(s.name(), "PortStatus");
-                let (dev, serdes, mode, speed) = match &s["cfg"] {
-                    Value::Struct(cfg) => {
-                        assert_eq!(cfg.name(), "PortConfig");
-                        let dev = decode_dev(&cfg["dev"]);
-                        let serdes = decode_dev(&cfg["serdes"]);
-                        let (mode, speed) = decode_mode(&cfg["mode"]);
-                        (
-                            dev.replace("DEV", ""),
-                            serdes.replace("SERDES", ""),
-                            mode,
-                            speed,
-                        )
-                    }
-                    v => panic!("Expected Struct, got {:?}", v),
+                let (dev, serdes, mode, speed) = {
+                    let cfg = s.field::<Struct>("cfg")?;
+                    assert_eq!(cfg.name(), "PortConfig");
+                    let dev = decode_dev(&cfg.field("dev")?)?;
+                    let serdes = decode_dev(&cfg.field("serdes")?)?;
+                    let (mode, speed) = decode_mode(&cfg["mode"]);
+                    (
+                        dev.replace("DEV", ""),
+                        serdes.replace("SERDES", ""),
+                        mode,
+                        speed,
+                    )
                 };
                 let fmt_mode = match mode.as_str() {
                     "SGMII" => mode.cyan(),
@@ -829,7 +775,9 @@ fn monorail_status(
                 )
             }
             Err(e) => {
-                if e == "UnconfiguredPort" {
+                if let HiffyError::Hiffy(e) = &e
+                    && e == "UnconfiguredPort"
+                {
                     print!(
                         "{}",
                         "--      --     --      --      --  ".dimmed()
@@ -841,22 +789,19 @@ fn monorail_status(
         }
         print!(" | ");
         match phy_value {
-            Ok(v) => {
-                let s = v.as_struct()?;
+            Ok(s) => {
                 assert_eq!(s.name(), "PhyStatus");
-                let phy_ty = match &s["ty"] {
-                    Value::Enum(e) => e.disc().to_uppercase(),
-                    v => panic!("Expected struct, got {:?}", v),
-                };
                 println!(
                     "{:<6}  {:<8}  {:<10}",
-                    phy_ty,
+                    s.field::<Enum>("ty")?.disc().to_uppercase(),
                     fmt_link(&s["mac_link_up"]),
                     fmt_link(&s["media_link_up"]),
                 )
             }
             Err(e) => {
-                if e == "UnconfiguredPort" || e == "NoPhy" {
+                if let HiffyError::Hiffy(e) = &e
+                    && (e == "UnconfiguredPort" || e == "NoPhy")
+                {
                     println!("{}", "--       --         --".dimmed());
                 } else {
                     println!("Got unexpected error {e}");
@@ -878,7 +823,7 @@ fn monorail_mac_table(
     // We need to make two HIF calls:
     // - Read the number of entries in the MAC table
     // - Loop over the table that many times, reading entries
-    let value = humility_hiffy::hiffy_call(
+    let mac_count = humility_hiffy::hiffy_call::<u32>(
         hubris,
         core,
         context,
@@ -887,18 +832,6 @@ fn monorail_mac_table(
         None,
         None,
     )?;
-    let mac_count = match value {
-        Ok(v) => {
-            if let Value::Base(Base::U32(v)) = v {
-                v
-            } else {
-                bail!("Got bad reflected value: expected U32, got {:?}", v);
-            }
-        }
-        Err(e) => {
-            bail!("Got error: {e}");
-        }
-    };
 
     println!("Reading {mac_count} MAC addresses...");
 
@@ -931,19 +864,19 @@ fn monorail_mac_table(
     let results = context.run(core, ops.as_slice(), None)?;
     let results = results
         .into_iter()
-        .map(move |r| humility_hiffy::hiffy_decode(hubris, &op, r))
-        .collect::<Result<Vec<Result<_, _>>>>()?;
+        .map(move |r| {
+            humility_hiffy::hiffy_decode::<humility::reflect::Struct>(
+                hubris, &op, r,
+            )
+        })
+        .collect::<Vec<Result<_, _>>>();
 
     let mut mac_table: BTreeMap<u16, Vec<[u8; 6]>> = BTreeMap::new();
     for r in results {
-        if let Ok(r) = r {
-            let s = r.as_struct()?;
+        if let Ok(s) = r {
             assert_eq!(s.name(), "MacTableEntry");
-            let port = s["port"].as_base().unwrap().as_u16().unwrap();
-            let mut mac = [0; 6];
-            for (i, m) in s["mac"].as_array().unwrap().iter().enumerate() {
-                mac[i] = m.as_base().unwrap().as_u8().unwrap()
-            }
+            let port = s.field::<u16>("port").unwrap();
+            let mac = s.field::<[u8; 6]>("mac").unwrap();
             if mac == [0; 6] && port == 0xFFFF {
                 println!("Skipping empty MAC address");
             } else {
@@ -983,7 +916,7 @@ fn monorail_reset_counters(
     port: u8,
 ) -> Result<()> {
     let op = hubris.get_idol_command("Monorail.reset_port_counters")?;
-    let value = humility_hiffy::hiffy_call(
+    humility_hiffy::hiffy_call::<()>(
         hubris,
         core,
         context,
@@ -992,7 +925,7 @@ fn monorail_reset_counters(
         None,
         None,
     )?;
-    value.map(|_| ()).map_err(|err| anyhow!("Got error {err}"))
+    Ok(())
 }
 
 fn monorail_counters(
@@ -1002,7 +935,7 @@ fn monorail_counters(
     port: u8,
 ) -> Result<()> {
     let op = hubris.get_idol_command("Monorail.get_port_counters")?;
-    let value = humility_hiffy::hiffy_call(
+    let s = humility_hiffy::hiffy_call::<humility::reflect::Struct>(
         hubris,
         core,
         context,
@@ -1011,44 +944,24 @@ fn monorail_counters(
         None,
         None,
     )?;
-    let decode_count = |s: &Value| match s {
-        Value::Struct(s) => {
-            let mc = match &s["multicast"] {
-                Value::Base(Base::U32(v)) => *v,
-                v => panic!("Expected U32, got {:?}", v),
-            };
-            let uc = match &s["unicast"] {
-                Value::Base(Base::U32(v)) => *v,
-                v => panic!("Expected U32, got {:?}", v),
-            };
-            let bc = match &s["broadcast"] {
-                Value::Base(Base::U32(v)) => *v,
-                v => panic!("Expected U32, got {:?}", v),
-            };
-            (mc, uc, bc)
-        }
-        s => panic!("Expected Struct, got {:?}", s),
+    let decode_count = |s: &humility::reflect::Value| -> (u32, u32, u32) {
+        let mc = s.field("multicast").unwrap();
+        let uc = s.field("unicast").unwrap();
+        let bc = s.field("broadcast").unwrap();
+        (mc, uc, bc)
     };
 
-    match value {
-        Ok(v) => {
-            let s = v.as_struct()?;
-            let (rx_mc, rx_uc, rx_bc) = decode_count(&s["rx"]);
-            let (tx_mc, tx_uc, tx_bc) = decode_count(&s["tx"]);
-            println!("{} (port {port})", "Packet counters:".bold());
-            println!("  Receive:");
-            println!("    Unicast:   {rx_uc}");
-            println!("    Multicast: {rx_mc}");
-            println!("    Broadcast:  {rx_bc}");
-            println!("  Transmit:");
-            println!("    Unicast:   {tx_uc}");
-            println!("    Multicast: {tx_mc}");
-            println!("    Broadcast:  {tx_bc}");
-        }
-        Err(e) => {
-            println!("Got error: {e}");
-        }
-    }
+    let (rx_mc, rx_uc, rx_bc) = decode_count(&s["rx"]);
+    let (tx_mc, tx_uc, tx_bc) = decode_count(&s["tx"]);
+    println!("{} (port {port})", "Packet counters:".bold());
+    println!("  Receive:");
+    println!("    Unicast:   {rx_uc}");
+    println!("    Multicast: {rx_mc}");
+    println!("    Broadcast:  {rx_bc}");
+    println!("  Transmit:");
+    println!("    Unicast:   {tx_uc}");
+    println!("    Multicast: {tx_mc}");
+    println!("    Broadcast:  {tx_bc}");
     Ok(())
 }
 
@@ -1088,7 +1001,8 @@ fn monorail(context: &mut ExecutionContext) -> Result<()> {
 
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
     match subargs.cmd {
         Command::Info { .. } => panic!("Called monorail with info subcommand"),
         Command::Status { ports } => {

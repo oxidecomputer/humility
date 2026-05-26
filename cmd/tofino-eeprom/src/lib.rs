@@ -29,9 +29,9 @@ struct EepromArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 15000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>
+        value_parser = parse_int::parse::<u64>
     )]
-    timeout: u32,
+    timeout: u64,
 
     #[clap(subcommand)]
     cmd: EepromCommand,
@@ -65,8 +65,9 @@ impl<'a> EepromHandler<'a> {
     pub fn new(
         hubris: &'a HubrisArchive,
         core: &'a mut dyn Core,
-        hiffy_timeout: u32,
+        hiffy_timeout: u64,
     ) -> Result<Self> {
+        let hiffy_timeout = std::time::Duration::from_millis(hiffy_timeout);
         let context = HiffyContext::new(hubris, core, hiffy_timeout)?;
         Ok(Self { hubris, core, context })
     }
@@ -85,7 +86,7 @@ impl<'a> EepromHandler<'a> {
         bar.set_length(out.len() as u64);
         for (i, chunk) in out.chunks_mut(READ_CHUNK_SIZE).enumerate() {
             let offset = i * READ_CHUNK_SIZE;
-            let value = humility_hiffy::hiffy_call(
+            humility_hiffy::hiffy_call::<()>(
                 self.hubris,
                 self.core,
                 &mut self.context,
@@ -94,9 +95,6 @@ impl<'a> EepromHandler<'a> {
                 None,
                 Some(chunk),
             )?;
-            if let Err(e) = value {
-                bail!("Got Hubris error: {:?}", e);
-            }
             bar.set_position(offset as u64);
         }
         bar.finish_and_clear();
@@ -123,7 +121,7 @@ impl<'a> EepromHandler<'a> {
         bar.set_length(data.len() as u64);
         for (i, chunk) in data.chunks(WRITE_CHUNK_SIZE).enumerate() {
             let offset = i * WRITE_CHUNK_SIZE;
-            let value = humility_hiffy::hiffy_call(
+            humility_hiffy::hiffy_call::<()>(
                 self.hubris,
                 self.core,
                 &mut self.context,
@@ -132,9 +130,6 @@ impl<'a> EepromHandler<'a> {
                 Some(chunk),
                 None,
             )?;
-            if let Err(e) = value {
-                bail!("Got Hubris error: {:?}", e);
-            }
             bar.set_position(offset as u64);
         }
         bar.set_position(data.len() as u64);

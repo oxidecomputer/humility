@@ -100,7 +100,7 @@
 //! # etc...
 //! ```
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow};
 use chrono::DateTime;
 use clap::{CommandFactory, Parser};
 
@@ -184,9 +184,9 @@ fn read_qualified_state_buf(
         return Ok(None);
     };
 
-    let as_static_cell: doppel::ClaimOnceCell =
+    let as_static_cell: doppel::ClaimOnceCell<HostStateBuf> =
         reflect::read_variable(hubris, core, var)?;
-    Ok(Some(HostStateBuf::from_value(&as_static_cell.cell.value)?))
+    Ok(Some(as_static_cell.cell.value))
 }
 
 fn print_escaped_ascii(mut bytes: &[u8]) {
@@ -334,15 +334,11 @@ fn print_panic(d: Vec<u8>) -> Result<()> {
 
 /// Print a warning message if the archive is not for a `cosmo` board
 fn check_post_code_target(hubris: &HubrisArchive) {
-    if !hubris.manifest.board.as_ref().is_some_and(|b| b.contains("cosmo")) {
+    if !hubris.manifest.board.contains("cosmo") {
         humility::warn!(
-            "POST code buffer is only present on 'cosmo' hardware{}; \
-             hiffy may fail and time out",
-            if let Some(board) = &hubris.manifest.board {
-                format!(" but this is a '{board}'")
-            } else {
-                String::new()
-            }
+            "POST code buffer is only present on 'cosmo' hardware \
+             but this is a '{}'; hiffy may fail and time out",
+            hubris.manifest.board,
         )
     }
 }
@@ -355,9 +351,13 @@ fn host_post_codes(
     check_post_code_target(hubris);
     use hif::*;
 
-    let mut context = HiffyContext::new(hubris, core, 5000)?;
+    let mut context = HiffyContext::new(
+        hubris,
+        core,
+        std::time::Duration::from_millis(5000),
+    )?;
     let op = hubris.get_idol_command("Sequencer.post_code_buffer_len")?;
-    let value = humility_hiffy::hiffy_call(
+    let count = humility_hiffy::hiffy_call::<u32>(
         hubris,
         core,
         &mut context,
@@ -366,18 +366,9 @@ fn host_post_codes(
         None,
         None,
     )?;
-    let Ok(reflect::Value::Base(reflect::Base::U32(count))) = value else {
-        bail!(
-            "Got bad value from post_code_buffer_len: \
-             expected U32, got {value:?}"
-        );
-    };
 
     let op = hubris.get_idol_command("Sequencer.get_post_code")?;
     let handle_value = |v| {
-        let Ok(reflect::Value::Base(reflect::Base::U32(v))) = v else {
-            bail!("Got bad value from get_post_code: expected U32, got {v:?}");
-        };
         if raw {
             println!("{v:08x}");
         } else {
@@ -385,7 +376,6 @@ fn host_post_codes(
             let detail = decoded.lines().join("\n");
             println!("{detail}");
         }
-        Ok(())
     };
 
     let send = context.get_function("Send", 4)?;
@@ -428,8 +418,8 @@ fn host_post_codes(
         ops.push(Op::Done); // Finish
 
         for r in context.run(core, ops.as_slice(), None)? {
-            let v = humility_hiffy::hiffy_decode(hubris, &op, r)?;
-            handle_value(v)?;
+            let v = humility_hiffy::hiffy_decode::<u32>(hubris, &op, r)?;
+            handle_value(v);
         }
     }
     Ok(())
@@ -442,9 +432,13 @@ fn host_last_post_code(
 ) -> Result<()> {
     check_post_code_target(hubris);
 
-    let mut context = HiffyContext::new(hubris, core, 5000)?;
+    let mut context = HiffyContext::new(
+        hubris,
+        core,
+        std::time::Duration::from_millis(5000),
+    )?;
     let op = hubris.get_idol_command("Sequencer.last_post_code")?;
-    let value = humility_hiffy::hiffy_call(
+    let v = humility_hiffy::hiffy_call::<u32>(
         hubris,
         core,
         &mut context,
@@ -453,9 +447,6 @@ fn host_last_post_code(
         None,
         None,
     )?;
-    let Ok(reflect::Value::Base(reflect::Base::U32(v))) = value else {
-        bail!("Got bad value from last_post_code: expected U32, got {value:?}");
-    };
     if raw {
         println!("{v:08x}");
     } else {

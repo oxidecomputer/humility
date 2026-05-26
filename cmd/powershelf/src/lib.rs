@@ -29,9 +29,9 @@ struct PowershelfArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>
+        value_parser = parse_int::parse::<u64>
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// index of the power shelf to inspect
     #[clap(long, default_value_t = 0)]
@@ -136,7 +136,8 @@ fn powershelf_run(context: &mut ExecutionContext) -> Result<()> {
 
     let operation = lookup_operation_enum(hubris)?;
 
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
     let mut ops = vec![];
 
     let idol_cmd = hubris
@@ -163,7 +164,15 @@ fn powershelf_run(context: &mut ExecutionContext) -> Result<()> {
     let results = context.run(core, ops.as_slice(), None)?;
 
     for (ndx, variant) in operation.variants.iter().enumerate() {
-        let result = hiffy_decode(hubris, &idol_cmd, results[ndx].clone())?;
+        let result = match hiffy_decode::<humility::reflect::Value>(
+            hubris,
+            &idol_cmd,
+            results[ndx].clone(),
+        ) {
+            Ok(s) => Ok(s),
+            Err(HiffyError::Hiffy(s)) => Err(s),
+            Err(HiffyError::Other(e)) => return Err(e),
+        };
 
         println!(
             "{:<20} => {}",

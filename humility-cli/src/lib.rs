@@ -4,12 +4,12 @@
 
 pub mod env;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{ArgGroup, ArgMatches, Parser, parser::ValueSource};
 use env::Environment;
 use humility::{
     core::Core,
-    hubris::{HubrisArchive, HubrisArchiveDoneness, HubrisValidate},
+    hubris::{HubrisArchive, HubrisValidate},
     msg, net, warn,
 };
 use std::time::Duration;
@@ -71,7 +71,7 @@ pub struct Cli {
     /// HUMILITY_IP environment variable. Run "humility doc" for more
     /// information on running Humility over a network.
     #[clap(long, short, group = "hubris")]
-    pub ip: Option<net::ScopedV6Addr>,
+    pub ip: Option<net::ScopedV6AddrResult>,
 
     /// Hubris environment file. Thie may also be set via the
     /// HUMILITY_ENVIRONMENT environment variable. Run "humility doc" for
@@ -121,80 +121,46 @@ pub struct Cli {
 }
 
 impl Cli {
-    /// Extracts and returns the probe serial name
+    /// Loads an archive based on CLI arguments
     ///
-    /// We can get the serial name from two different places:
-    /// - If the global `--probe` argument is of the form `vid:pid:serial`, then we
-    ///   can extract the serial name.  This is also the case if we're using an
-    ///   environment file, which populates `args.probe` automatically.
-    /// - If the `--serial` argument is given in this command's subarguments,
-    ///   then we use it directly.
+    /// If `--archive` is specified, then that archive is loaded.
     ///
-    /// This function checks both sources, returns an error if they conflict, and
-    /// returns the (optional) serial name otherwise.
-    pub fn get_probe_serial(
-        &self,
-        subargs_serial: Option<&str>,
-    ) -> Result<Option<String>> {
-        match &self.probe {
-            Some(probe) => {
-                let re = regex::Regex::new(
-                    r"^([[:xdigit:]]+):([[:xdigit:]]+):([[:xdigit:]]+)$",
-                )
-                .unwrap();
-                if let Some(cap) = re.captures(probe) {
-                    if subargs_serial.is_some() {
-                        if self.target.is_some() {
-                            bail!(
-                                "Cannot specify probe serial number with both \
-                                 environment and `--serial`"
-                            );
-                        } else {
-                            bail!(
-                                "Cannot specify probe serial number with both \
-                                 `--probe` and `--serial`"
-                            );
-                        }
-                    }
-                    Ok(Some(cap.get(3).unwrap().as_str().to_string()))
-                } else {
-                    bail!(
-                        "`--probe` argument must be of the form
-                         `vid:pid:serial`, not {probe}",
-                    );
-                }
-            }
-            None => Ok(subargs_serial.map(|s| s.to_owned())),
+    /// If `--dump` is specified, then the dump is loaded and the archive is
+    /// extracted from the dump.
+    ///
+    /// Otherwise, returns `Ok(None)`
+    pub fn try_archive(&self) -> Result<Option<HubrisArchive>> {
+        if let Some(archive) = &self.archive {
+            let data = std::fs::read(archive)?;
+            let raw_archive = hubtools::RawHubrisArchive::from_vec(data)?;
+            HubrisArchive::load(raw_archive, None).map(Some)
+        } else if let Some(dump) = &self.dump {
+            let (raw_archive, dump_task) = HubrisArchive::load_dump(dump)?;
+            HubrisArchive::load(raw_archive, dump_task).map(Some)
+        } else {
+            Ok(None)
         }
     }
 
-    /// Loads an archive based on CLI arguments
+    /// Tries to load a raw archive based on CLI arguments
     ///
-    /// If `--archive` is specified, then the archive is loaded (and cooked to
-    /// the desired doneness).
+    /// If `--archive` is specified, then that archive is loaded.
     ///
     /// If `--dump` is specified, then the dump is loaded and the archive is
-    /// extracted from the dump (then cooked to the desired doneness).
+    /// extracted from the dump.
     ///
-    /// If neither is specified, then a default archive is returned, which
-    /// returns `false` from [`HubrisArchive::loaded`].
-    // TODO(matt): this is terrible and I want to make it go away, but it won't
-    // happen quite yet.
-    fn load_archive_with_doneness(
-        &self,
-        doneness: HubrisArchiveDoneness,
-    ) -> Result<HubrisArchive> {
-        let mut hubris = HubrisArchive::new();
+    /// Otherwise, returns `Ok(None)`
+    fn try_raw_archive(&self) -> Result<Option<hubtools::RawHubrisArchive>> {
         if let Some(archive) = &self.archive {
-            hubris.load(archive, doneness).with_context(|| {
-                format!("failed to load archive \"{}\"", archive)
-            })?;
+            let data = std::fs::read(archive)?;
+            let raw_archive = hubtools::RawHubrisArchive::from_vec(data)?;
+            Ok(Some(raw_archive))
         } else if let Some(dump) = &self.dump {
-            hubris
-                .load_dump(dump, doneness)
-                .with_context(|| format!("failed to load dump \"{}\"", dump))?;
+            let (raw_archive, _) = HubrisArchive::load_dump(dump)?;
+            Ok(Some(raw_archive))
+        } else {
+            Ok(None)
         }
-        Ok(hubris)
     }
 
     /// Attaches to a live core
@@ -213,7 +179,7 @@ impl Cli {
                 bail!("cannot attach over net without Hubris archive");
             };
             let timeout = Duration::from_millis(self.timeout as u64);
-            humility_net_core::attach_net(*ip, hubris, timeout)
+            humility_net_core::attach_net(ip.0.clone()?, hubris, timeout)
         } else {
             self.attach_probe(hubris)
         }?;
@@ -291,7 +257,7 @@ impl Cli {
                 bail!("cannot connect over the network without archive");
             };
             let timeout = Duration::from_millis(self.timeout as u64);
-            humility_net_core::attach_net(*ip, hubris, timeout)?
+            humility_net_core::attach_net(ip.0.clone()?, hubris, timeout)?
         } else {
             self.attach_probe(hubris)?
         };
@@ -345,23 +311,13 @@ impl Cli {
     ///
     /// If loading the archive fails, then an error is returned
     pub fn archive(&self) -> Result<HubrisArchive> {
-        let a = self.load_archive_with_doneness(HubrisArchiveDoneness::Cook)?;
-        if !a.loaded() {
+        self.try_archive()?.ok_or_else(|| {
             if self.environment.is_some() {
-                bail!("must provide a Hubris archive, dump, or name");
+                anyhow!("must provide a Hubris archive, dump, or name")
             } else {
-                bail!("must provide a Hubris archive or dump");
+                anyhow!("must provide a Hubris archive or dump")
             }
-        }
-        Ok(a)
-    }
-
-    /// Tries to load an archive
-    ///
-    /// Returns `Ok(None)` if no archive was specified at the CLI.
-    pub fn try_archive(&self) -> Result<Option<HubrisArchive>> {
-        let a = self.load_archive_with_doneness(HubrisArchiveDoneness::Cook)?;
-        if !a.loaded() { Ok(None) } else { Ok(Some(a)) }
+        })
     }
 
     /// Returns a raw archive built from the context's [`Cli`] data
@@ -369,14 +325,14 @@ impl Cli {
     /// The raw archive is equivalent to the bytes of a ZIP file
     ///
     /// If loading the archive fails, then an error is returned
-    pub fn raw_archive(&self) -> Result<Vec<u8>> {
-        let a = self.load_archive_with_doneness(HubrisArchiveDoneness::Raw)?;
-        let out = a.take_raw_archive();
-        if out.is_empty() {
-            bail!("no archive available");
-        } else {
-            Ok(out)
-        }
+    pub fn raw_archive(&self) -> Result<hubtools::RawHubrisArchive> {
+        self.try_raw_archive()?.ok_or_else(|| {
+            if self.environment.is_some() {
+                anyhow!("must provide a Hubris archive, dump, or name")
+            } else {
+                anyhow!("must provide a Hubris archive or dump")
+            }
+        })
     }
 }
 

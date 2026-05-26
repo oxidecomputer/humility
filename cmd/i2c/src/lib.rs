@@ -113,9 +113,9 @@ pub struct I2cArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>,
+        value_parser = parse_int::parse::<u64>,
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// scan a controller for devices (by performing a raw read) or a device
     /// for registers (by doing a write followed by a read)
@@ -440,7 +440,8 @@ fn i2c(context: &mut ExecutionContext) -> Result<()> {
     }
 
     let core = &mut *context.cli.attach_live_booted(hubris)?;
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
 
     let (fname, args) = if subargs.flash.is_some() {
         ("I2cBulkWrite", 8)
