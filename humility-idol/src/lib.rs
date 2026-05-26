@@ -23,7 +23,48 @@ pub struct IdolOperation<'a> {
     pub code: u16,
     pub args: Option<&'a HubrisStruct>,
     pub ok: HubrisGoff,
-    pub error: IdolError<'a>,
+    pub error: IdolErrorType<'a>,
+}
+
+/// Error returned from [`IdolOperation::decode`]
+///
+/// This error is either an error reported by Idol ([`IdolError`]) or an error
+/// that occured in the process of decoding ([`IdolDecodeFailed`])
+#[derive(Debug, thiserror::Error)]
+pub enum IdolDecodeError {
+    /// Error reported from Idol
+    #[error(transparent)]
+    Idol(#[from] IdolError),
+
+    /// Decoding the result failed in Humility
+    #[error(transparent)]
+    Failed(#[from] IdolDecodeFailed),
+}
+
+/// Idol decode errors happening outside of Idol
+#[derive(Debug, thiserror::Error)]
+pub enum IdolDecodeFailed {
+    #[error("failed to load zerocopy value")]
+    BytecastFailed(#[source] anyhow::Error),
+    #[error("failed to deserialize value")]
+    DeserializeValueFailed(#[source] anyhow::Error),
+    #[error("failed to load value with reflection")]
+    LoadFailed(#[source] anyhow::Error),
+    #[error("operation has no error type, but decode was called with an error")]
+    NoErrorType,
+}
+
+/// Errors reported by Idol
+#[derive(Debug, thiserror::Error)]
+pub enum IdolError {
+    #[error("<server died; its new ID is {0}>")]
+    ServerDied(u32),
+    #[error("<complex error: {0}>")]
+    ComplexError(String),
+    #[error("<unknown variant: {0}>")]
+    UnknownErrorVariant(u32),
+    #[error("{0}")]
+    Named(String),
 }
 
 #[derive(Debug)]
@@ -42,7 +83,7 @@ where
 }
 
 #[derive(Debug)]
-pub enum IdolError<'a> {
+pub enum IdolErrorType<'a> {
     CLike(&'a HubrisEnum),
     Complex(&'a HubrisEnum),
     None,
@@ -206,7 +247,7 @@ impl<'a> IdolOperation<'a> {
     pub fn strerror(&self, error: impl Into<IpcError>) -> String {
         match error.into() {
             IpcError::Error(code) => {
-                let variant = if let IdolError::CLike(error) = self.error {
+                let variant = if let IdolErrorType::CLike(error) = self.error {
                     // TODO: assumes discriminant is a u8. Since this is using Hiffy
                     // call results instead of looking at a Rust value in memory, it's
                     // not clear from context what changes would be required to fix
@@ -239,7 +280,7 @@ impl<'a> IdolOperation<'a> {
             ::idol::syntax::Encoding::Ssmarshal
             | ::idol::syntax::Encoding::Hubpack => {
                 let ok = self.hubris.hubpack_serialized_maxsize(self.ok)?;
-                if let IdolError::Complex(e) = self.error {
+                if let IdolErrorType::Complex(e) = self.error {
                     ok.max(self.hubris.hubpack_serialized_maxsize(e.goff)?)
                 } else {
                     ok
@@ -247,6 +288,66 @@ impl<'a> IdolOperation<'a> {
             }
         };
         Ok(reply_size)
+    }
+
+    /// Decodes a value returned from calling the given Idol operation
+    pub fn decode<T: humility::reflect::Load>(
+        &self,
+        val: &Result<Vec<u8>, IpcError>,
+    ) -> Result<T, IdolDecodeError> {
+        match val {
+            Ok(val) => {
+                let ty = self.hubris.lookup_type(self.ok).unwrap();
+                let value = match self.operation.encoding {
+                    ::idol::syntax::Encoding::Zerocopy => {
+                        humility::reflect::load_value(self.hubris, val, ty, 0)
+                            .map_err(IdolDecodeFailed::BytecastFailed)?
+                    }
+                    ::idol::syntax::Encoding::Ssmarshal
+                    | ::idol::syntax::Encoding::Hubpack => {
+                        humility::reflect::deserialize_value(
+                            self.hubris,
+                            val,
+                            ty,
+                        )
+                        .map_err(IdolDecodeFailed::DeserializeValueFailed)?
+                        .0
+                    }
+                };
+                Ok(T::from_value(&value)
+                    .map_err(IdolDecodeFailed::DeserializeValueFailed)?)
+            }
+            Err(e) => Err(self.decode_error(*e)),
+        }
+    }
+
+    pub fn decode_error(&self, err: IpcError) -> IdolDecodeError {
+        let out = match err {
+            IpcError::Error(e) => match self.error {
+                IdolErrorType::CLike(error) => {
+                    // TODO potentially sign-extended discriminator represented
+                    // as u32 and then zero-extended to u64; won't work for
+                    // signed values. Can't use determine_variant here because
+                    // it's not laid out in memory, it's been unfolded onto the
+                    // return stack.
+                    if let Some(v) =
+                        error.lookup_variant_by_tag(Tag::from(e as u64))
+                    {
+                        IdolError::Named(v.name.to_string())
+                    } else {
+                        IdolError::UnknownErrorVariant(e)
+                    }
+                }
+                IdolErrorType::Complex(error) => {
+                    IdolError::ComplexError(error.name.to_string())
+                }
+                IdolErrorType::None => {
+                    return IdolDecodeFailed::NoErrorType.into();
+                }
+            },
+            IpcError::ServerDied(c) => IdolError::ServerDied(c),
+        };
+        IdolDecodeError::Idol(out)
     }
 }
 
@@ -797,7 +898,7 @@ pub fn lookup_reply<'a>(
     hubris: &'a HubrisArchive,
     m: &HubrisModule,
     op: &str,
-) -> Result<(HubrisGoff, IdolError<'a>)> {
+) -> Result<(HubrisGoff, IdolErrorType<'a>)> {
     let iface = m.iface.as_ref().unwrap();
     let reply = &iface
         .ops
@@ -854,19 +955,19 @@ pub fn lookup_reply<'a>(
                             || anyhow!("failed to find error type {reply:?}"),
                         )?;
 
-                        IdolError::CLike(t)
+                        IdolErrorType::CLike(t)
                     }
-                    ::idol::syntax::Error::ServerDeath => IdolError::None,
+                    ::idol::syntax::Error::ServerDeath => IdolErrorType::None,
                     ::idol::syntax::Error::Complex(t) => {
                         let t = m.lookup_enum_byname(hubris, t)?.ok_or_else(
                             || anyhow!("failed to find error type {reply:?}"),
                         )?;
-                        IdolError::Complex(t)
+                        IdolErrorType::Complex(t)
                     }
                 };
             Ok((lookup_ok(&ok.ty)?, err))
         }
-        Reply::Simple(ok) => Ok((lookup_ok(&ok.ty)?, IdolError::None)),
+        Reply::Simple(ok) => Ok((lookup_ok(&ok.ty)?, IdolErrorType::None)),
     }
 }
 

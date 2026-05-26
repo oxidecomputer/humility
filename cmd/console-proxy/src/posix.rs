@@ -48,7 +48,6 @@ impl<'a> UartConsoleHandler<'a> {
         let op = self.hubris.get_idol_command("ControlPlaneAgent.uart_read")?;
 
         let v = humility_hiffy::hiffy_call::<u32>(
-            self.hubris,
             self.core,
             &mut self.context,
             &op,
@@ -67,7 +66,6 @@ impl<'a> UartConsoleHandler<'a> {
         let buf = &buf[..usize::min(buf.len(), HIFFY_BUF_SIZE)];
 
         let v = humility_hiffy::hiffy_call::<u32>(
-            self.hubris,
             self.core,
             &mut self.context,
             &op,
@@ -159,7 +157,6 @@ impl<'a> UartConsoleHandler<'a> {
             .get_idol_command("ControlPlaneAgent.set_humility_uart_client")?;
 
         humility_hiffy::hiffy_call::<()>(
-            self.hubris,
             self.core,
             &mut self.context,
             &op,
@@ -176,7 +173,6 @@ impl<'a> UartConsoleHandler<'a> {
             .get_idol_command("ControlPlaneAgent.get_uart_client")?;
 
         let value = humility_hiffy::hiffy_call::<humility::reflect::Enum>(
-            self.hubris,
             self.core,
             &mut self.context,
             &op,

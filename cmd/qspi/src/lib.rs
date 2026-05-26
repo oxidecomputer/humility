@@ -494,7 +494,6 @@ fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
             let s = s.unwrap();
             humility::msg!("Setting slot to {s}");
             hiffy_call::<()>(
-                hubris,
                 core,
                 &mut context,
                 &hubris.get_idol_command("HostFlash.set_dev")?,
@@ -1025,7 +1024,6 @@ fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
             _ => bail!("dev_select must be 0 or 1"),
         };
         hiffy_call::<()>(
-            hubris,
             core,
             &mut context,
             &hubris.get_idol_command("HostFlash.write_persistent_data")?,

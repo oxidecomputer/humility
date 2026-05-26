@@ -124,14 +124,14 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
         }
 
         match idol::lookup_reply(hubris, module, op.0) {
-            Ok((_, idol::IdolError::CLike(e))) => match &op.1.reply {
+            Ok((_, idol::IdolErrorType::CLike(e))) => match &op.1.reply {
                 Reply::Result { ok, .. } => {
                     println!("{}{:<27} {}", margin, "<ok>", ok.ty);
                     println!("{}{:<27} {}", margin, "<error>", e.name);
                 }
                 _ => warn!("mismatch on reply: found {op:?}"),
             },
-            Ok((_, idol::IdolError::Complex(t))) => match &op.1.reply {
+            Ok((_, idol::IdolErrorType::Complex(t))) => match &op.1.reply {
                 Reply::Result { ok, .. } => {
                     println!("{}{:<27} {}", margin, "<ok>", ok.ty);
                     println!("{}{:<27} {}", margin, "<error>", t.name);
@@ -139,7 +139,7 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
                 _ => warn!("mismatch on reply: found {op:?}"),
             },
 
-            Ok((_, idol::IdolError::None)) => match &op.1.reply {
+            Ok((_, idol::IdolErrorType::None)) => match &op.1.reply {
                 Reply::Result { ok, .. } => {
                     //
                     // This is possible if the only error is ServerDeath
@@ -312,7 +312,6 @@ fn hiffy(subargs: HiffyArgs, context: &mut ExecutionContext) -> Result<()> {
 
             (
                 match hiffy_call(
-                    hubris,
                     core,
                     &mut context,
                     &op,
@@ -328,7 +327,7 @@ fn hiffy(subargs: HiffyArgs, context: &mut ExecutionContext) -> Result<()> {
             )
         };
 
-        hiffy_print_result(hubris, &op, return_code)?;
+        hiffy_print_result(hubris, &op, &return_code)?;
         if let Some(data) = output {
             if let Some(out) = &subargs.output {
                 std::fs::write(out, &data)
