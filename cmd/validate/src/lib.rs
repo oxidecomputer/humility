@@ -98,6 +98,7 @@ pub struct ValidateArgs {
 }
 
 const REFDES_HDR: &str = "REFDES";
+const DEVICE_HDR: &str = "DEVICE";
 const NO_REFDES: &str = "-";
 
 fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
@@ -107,9 +108,12 @@ fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
         .max_refdes_len
         .max(REFDES_HDR.len())
         .max(NO_REFDES.len());
+    let device_len =
+        hubris.manifest.fmt_meta.max_device_len.max(DEVICE_HDR.len());
+
     println!(
-        "{:2} {:refdes_len$} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
-        "ID", REFDES_HDR, "C", "P", "MUX", "ADDR", "DEVICE"
+        "{:2} {:refdes_len$} {:>2} {:2} {:3} {:4} {:device_len$} DESCRIPTION",
+        "ID", REFDES_HDR, "C", "P", "MUX", "ADDR", DEVICE_HDR,
     );
 
     for (ndx, device) in hubris.manifest.i2c_devices.iter().enumerate() {
@@ -126,7 +130,7 @@ fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
         };
 
         println!(
-            "{:2} {:refdes_len$} {:2} {:2} {:3} 0x{:02x} {:13} {}",
+            "{:2} {:refdes_len$} {:2} {:2} {:3} 0x{:02x} {:device_len$} {}",
             ndx,
             device.refdes.as_deref().unwrap_or(NO_REFDES),
             device.controller,
@@ -146,12 +150,6 @@ fn validate(
 ) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
-    let refdes_len = hubris
-        .manifest
-        .fmt_meta
-        .max_refdes_len
-        .max(REFDES_HDR.len())
-        .max(NO_REFDES.len());
 
     let hargs = if subargs.bus.is_some() || subargs.controller.is_some() {
         Some(I2cArgs::parse(
@@ -212,9 +210,18 @@ fn validate(
         ..HubrisPrintFormat::default()
     };
 
+    let refdes_len = hubris
+        .manifest
+        .fmt_meta
+        .max_refdes_len
+        .max(REFDES_HDR.len())
+        .max(NO_REFDES.len());
+    let device_len =
+        hubris.manifest.fmt_meta.max_device_len.max(DEVICE_HDR.len());
+
     println!(
-        "{:2} {:refdes_len$} {:11} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
-        "ID", REFDES_HDR, "VALIDATION", "C", "P", "MUX", "ADDR", "DEVICE"
+        "{:2} {:refdes_len$} {:11} {:>2} {:2} {:3} {:4} {:device_len$} DESCRIPTION",
+        "ID", REFDES_HDR, "VALIDATION", "C", "P", "MUX", "ADDR", DEVICE_HDR,
     );
 
     let ok = hubris.lookup_enum(op.ok)?;
@@ -275,7 +282,7 @@ fn validate(
         };
 
         println!(
-            "{:2} {:refdes_len$} {:11} {:2} {:2} {:3} 0x{:02x} {:13} {}",
+            "{:2} {:refdes_len$} {:11} {:2} {:2} {:3} 0x{:02x} {:device_len$} {}",
             ndx,
             device.refdes.as_deref().unwrap_or(NO_REFDES),
             result,

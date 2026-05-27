@@ -161,7 +161,13 @@ impl HubrisManifest {
         let mut sensors = vec![];
         let mut i2c_devices = vec![];
         let mut i2c_buses = HubrisI2cBusList(vec![]);
-        let mut fmt_meta = ManifestFormatMetadata { max_refdes_len: 0 };
+        let mut fmt_meta = ManifestFormatMetadata {
+            max_refdes_len: 0,
+            max_device_len: 0,
+            max_device_name_len: 0,
+            max_sensor_kind_len: 0,
+            max_sensor_name_len: 0,
+        };
         if let Some(ref config) = config.config {
             if let Some(i2c) = config.i2c.as_ref() {
                 let cfg = HubrisManifestI2cConfig::from_config(i2c)?;
@@ -169,10 +175,26 @@ impl HubrisManifest {
                 i2c_devices = cfg.i2c_devices;
                 sensors.extend(cfg.sensors);
                 fmt_meta.max_refdes_len = cfg.max_refdes_len;
+                fmt_meta.max_device_len = cfg.max_device_len;
+                fmt_meta.max_device_name_len = cfg.max_device_name_len;
+                fmt_meta.max_sensor_name_len = cfg.max_sensor_name_len;
             }
 
             if let Some(sensor) = config.sensor.as_ref() {
-                sensors.extend(Self::load_sensor_config(sensor));
+                let (cfg_sensors, sensor_fmt_meta) =
+                    Self::load_sensor_config(sensor);
+                sensors.extend(cfg_sensors);
+                let SensorConfigFmtMeta {
+                    max_device_len,
+                    max_sensor_name_len,
+                    max_sensor_kind_len,
+                } = sensor_fmt_meta;
+                fmt_meta.max_device_len =
+                    fmt_meta.max_device_len.max(max_device_len);
+                fmt_meta.max_sensor_name_len =
+                    fmt_meta.max_sensor_name_len.max(max_sensor_name_len);
+                fmt_meta.max_sensor_kind_len =
+                    fmt_meta.max_sensor_kind_len.max(max_sensor_kind_len);
             }
             if let Some(net) = config.net.as_ref() {
                 sockets = net
@@ -215,10 +237,24 @@ impl HubrisManifest {
         })
     }
 
-    fn load_sensor_config(sensor: &HubrisConfigSensor) -> Vec<HubrisSensor> {
+    fn load_sensor_config(
+        sensor: &HubrisConfigSensor,
+    ) -> (Vec<HubrisSensor>, SensorConfigFmtMeta) {
+        let mut fmt_meta = SensorConfigFmtMeta {
+            max_device_len: 0,
+            max_sensor_name_len: 0,
+            max_sensor_kind_len: 0,
+        };
+
         let mut out = vec![];
         for device in &sensor.devices {
             for (kind, &count) in &device.sensors {
+                fmt_meta.max_device_len =
+                    fmt_meta.max_device_len.max(device.device.len());
+                fmt_meta.max_sensor_kind_len =
+                    fmt_meta.max_sensor_kind_len.max(kind.len());
+                fmt_meta.max_sensor_name_len =
+                    fmt_meta.max_sensor_name_len.max(device.name.len());
                 for i in 0..count {
                     out.push(HubrisSensor {
                         name: device.name.clone(),
@@ -235,8 +271,14 @@ impl HubrisManifest {
                 }
             }
         }
-        out
+        (out, fmt_meta)
     }
+}
+
+struct SensorConfigFmtMeta {
+    max_device_len: usize,
+    max_sensor_name_len: usize,
+    max_sensor_kind_len: usize,
 }
 
 struct HubrisManifestI2cConfig {
@@ -244,6 +286,9 @@ struct HubrisManifestI2cConfig {
     pub i2c_buses: HubrisI2cBusList,
     pub sensors: Vec<HubrisSensor>,
     max_refdes_len: usize,
+    max_device_len: usize,
+    max_device_name_len: usize,
+    max_sensor_name_len: usize,
 }
 
 impl HubrisManifestI2cConfig {
@@ -253,6 +298,9 @@ impl HubrisManifestI2cConfig {
         let mut sensors = Vec::new();
         let mut buses = HashMap::new();
         let mut max_refdes_len = 0;
+        let mut max_device_len = 0;
+        let mut max_device_name_len = 0;
+        let mut max_sensor_name_len = 0;
 
         if let Some(ref controllers) = i2c.controllers {
             for controller in controllers {
@@ -333,9 +381,11 @@ impl HubrisManifestI2cConfig {
                           i: usize,
                           ndx: usize,
                           kind: HubrisSensorKind,
-                          refdes: Option<String>|
+                          refdes: Option<String>,
+                          max_name_len: &mut usize|
          -> Result<HubrisSensor> {
             let name = sensor_name(d, i, &kind)?;
+            *max_name_len = (*max_name_len).max(name.len());
             Ok(HubrisSensor {
                 name,
                 kind,
@@ -390,6 +440,7 @@ impl HubrisManifestI2cConfig {
                             ndx,
                             HubrisSensorKind::Temperature,
                             refdes.clone(),
+                            &mut max_sensor_name_len,
                         )?);
                     }
 
@@ -400,6 +451,7 @@ impl HubrisManifestI2cConfig {
                             ndx,
                             HubrisSensorKind::Power,
                             refdes.clone(),
+                            &mut max_sensor_name_len,
                         )?);
                     }
                     for i in 0..dev_sensors.current {
@@ -409,6 +461,7 @@ impl HubrisManifestI2cConfig {
                             ndx,
                             HubrisSensorKind::Current,
                             refdes.clone(),
+                            &mut max_sensor_name_len,
                         )?);
                     }
                     for i in 0..dev_sensors.voltage {
@@ -418,6 +471,7 @@ impl HubrisManifestI2cConfig {
                             ndx,
                             HubrisSensorKind::Voltage,
                             refdes.clone(),
+                            &mut max_sensor_name_len,
                         )?);
                     }
                     for i in 0..dev_sensors.input_current {
@@ -427,6 +481,7 @@ impl HubrisManifestI2cConfig {
                             ndx,
                             HubrisSensorKind::InputCurrent,
                             refdes.clone(),
+                            &mut max_sensor_name_len,
                         )?);
                     }
                     for i in 0..dev_sensors.input_voltage {
@@ -436,6 +491,7 @@ impl HubrisManifestI2cConfig {
                             ndx,
                             HubrisSensorKind::InputVoltage,
                             refdes.clone(),
+                            &mut max_sensor_name_len,
                         )?);
                     }
 
@@ -446,8 +502,14 @@ impl HubrisManifestI2cConfig {
                             ndx,
                             HubrisSensorKind::Speed,
                             refdes.clone(),
+                            &mut max_sensor_name_len,
                         )?);
                     }
+                }
+
+                max_device_len = max_device_len.max(device.device.len());
+                if let Some(ref name) = device.name {
+                    max_device_name_len = max_device_name_len.max(name.len());
                 }
 
                 i2c_devices.push(HubrisI2cDevice {
@@ -466,7 +528,15 @@ impl HubrisManifestI2cConfig {
             }
         }
 
-        Ok(Self { i2c_devices, i2c_buses, sensors, max_refdes_len })
+        Ok(Self {
+            i2c_devices,
+            i2c_buses,
+            sensors,
+            max_refdes_len,
+            max_device_len,
+            max_device_name_len,
+            max_sensor_name_len,
+        })
     }
 }
 
@@ -573,6 +643,10 @@ pub struct HubrisManifestRev {
 #[derive(Default, Debug, Serialize)]
 pub struct ManifestFormatMetadata {
     pub max_refdes_len: usize,
+    pub max_device_len: usize,
+    pub max_device_name_len: usize,
+    pub max_sensor_name_len: usize,
+    pub max_sensor_kind_len: usize,
 }
 
 //

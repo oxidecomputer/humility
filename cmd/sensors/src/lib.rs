@@ -155,9 +155,19 @@ impl SensorSpecification<'_> {
 }
 
 fn list(hubris: &HubrisArchive, spec: &SensorSpecification) -> Result<()> {
+    const KIND_HDR: &str = "KIND";
+    const DEVICE_HDR: &str = "DEVICE";
+    const NAME_HDR: &str = "NAME";
+    let device_len =
+        hubris.manifest.fmt_meta.max_device_len.max(DEVICE_HDR.len());
+    let kind_len =
+        hubris.manifest.fmt_meta.max_sensor_kind_len.max(KIND_HDR.len());
+    let name_len =
+        hubris.manifest.fmt_meta.max_sensor_name_len.max(NAME_HDR.len());
+
     println!(
-        "{:3} {:5} {:<13} {:>2} {:>2} {:3} {:4} {:13} {:4}",
-        "ID", "HEXID", "KIND", "C", "P", "MUX", "ADDR", "DEVICE", "NAME"
+        "{:3} {:5} {:<kind_len$} {:>2} {:>2} {:3} {:4} {:device_len$} {:<name_len$}",
+        "ID", "HEXID", KIND_HDR, "C", "P", "MUX", "ADDR", DEVICE_HDR, NAME_HDR,
     );
 
     for (ndx, s) in hubris.manifest.sensors.iter().enumerate() {
@@ -176,7 +186,7 @@ fn list(hubris: &HubrisArchive, spec: &SensorSpecification) -> Result<()> {
                 };
 
                 println!(
-                    "{:3} {:#5x} {:13} {:>2} {:>2} {:>3} {:#04x} {:13} {:<1}",
+                    "{:3} {:#5x} {:kind_len$} {:>2} {:>2} {:>3} {:#04x} {:device_len$} {:<name_len$}",
                     ndx,
                     ndx,
                     s.kind.to_string(),
@@ -190,7 +200,7 @@ fn list(hubris: &HubrisArchive, spec: &SensorSpecification) -> Result<()> {
             }
             HubrisSensorDevice::Other(device, _) => {
                 println!(
-                    "{:3} {:#5x} {:7} {:>2} {:>2} {:>3} {:>4} {:13} {:<1}",
+                    "{:3} {:#5x} {:kind_len$} {:>2} {:>2} {:>3} {:>4} {:device_len$} {:<name_len$}",
                     ndx,
                     ndx,
                     s.kind.to_string(),
