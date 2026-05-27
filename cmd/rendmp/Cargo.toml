@@ -19,7 +19,6 @@ strum_macros.workspace = true
 zerocopy.workspace = true
 
 humility-cli.workspace = true
-humility-cmd.workspace = true
 humility-hiffy.workspace = true
 humility-i2c.workspace = true
 humility-idol.workspace = true

@@ -40,14 +40,13 @@
 use std::collections::BTreeMap;
 
 use anyhow::Result;
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use colored::Colorize;
 
 use humility::core::Core;
 use humility::hubris::HubrisArchive;
 use humility::reflect::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::HiffyContext;
 use humility_idol::HubrisIdol;
 
@@ -77,7 +76,7 @@ enum NetCommand {
 
 #[derive(Parser, Debug)]
 #[clap(name = "net", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct NetArgs {
+pub struct NetArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -522,9 +521,7 @@ fn net_counters_diagram(s: &Struct) -> Result<()> {
     Ok(())
 }
 
-fn net(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = NetArgs::try_parse_from(&context.cli.cmd)?;
-
+fn net(subargs: NetArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let timeout = std::time::Duration::from_millis(subargs.timeout);
@@ -541,6 +538,4 @@ fn net(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: NetArgs::command(), name: "net", run: net }
-}
+humility_cmd!(NetArgs, net);

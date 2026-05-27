@@ -102,20 +102,19 @@
 //! ```
 //!
 
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use std::str;
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use hif::*;
 
 use std::convert::TryInto;
 
 #[derive(Parser, Debug)]
 #[clap(name = "lpc55gpio", about = "GPIO pin manipulation (lpc55 variant)")]
-struct GpioArgs {
+pub struct GpioArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -163,8 +162,7 @@ struct GpioArgs {
     pins: Option<Vec<String>>,
 }
 
-fn gpio(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = GpioArgs::try_parse_from(&context.cli.cmd)?;
+fn gpio(subargs: GpioArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let timeout = std::time::Duration::from_millis(subargs.timeout);
@@ -311,6 +309,4 @@ fn gpio(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: GpioArgs::command(), name: "lpc55gpio", run: gpio }
-}
+humility_cmd!(GpioArgs, gpio);

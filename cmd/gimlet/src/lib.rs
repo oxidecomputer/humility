@@ -17,10 +17,10 @@ use std::net::{SocketAddrV6, UdpSocket};
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
-use clap::{ArgGroup, CommandFactory, Parser};
+use clap::{ArgGroup, Parser};
 use humility::net::ScopedV6Addr;
-use humility_cli::ExecutionContext;
-use humility_cmd::{Command, Dumper};
+use humility_cli::{ExecutionContext, humility_cmd};
+use humility_hexdump::Dumper;
 
 /// This is defined in the gimlet TOML.
 const HARDCODED_PORT: u16 = 23547;
@@ -30,7 +30,7 @@ const HARDCODED_PORT: u16 = 23547;
     name = "gimlet", about = env!("CARGO_PKG_DESCRIPTION"),
     group = ArgGroup::new("target").multiple(false)
 )]
-struct Args {
+pub struct GimletArgs {
     /// How long to wait for a response from the target, in milliseconds.
     #[clap(
         long, short = 'T', default_value_t = 2000, value_name = "ms",
@@ -101,7 +101,7 @@ impl Client {
     }
 }
 
-fn run(context: &mut ExecutionContext) -> Result<()> {
+fn run(subargs: GimletArgs, context: &mut ExecutionContext) -> Result<()> {
     let ip = context
         .cli
         .ip
@@ -114,7 +114,6 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
                 "the `--ip <IP>` argument is required with `humility gimlet`"
             )
         })?;
-    let subargs = Args::try_parse_from(&context.cli.cmd)?;
 
     let mut client = Client::new(
         ip.0?,
@@ -136,6 +135,4 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: Args::command(), name: "gimlet", run }
-}
+humility_cmd!(GimletArgs, run);

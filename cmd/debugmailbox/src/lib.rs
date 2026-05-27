@@ -30,9 +30,8 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
-use clap::{CommandFactory, Parser};
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use clap::Parser;
+use humility_cli::{ExecutionContext, humility_cmd};
 use probe_rs::{
     DebugProbeError, DebugProbeSelector, Probe,
     architecture::arm::{ApAddress, ArmProbeInterface, DapError, DpAddress},
@@ -265,9 +264,10 @@ fn read_return<'a>(
         .context("Reading debugmailbox RETURN register")
 }
 
-fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = DebugMailboxArgs::try_parse_from(&context.cli.cmd)?;
-
+fn debugmailboxcmd(
+    subargs: DebugMailboxArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     // Get a list of all available debug probes.
     let probes = Probe::list_all();
 
@@ -454,15 +454,9 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
 }
 #[derive(Parser, Debug)]
 #[clap(name = "debugmailbox", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct DebugMailboxArgs {
+pub struct DebugMailboxArgs {
     #[clap(subcommand)]
     cmd: DebugMailboxCmd,
 }
 
-pub fn init() -> Command {
-    Command {
-        app: DebugMailboxArgs::command(),
-        name: "debugmailbox",
-        run: debugmailboxcmd,
-    }
-}
+humility_cmd!(DebugMailboxArgs, debugmailboxcmd);

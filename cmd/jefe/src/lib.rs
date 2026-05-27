@@ -95,16 +95,15 @@
 //! normal, or `--start`/`-s` to run it once but catch the next fault.
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use humility::hubris::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_jefe::{JefeRequest, send_request};
 use std::num::NonZeroU32;
 
 #[derive(Parser, Debug)]
 #[clap(name = "jefe", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct JefeArgs {
+pub struct JefeArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
@@ -131,8 +130,7 @@ struct JefeArgs {
     task: String,
 }
 
-fn jefe(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = JefeArgs::try_parse_from(&context.cli.cmd)?;
+fn jefe(subargs: JefeArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
@@ -170,6 +168,4 @@ fn jefe(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: JefeArgs::command(), name: "jefe", run: jefe }
-}
+humility_cmd!(JefeArgs, jefe);

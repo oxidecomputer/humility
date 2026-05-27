@@ -37,15 +37,14 @@
 //!
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use humility::core::{Core, ProbeError};
 use humility::hubris::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 
 #[derive(Parser, Debug)]
 #[clap(name = "readvar", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct ReadvarArgs {
+pub struct ReadvarArgs {
     /// values in decimal instead of hex
     #[clap(long, short)]
     decimal: bool,
@@ -99,8 +98,7 @@ fn readvar_dump(
     Ok(())
 }
 
-fn readvar(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = ReadvarArgs::try_parse_from(&context.cli.cmd)?;
+fn readvar(subargs: ReadvarArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
 
     if subargs.list {
@@ -179,6 +177,4 @@ fn readvar(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: ReadvarArgs::command(), name: "readvar", run: readvar }
-}
+humility_cmd!(ReadvarArgs, readvar);

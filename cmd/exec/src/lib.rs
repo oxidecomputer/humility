@@ -22,16 +22,15 @@
 //!
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use clap::Parser;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_log::msg;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
 #[derive(Parser, Debug)]
 #[clap(name = "exec", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct ExecArgs {
+pub struct ExecArgs {
     /// list possible commands
     #[clap(long, short)]
     list: bool,
@@ -71,8 +70,7 @@ fn load_cmds<'a>(
     Ok(())
 }
 
-fn exec(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = ExecArgs::try_parse_from(&context.cli.cmd)?;
+fn exec(subargs: ExecArgs, context: &mut ExecutionContext) -> Result<()> {
     let env = context.environment.as_ref();
 
     let env = match env {
@@ -142,6 +140,4 @@ fn exec(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: ExecArgs::command(), name: "exec", run: exec }
-}
+humility_cmd!(ExecArgs, exec);

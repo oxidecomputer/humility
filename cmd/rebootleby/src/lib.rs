@@ -11,11 +11,10 @@
 //! !!! Using this can be dangerous and should be undertaken with caution
 
 use anyhow::{Context, Result, anyhow, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 use std::io::Read;
 use std::ops::RangeInclusive;
 use std::path::PathBuf;
@@ -24,7 +23,7 @@ use zip::ZipArchive;
 
 #[derive(Parser, Debug)]
 #[clap(about = env!("CARGO_PKG_DESCRIPTION"))]
-struct Rebootleby {
+pub struct Rebootleby {
     /// Path to a Bootleby Bundle file.
     path: PathBuf,
     /// Flag to ensure you _really_ mean to run this command
@@ -32,9 +31,10 @@ struct Rebootleby {
     yes_really: bool,
 }
 
-fn rebootleby(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = Rebootleby::try_parse_from(&context.cli.cmd)?;
-
+fn rebootleby(
+    subargs: Rebootleby,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     // Load bundle
     let bundle_reader = std::fs::File::open(&subargs.path)
         .with_context(|| format!("loading {}", subargs.path.display()))?;
@@ -136,10 +136,6 @@ fn rebootleby(context: &mut ExecutionContext) -> Result<()> {
     humility::msg!("Good luck.");
 
     Ok(())
-}
-
-pub fn init() -> Command {
-    Command { app: Rebootleby::command(), name: "rebootleby", run: rebootleby }
 }
 
 // The undocumented registers. These look remarkably similar to the
@@ -314,3 +310,4 @@ const STARTA: u32 = 0x4003_4010;
 const STOPA: u32 = 0x4003_4014;
 const CMD: u32 = 0x4003_4000;
 const DATAW0: u32 = 0x4003_4080;
+humility_cmd!(Rebootleby, rebootleby);

@@ -2,45 +2,70 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use std::collections::HashMap;
-use std::ffi::OsString;
-
-use clap::ArgMatches;
-use humility_cli::Cli;
-use humility_cmd::Command;
-
-use anyhow::Result;
-use clap::CommandFactory;
-use clap::FromArgMatches;
-use clap::Parser;
-
+use clap::{ArgGroup, CommandFactory, FromArgMatches, Parser};
 mod cmd;
+use humility_cli::{Cli, ExecutionContext};
 
-fn main() -> Result<()> {
-    let (commands, m, args) = match parse_args(std::env::args_os()) {
-        Some(s) => s,
-        None => std::process::exit(1),
+/// Main CLI entry point
+///
+/// The distinction between [`Cli`] and [`OuterCli`] is necessary to break a
+/// dependency loop: the `Cli` is stored in the [`ExecutionContext`]; commands
+/// need to take the `ExecutionContext`; and the `OuterCli` needs to depend on
+/// commands.
+#[derive(Parser, Debug)]
+#[clap(
+    name = "humility", max_term_width = 80,
+    group = ArgGroup::new("hubris").multiple(false),
+    disable_version_flag = true,
+)]
+struct OuterCli {
+    #[clap(flatten)]
+    cli: Cli,
+
+    #[clap(subcommand)]
+    cmd: Option<cmd::Subcommand>,
+}
+
+fn main() -> std::process::ExitCode {
+    let m = OuterCli::command().get_matches();
+    let outer_cli = match OuterCli::from_arg_matches(&m) {
+        Ok(c) => c,
+        Err(e) => {
+            eprint!("{e:#}");
+            return std::process::ExitCode::FAILURE;
+        }
+    };
+    let OuterCli { cli, cmd } = outer_cli;
+    if let Some(s) = version(&cli) {
+        println!("{s}");
+        return std::process::ExitCode::SUCCESS;
     };
 
-    if let Some(s) = version(&args) {
-        println!("{}", s);
-        std::process::exit(0);
+    let log_level = if cli.verbose { "trace" } else { "warn" };
+    let mut context = match ExecutionContext::new(cli, &m) {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            eprintln!("failed to build execution context: {e:#}");
+            return std::process::ExitCode::FAILURE;
+        }
     };
 
-    let mut context = humility_cli::ExecutionContext::new(args.clone(), &m)?;
-
-    let log_level = if args.verbose { "trace" } else { "warn" };
+    let Some(cmd) = cmd else {
+        eprintln!("humility failed: subcommand expected (--help to list)");
+        return std::process::ExitCode::FAILURE;
+    };
+    let name = cmd::name(&cmd);
 
     let env = env_logger::Env::default().filter_or("RUST_LOG", log_level);
 
     env_logger::init_from_env(env);
 
-    if let Err(err) = cmd::subcommand(&mut context, &commands) {
-        eprintln!("humility {} failed: {:?}", args.cmd[0], err);
-        std::process::exit(1);
+    if let Err(err) = cmd::dispatch(cmd, &mut context) {
+        eprintln!("humility {name} failed: {:?}", err);
+        std::process::ExitCode::FAILURE
+    } else {
+        std::process::ExitCode::SUCCESS
     }
-
-    Ok(())
 }
 
 #[cfg(feature = "probes")]
@@ -62,42 +87,7 @@ pub(crate) fn version(cli: &Cli) -> Option<String> {
     }
 }
 
-pub(crate) fn parse_args<I, T>(
-    input: I,
-) -> Option<(HashMap<&'static str, Command>, ArgMatches, Cli)>
-where
-    I: IntoIterator<Item = T>,
-    T: Into<OsString> + Clone,
-{
-    // This isn't hugely efficient, but we actually parse our arguments
-    // twice: the first is with our subcommands grafted into our
-    // arguments to get us a unified help and error message in the event
-    // of any parsing value or request for a help message; if that works,
-    // we parse our arguments again but relying on the
-    // external_subcommand to directive to allow our subcommand to do any
-    // parsing on its own.
-    let (commands, command) = cmd::init(Cli::command());
-
-    let input: Vec<_> = input.into_iter().collect();
-    let input2 = input.clone();
-
-    let m = match command.try_get_matches_from(input) {
-        Ok(m) => m,
-        Err(e) => {
-            e.print().unwrap();
-            return None;
-        }
-    };
-
-    let _args = Cli::from_arg_matches(&m);
-
-    // If we're here, we know that our arguments pass muster from the Clap
-    // perspective.
-    Some((commands, m, Cli::parse_from(input2)))
-}
-
 #[test]
 fn validate_clap() {
-    let (_, clap) = cmd::init(Cli::command());
-    clap.clone().debug_assert();
+    OuterCli::command().debug_assert()
 }
