@@ -2081,7 +2081,6 @@ dependencies = [
  "clap",
  "hif",
  "humility-cli",
- "humility-hexdump",
  "humility-hiffy",
  "parse_int",
 ]
