@@ -89,7 +89,7 @@
                  35  2 F  -   0x0b U6     pca9956b   Front IO LED driver (right)
    aux flash => 16777216 bytes (16 MiB), 8 slots (2 MiB/slot)
      sensors => 63 sensors
-                 ID NAME              DEVICE     REFDES KIND
+                 ID NAME              DEVICE     REFDES KIND         
                   0 V54_FAN1          i2c id=0   U6     temp
                   1 V54_FAN1          i2c id=0   U6     current
                   2 V54_FAN1          i2c id=0   U6     voltage

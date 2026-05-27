@@ -116,7 +116,7 @@
                  62  4 F  -   0x14 U79      adm127x      Sled hot swap controller
    aux flash => 33554432 bytes (32 MiB), 16 slots (2 MiB/slot)
      sensors => 155 sensors
-                 ID NAME               DEVICE       REFDES   KIND       
+                 ID NAME               DEVICE       REFDES   KIND         
                   0 V12_U2A_A0         i2c id=2     J200/U1  current
                   1 V3P3_U2A_A0        i2c id=2     J200/U1  current
                   2 V12_U2A_A0         i2c id=2     J200/U1  voltage

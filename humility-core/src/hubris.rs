@@ -165,7 +165,7 @@ impl HubrisManifest {
             max_refdes_len: 0,
             max_device_len: 0,
             max_device_name_len: 0,
-            max_sensor_kind_len: 0,
+            max_sensor_kind_len: HubrisSensorKind::MAX_LEN,
             max_sensor_name_len: 0,
         };
         if let Some(ref config) = config.config {
@@ -187,14 +187,14 @@ impl HubrisManifest {
                 let SensorConfigFmtMeta {
                     max_device_len,
                     max_sensor_name_len,
-                    max_sensor_kind_len,
+                    max_other_sensor_kind_len,
                 } = sensor_fmt_meta;
                 fmt_meta.max_device_len =
                     fmt_meta.max_device_len.max(max_device_len);
                 fmt_meta.max_sensor_name_len =
                     fmt_meta.max_sensor_name_len.max(max_sensor_name_len);
                 fmt_meta.max_sensor_kind_len =
-                    fmt_meta.max_sensor_kind_len.max(max_sensor_kind_len);
+                    fmt_meta.max_sensor_kind_len.max(max_other_sensor_kind_len);
             }
             if let Some(net) = config.net.as_ref() {
                 sockets = net
@@ -243,7 +243,7 @@ impl HubrisManifest {
         let mut fmt_meta = SensorConfigFmtMeta {
             max_device_len: 0,
             max_sensor_name_len: 0,
-            max_sensor_kind_len: 0,
+            max_other_sensor_kind_len: 0,
         };
 
         let mut out = vec![];
@@ -251,14 +251,17 @@ impl HubrisManifest {
             for (kind, &count) in &device.sensors {
                 fmt_meta.max_device_len =
                     fmt_meta.max_device_len.max(device.device.len());
-                fmt_meta.max_sensor_kind_len =
-                    fmt_meta.max_sensor_kind_len.max(kind.len());
                 fmt_meta.max_sensor_name_len =
                     fmt_meta.max_sensor_name_len.max(device.name.len());
+                let kind = HubrisSensorKind::from(kind.as_str());
+                if let HubrisSensorKind::Other(ref k) = kind {
+                    fmt_meta.max_other_sensor_kind_len =
+                        fmt_meta.max_other_sensor_kind_len.max(k.len());
+                }
                 for i in 0..count {
                     out.push(HubrisSensor {
                         name: device.name.clone(),
-                        kind: HubrisSensorKind::from(kind.as_str()),
+                        kind: kind.clone(),
                         device: HubrisSensorDevice::Other(
                             device.device.clone(),
                             i,
@@ -278,7 +281,7 @@ impl HubrisManifest {
 struct SensorConfigFmtMeta {
     max_device_len: usize,
     max_sensor_name_len: usize,
-    max_sensor_kind_len: usize,
+    max_other_sensor_kind_len: usize,
 }
 
 struct HubrisManifestI2cConfig {
@@ -1085,6 +1088,10 @@ impl Serialize for HubrisSocketNotification {
             HubrisSocketNotification::Named(n) => serializer.serialize_str(n),
         }
     }
+}
+
+impl HubrisSensorKind {
+    const MAX_LEN: usize = "input-current".len();
 }
 
 impl fmt::Display for HubrisSensorKind {

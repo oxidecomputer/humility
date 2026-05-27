@@ -138,7 +138,7 @@ $ humility --ip 'fe80::0c1d:8cff:fec0:e207%en1234' --archive=tests/cmd/archives/
                  75  2 B  1:1 0x6a -      m2_hp_only M.2 A NVMe Basic Management Command
                  76  2 B  1:2 0x6a -      m2_hp_only M.2 B NVMe Basic Management Command
      sensors => 133 sensors
-                 ID NAME               DEVICE     REFDES KIND
+                 ID NAME               DEVICE     REFDES KIND         
                   0 Southwest          i2c id=0   J194   temp
                   1 South              i2c id=1   J195   temp
                   2 Southeast          i2c id=2   J196   temp
