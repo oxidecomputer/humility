@@ -164,11 +164,11 @@ impl HubrisManifest {
         let mut fmt_meta = ManifestFormatMetadata { max_refdes_len: 0 };
         if let Some(ref config) = config.config {
             if let Some(i2c) = config.i2c.as_ref() {
-                let cfg =
-                    HubrisManifestI2cConfig::from_config(i2c, &mut fmt_meta)?;
+                let cfg = HubrisManifestI2cConfig::from_config(i2c)?;
                 i2c_buses = cfg.i2c_buses;
                 i2c_devices = cfg.i2c_devices;
                 sensors.extend(cfg.sensors);
+                fmt_meta.max_refdes_len = cfg.max_refdes_len;
             }
 
             if let Some(sensor) = config.sensor.as_ref() {
@@ -243,17 +243,16 @@ struct HubrisManifestI2cConfig {
     pub i2c_devices: Vec<HubrisI2cDevice>,
     pub i2c_buses: HubrisI2cBusList,
     pub sensors: Vec<HubrisSensor>,
+    max_refdes_len: usize,
 }
 
 impl HubrisManifestI2cConfig {
-    fn from_config(
-        i2c: &HubrisConfigI2c,
-        fmt_meta: &mut ManifestFormatMetadata,
-    ) -> Result<Self> {
+    fn from_config(i2c: &HubrisConfigI2c) -> Result<Self> {
         let mut i2c_buses = Vec::new();
         let mut i2c_devices = Vec::new();
         let mut sensors = Vec::new();
         let mut buses = HashMap::new();
+        let mut max_refdes_len = 0;
 
         if let Some(ref controllers) = i2c.controllers {
             for controller in controllers {
@@ -351,8 +350,7 @@ impl HubrisManifestI2cConfig {
                 let refdes =
                     device.refdes.as_ref().map(HubrisConfigRefdes::to_string);
                 if let Some(ref refdes) = refdes {
-                    fmt_meta.max_refdes_len =
-                        fmt_meta.max_refdes_len.max(refdes.len());
+                    max_refdes_len = max_refdes_len.max(refdes.len());
                 }
 
                 let (controller, port) = match &device.bus {
@@ -468,7 +466,7 @@ impl HubrisManifestI2cConfig {
             }
         }
 
-        Ok(Self { i2c_devices, i2c_buses, sensors })
+        Ok(Self { i2c_devices, i2c_buses, sensors, max_refdes_len })
     }
 }
 
