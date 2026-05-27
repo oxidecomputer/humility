@@ -109,8 +109,8 @@ fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
         .max(REFDES_HDR.len())
         .max(NO_REFDES.len());
     println!(
-        "{:2} {REFDES_HDR:refdes_len$} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
-        "ID", "C", "P", "MUX", "ADDR", "DEVICE"
+        "{:2} {:refdes_len$} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
+        "ID", REFDES_HDR, "C", "P", "MUX", "ADDR", "DEVICE"
     );
 
     for (ndx, device) in hubris.manifest.i2c_devices.iter().enumerate() {
@@ -212,8 +212,8 @@ fn validate(context: &mut ExecutionContext) -> Result<()> {
     };
 
     println!(
-        "{:2} {REFDES_HDR:refdes_len$} {:11} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
-        "ID", "VALIDATION", "C", "P", "MUX", "ADDR", "DEVICE"
+        "{:2} {:refdes_len$} {:11} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
+        "ID", REFDES_HDR, "VALIDATION", "C", "P", "MUX", "ADDR", "DEVICE"
     );
 
     let ok = hubris.lookup_enum(op.ok)?;

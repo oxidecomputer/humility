@@ -178,8 +178,8 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
         );
 
         println!(
-            "{:>19} {:2} {:2} {} {} {REFDES_HDR:refdes_len$} {:13} {}",
-            "ID", "C", "P", "MUX", "ADDR", "DEVICE", "DESCRIPTION"
+            "{:>19} {:2} {:2} {} {} {:refdes_len$} {:13} {}",
+            "ID", "C", "P", "MUX", "ADDR", REFDES_HDR, "DEVICE", "DESCRIPTION"
         );
 
         for (ndx, device) in manifest.i2c_devices.iter().enumerate() {
@@ -230,8 +230,8 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
             if manifest.sensors.len() > 1 { "s" } else { "" }
         );
         println!(
-            "{:>19} {:23} {:11} {REFDES_HDR:refdes_len$} {}",
-            "ID", "NAME", "DEVICE", "KIND"
+            "{:>19} {:23} {:11} {:refdes_len$} {}",
+            "ID", "NAME", "DEVICE", REFDES_HDR, "KIND"
         );
 
         for (ndx, s) in manifest.sensors.iter().enumerate() {
@@ -241,8 +241,8 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
             };
             let refdes = s.refdes.as_deref().unwrap_or(NO_REFDES);
             println!(
-                "                {:3} {:23} {:11} {refdes:refdes_len$} {}",
-                ndx, s.name, device, s.kind,
+                "                {:3} {:23} {:11} {:refdes_len$} {}",
+                ndx, s.name, device, refdes, s.kind,
             );
         }
     }
