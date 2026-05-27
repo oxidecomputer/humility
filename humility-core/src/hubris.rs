@@ -3622,10 +3622,8 @@ impl HubrisArchive {
     pub fn read_file(&self, name: &str) -> Result<Option<Vec<u8>>> {
         match self.hubris_archive.extract_file(name) {
             Ok(s) => Ok(Some(s)),
-            Err(hubtools::Error::ZipError(
-                zip::result::ZipError::FileNotFound,
-            )) => Ok(None),
-            Err(e) => bail!("Failed to extract {name}: {e}"),
+            Err(hubtools::Error::MissingFile(..)) => Ok(None),
+            Err(e) => bail!("Failed to extract {name}: {e:?}"),
         }
     }
 
