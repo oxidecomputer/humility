@@ -10,15 +10,15 @@
 
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::{Command, Dumper};
+use humility_cli::{ExecutionContext, humility_cmd};
+use humility_hexdump::Dumper;
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 
 use itertools::Itertools;
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use hif::*;
 use idt8a3xxxx::*;
 use std::collections::BTreeMap;
@@ -30,7 +30,7 @@ use serde_xml_rs::from_str;
 
 #[derive(Parser, Debug)]
 #[clap(name = "rencm", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct RencmArgs {
+pub struct RencmArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
@@ -792,8 +792,7 @@ fn rencm_ingest(subargs: &RencmArgs, modules: &[Module]) -> Result<()> {
     Ok(())
 }
 
-fn rencm(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = RencmArgs::try_parse_from(&context.cli.cmd)?;
+fn rencm(subargs: RencmArgs, context: &mut ExecutionContext) -> Result<()> {
     let modules = modules();
 
     if subargs.ingest.is_some() {
@@ -805,6 +804,4 @@ fn rencm(context: &mut ExecutionContext) -> Result<()> {
     rencm_attached(hubris, core, &subargs, modules)
 }
 
-pub fn init() -> Command {
-    Command { app: RencmArgs::command(), name: "rencm", run: rencm }
-}
+humility_cmd!(RencmArgs, rencm);

@@ -5,7 +5,7 @@
 pub mod env;
 
 use anyhow::{Context, Result, anyhow, bail};
-use clap::{ArgGroup, ArgMatches, Parser, parser::ValueSource};
+use clap::{ArgMatches, Parser, parser::ValueSource};
 use env::Environment;
 use humility::{
     core::Core,
@@ -15,11 +15,6 @@ use humility::{
 use std::time::Duration;
 
 #[derive(Parser, Debug, Clone)]
-#[clap(
-    name = "humility", max_term_width = 80,
-    group = ArgGroup::new("hubris").multiple(false),
-    disable_version_flag = true,
-)]
 pub struct Cli {
     /// verbose messages
     #[clap(long, short)]
@@ -71,7 +66,7 @@ pub struct Cli {
     /// HUMILITY_IP environment variable. Run "humility doc" for more
     /// information on running Humility over a network.
     #[clap(long, short, group = "hubris")]
-    pub ip: Option<net::ScopedV6Addr>,
+    pub ip: Option<net::ScopedV6AddrResult>,
 
     /// Hubris environment file. Thie may also be set via the
     /// HUMILITY_ENVIRONMENT environment variable. Run "humility doc" for
@@ -114,10 +109,6 @@ pub struct Cli {
         conflicts_with = "hubris"
     )]
     pub list_targets: bool,
-
-    /// Subcommand to execute
-    #[clap(trailing_var_arg = true)]
-    pub cmd: Vec<String>,
 }
 
 impl Cli {
@@ -179,7 +170,7 @@ impl Cli {
                 bail!("cannot attach over net without Hubris archive");
             };
             let timeout = Duration::from_millis(self.timeout as u64);
-            humility_net_core::attach_net(*ip, hubris, timeout)
+            humility_net_core::attach_net(ip.0.clone()?, hubris, timeout)
         } else {
             self.attach_probe(hubris)
         }?;
@@ -257,7 +248,7 @@ impl Cli {
                 bail!("cannot connect over the network without archive");
             };
             let timeout = Duration::from_millis(self.timeout as u64);
-            humility_net_core::attach_net(*ip, hubris, timeout)?
+            humility_net_core::attach_net(ip.0.clone()?, hubris, timeout)?
         } else {
             self.attach_probe(hubris)?
         };
@@ -334,6 +325,26 @@ impl Cli {
             }
         })
     }
+}
+
+/// Promotes an argument type and run function into a Humility subcommand
+///
+/// The `$args_ty` value must implement `clap::Parser`, and `$run_fn` must have
+/// the signature `fn run(args: $args_ty, ctx: &mut ExecutionContext) ->
+/// anyhow::Result<()>`.
+#[macro_export]
+macro_rules! humility_cmd {
+    ($args_ty:ty, $run_fn:ident) => {
+        pub type Args = $args_ty;
+        impl Args {
+            pub fn run(
+                args: Self,
+                context: &mut ::humility_cli::ExecutionContext,
+            ) -> ::anyhow::Result<()> {
+                $run_fn(args, context)
+            }
+        }
+    };
 }
 
 pub struct ExecutionContext {
@@ -476,11 +487,6 @@ impl ExecutionContext {
 
             _ => None,
         };
-
-        if cli.cmd.is_empty() {
-            eprintln!("humility failed: subcommand expected (--help to list)");
-            std::process::exit(1);
-        }
 
         //
         // Check to see if we have both a dump and an archive.  Because these

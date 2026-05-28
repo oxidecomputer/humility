@@ -6,7 +6,6 @@ description = "listen for compatible SPs on a network"
 
 [dependencies]
 humility.workspace = true
-humility-cmd.workspace = true
 humility-cli.workspace = true
 
 hubpack.workspace = true

@@ -200,13 +200,12 @@
 //! show only the calls to specific IPC interfaces from specific tasks.
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser, ValueEnum};
+use clap::{Parser, ValueEnum};
 use colored::Colorize;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Load, Value};
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_doppel::{CountedRingbuf, CounterVariant, Counters};
 use indexmap::IndexMap;
 use std::collections::BTreeMap;
@@ -218,7 +217,7 @@ mod ipc;
 // This attribute means that any the args defined in `Options` will conflict
 // with the `list` subcommand.
 #[clap(args_conflicts_with_subcommands = true)]
-struct CountersArgs {
+pub struct CountersArgs {
     #[clap(subcommand)]
     command: Option<Subcmd>,
 
@@ -323,9 +322,11 @@ enum Output {
 const LIST_HINT: &str = "use `humility counters list` to list all \
     available counters";
 
-fn counters(context: &mut ExecutionContext) -> Result<()> {
+fn counters(
+    subargs: CountersArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     let hubris = &context.cli.archive()?;
-    let subargs = CountersArgs::try_parse_from(&context.cli.cmd)?;
 
     if let Some(Subcmd::Ipc(ipc)) = subargs.command {
         let core = &mut *context.cli.attach_live_or_dump_match(hubris)?;
@@ -622,6 +623,4 @@ fn hint() -> impl std::fmt::Display {
     "hint:".bold()
 }
 
-pub fn init() -> Command {
-    Command { app: CountersArgs::command(), name: "counters", run: counters }
-}
+humility_cmd!(CountersArgs, counters);

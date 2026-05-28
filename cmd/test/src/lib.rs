@@ -91,12 +91,11 @@
 //!
 
 use anyhow::{Context, Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use colored::Colorize;
 use hif::*;
 use humility::hubris::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use std::fmt;
 use std::fs::OpenOptions;
@@ -104,7 +103,7 @@ use std::io::{BufWriter, Write};
 
 #[derive(Parser, Debug)]
 #[clap(name = "test", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct TestArgs {
+pub struct TestArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 3000, value_name = "timeout_ms",
@@ -161,8 +160,7 @@ impl fmt::Display for TestResult {
     }
 }
 
-fn test(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = TestArgs::try_parse_from(&context.cli.cmd)?;
+fn test(subargs: TestArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
@@ -286,6 +284,4 @@ fn test(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: TestArgs::command(), name: "test", run: test }
-}
+humility_cmd!(TestArgs, test);

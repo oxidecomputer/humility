@@ -62,15 +62,14 @@
 //! we can see from the `map` output has been sized to only 256 bytes.)
 
 use anyhow::Result;
-use clap::{CommandFactory, Parser};
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use clap::Parser;
+use humility_cli::{ExecutionContext, humility_cmd};
 
 #[derive(Parser, Debug)]
 #[clap(name = "map", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct MapArgs {}
+pub struct MapArgs {}
 
-fn mapcmd(context: &mut ExecutionContext) -> Result<()> {
+fn mapcmd(_args: MapArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
 
     // Use an archive core to easily read from flash
@@ -134,7 +133,4 @@ fn mapcmd(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-/// This is some init right here
-pub fn init() -> Command {
-    Command { app: MapArgs::command(), name: "map", run: mapcmd }
-}
+humility_cmd!(MapArgs, mapcmd);

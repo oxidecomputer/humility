@@ -90,13 +90,12 @@
 //! using the `--mca` option and specifyin a desired thread.
 
 use anyhow::Result;
-use clap::{ArgGroup, CommandFactory, Parser};
+use clap::{ArgGroup, Parser};
 use colored::Colorize;
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 use raw_cpuid::{CpuId, CpuIdResult};
@@ -109,7 +108,7 @@ use std::rc::Rc;
     name = "sbrmi", about = env!("CARGO_PKG_DESCRIPTION"),
     group = ArgGroup::new("command").multiple(false).required(false)
 )]
-struct SbrmiArgs {
+pub struct SbrmiArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -154,7 +153,7 @@ fn call_cpuid(
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
-    let registers = context.idol_result::<[u32; 4]>(&op, &results[0])?;
+    let registers = op.decode::<[u32; 4]>(&results[0])?;
 
     Ok(CpuIdResult {
         eax: registers[0],
@@ -394,8 +393,8 @@ fn mca(
     let ipid_results = &results[nbanks as usize..];
 
     for (bank, r) in results[..nbanks as usize].iter().enumerate() {
-        let status = context.idol_result::<u64>(&op, r)?;
-        let ipid = context.idol_result::<u64>(&op, &ipid_results[bank])?;
+        let status = op.decode::<u64>(r)?;
+        let ipid = op.decode::<u64>(&ipid_results[bank])?;
 
         if !all_mca {
             if status == 0 {
@@ -442,7 +441,7 @@ fn mca(
         let mut values = HashMap::new();
 
         for (ndx, reg) in reg_results.iter().enumerate() {
-            let v = context.idol_result::<u64>(&op, reg)?;
+            let v = op.decode::<u64>(reg)?;
             values.insert(allregs[ndx], v);
         }
 
@@ -502,8 +501,7 @@ fn mca(
     Ok(())
 }
 
-fn sbrmi(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = SbrmiArgs::try_parse_from(&context.cli.cmd)?;
+fn sbrmi(subargs: SbrmiArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let timeout = std::time::Duration::from_millis(subargs.timeout);
@@ -537,12 +535,10 @@ fn sbrmi(context: &mut ExecutionContext) -> Result<()> {
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    let nthreads = context.idol_result::<u8>(&nthreads, &results[0])?;
-    let enabled =
-        threadmap(&context.idol_result::<Vec<u8>>(&enabled, &results[1])?)?;
-    let alert =
-        threadmap(&context.idol_result::<Vec<u8>>(&alert, &results[2])?)?;
-    let mcg_cap = context.idol_result::<u64>(&mcg_cap, &results[3])?;
+    let nthreads = nthreads.decode::<u8>(&results[0])?;
+    let enabled = threadmap(&enabled.decode::<Vec<u8>>(&results[1])?)?;
+    let alert = threadmap(&alert.decode::<Vec<u8>>(&results[2])?)?;
+    let mcg_cap = mcg_cap.decode::<u64>(&results[3])?;
 
     if subargs.mca {
         let thread = subargs.thread.unwrap();
@@ -589,6 +585,4 @@ fn sbrmi(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: SbrmiArgs::command(), name: "sbrmi", run: sbrmi }
-}
+humility_cmd!(SbrmiArgs, sbrmi);

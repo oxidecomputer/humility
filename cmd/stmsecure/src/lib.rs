@@ -28,11 +28,10 @@
 //! ```
 
 use anyhow::{Result, anyhow};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 
 const FLASH_OPT_KEY1: u32 = 0x0819_2A3B;
 const FLASH_OPT_KEY2: u32 = 0x4C5D_6E7F;
@@ -52,7 +51,13 @@ const FLASH_SCAR_PRG1: u32 = 0x5200_2034;
 
 #[derive(Parser, Debug)]
 #[clap(name = "stmsecure", about = env!("CARGO_PKG_DESCRIPTION"))]
-enum StmSecureArgs {
+pub struct StmSecureArgs {
+    #[clap(subcommand)]
+    cmd: StmSecureCmd,
+}
+
+#[derive(clap::Subcommand, Debug)]
+pub enum StmSecureCmd {
     /// Show status about secure region settings
     Status,
     /// Enable Read Out Protection (RDP) i.e. can't read flash from debugger
@@ -294,24 +299,24 @@ fn stmsecure_swapbanks(core: &mut dyn Core) -> Result<()> {
 }
 
 #[rustfmt::skip::macros(format)]
-fn stmsecure(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = StmSecureArgs::try_parse_from(&context.cli.cmd)?;
+fn stmsecure(
+    subargs: StmSecureArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     let core = &mut *context.cli.attach_probe(None)?;
 
-    match subargs {
-        StmSecureArgs::Status => stmsecure_status(core),
-        StmSecureArgs::SetSecureBit => stmsecure_lockbit_set(core),
-        StmSecureArgs::UnsetSecureBit => stmsecure_lockbit_unset(core),
-        StmSecureArgs::SetSecureRegion { address, size, doit } => {
+    match subargs.cmd {
+        StmSecureCmd::Status => stmsecure_status(core),
+        StmSecureCmd::SetSecureBit => stmsecure_lockbit_set(core),
+        StmSecureCmd::UnsetSecureBit => stmsecure_lockbit_unset(core),
+        StmSecureCmd::SetSecureRegion { address, size, doit } => {
             stmsecure_setsecureregion(core, address, size, doit)
         }
-        StmSecureArgs::UnsetSecureRegion => stmsecure_unsetsecureregion(core),
-        StmSecureArgs::SetRDP => stmsecure_rdpset(core),
-        StmSecureArgs::UnsetRDP => stmsecure_rdpunset(core),
-        StmSecureArgs::SwapBanks => stmsecure_swapbanks(core),
+        StmSecureCmd::UnsetSecureRegion => stmsecure_unsetsecureregion(core),
+        StmSecureCmd::SetRDP => stmsecure_rdpset(core),
+        StmSecureCmd::UnsetRDP => stmsecure_rdpunset(core),
+        StmSecureCmd::SwapBanks => stmsecure_swapbanks(core),
     }
 }
 
-pub fn init() -> Command {
-    Command { app: StmSecureArgs::command(), name: "stmsecure", run: stmsecure }
-}
+humility_cmd!(StmSecureArgs, stmsecure);

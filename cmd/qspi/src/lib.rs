@@ -83,8 +83,8 @@
 //! as well as bulk erase.
 
 use humility::core::Core;
-use humility_cli::ExecutionContext;
-use humility_cmd::{Command, Dumper};
+use humility_cli::{ExecutionContext, humility_cmd};
+use humility_hexdump::Dumper;
 use humility_hiffy::*;
 use humility_idol::{HubrisIdol, IdolArgument};
 use sha2::{Digest, Sha256};
@@ -96,7 +96,7 @@ use std::mem;
 use std::time::Instant;
 
 use anyhow::{Result, anyhow, bail};
-use clap::{ArgGroup, CommandFactory, Parser};
+use clap::{ArgGroup, Parser};
 use hif::*;
 
 use indicatif::{HumanBytes, HumanDuration};
@@ -107,7 +107,7 @@ use indicatif::{ProgressBar, ProgressStyle};
     name = "qspi", about = env!("CARGO_PKG_DESCRIPTION"),
     group = ArgGroup::new("command").multiple(false)
 )]
-struct QspiArgs {
+pub struct QspiArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 30000, value_name = "timeout_ms",
@@ -481,8 +481,7 @@ fn write(
     }
 }
 
-fn qspi(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = QspiArgs::try_parse_from(&context.cli.cmd)?;
+fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
@@ -495,7 +494,6 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
             let s = s.unwrap();
             humility::msg!("Setting slot to {s}");
             hiffy_call::<()>(
-                hubris,
                 core,
                 &mut context,
                 &hubris.get_idol_command("HostFlash.set_dev")?,
@@ -1026,7 +1024,6 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
             _ => bail!("dev_select must be 0 or 1"),
         };
         hiffy_call::<()>(
-            hubris,
             core,
             &mut context,
             &hubris.get_idol_command("HostFlash.write_persistent_data")?,
@@ -1183,6 +1180,4 @@ impl fmt::Display for DeviceIdData {
     }
 }
 
-pub fn init() -> Command {
-    Command { app: QspiArgs::command(), name: "qspi", run: qspi }
-}
+humility_cmd!(QspiArgs, qspi);

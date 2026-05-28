@@ -171,20 +171,20 @@ use std::convert::TryInto;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::*;
-use humility_cli::ExecutionContext;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::HiffyContext;
-use humility_idol::{HubrisIdol, IdolArgument};
+use humility_idol::{HubrisIdol, IdolArgument, IdolDecodeError, IdolError};
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow};
 
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use colored::Colorize;
 use vsc7448_info::parse::{PhyRegister, TargetRegister};
 use vsc7448_types::Field;
 
 #[derive(Parser, Debug)]
 #[clap(name = "monorail", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct MonorailArgs {
+pub struct MonorailArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -310,7 +310,6 @@ fn monorail_read(
 
     let op = hubris.get_idol_command("Monorail.read_vsc7448_reg")?;
     let value = humility_hiffy::hiffy_call::<u32>(
-        hubris,
         core,
         context,
         &op,
@@ -345,7 +344,6 @@ fn monorail_write(
 
     let op = hubris.get_idol_command("Monorail.write_vsc7448_reg")?;
     humility_hiffy::hiffy_call::<()>(
-        hubris,
         core,
         context,
         &op,
@@ -423,7 +421,6 @@ fn monorail_phy_read(
     println!("Reading from port {} PHY, register {}", port, reg.name);
     let op = hubris.get_idol_command("Monorail.read_phy_reg")?;
     let value = humility_hiffy::hiffy_call::<u16>(
-        hubris,
         core,
         context,
         &op,
@@ -456,7 +453,6 @@ fn monorail_phy_write(
     pretty_print_fields(value as u32, &reg.fields, 0);
     let op = hubris.get_idol_command("Monorail.write_phy_reg")?;
     humility_hiffy::hiffy_call::<()>(
-        hubris,
         core,
         context,
         &op,
@@ -599,15 +595,10 @@ fn monorail_dump(
         let results = context.run(core, ops.as_slice(), None)?;
         results
             .into_iter()
-            .map(move |r| humility_hiffy::hiffy_decode(hubris, &op_read, r))
-            .collect::<Result<Vec<Result<_, _>>>>()?
+            .map(move |r| op_read.decode(&r))
+            .collect::<Result<Vec<u32>, _>>()?
     };
-    for (i, v) in results.iter().enumerate() {
-        let value = if let Ok(Value::Base(Base::U32(v))) = v {
-            v
-        } else {
-            bail!("Got bad reflected value: expected U32, got {v:?}");
-        };
+    for (i, value) in results.iter().enumerate() {
         let addr = format!("{}", start_address as usize + i * 4);
         // XXX this is inefficient
         match parse_reg_or_addr(&addr) {
@@ -679,20 +670,12 @@ fn monorail_status(
 
         let port_results = port_results
             .into_iter()
-            .map(move |r| {
-                humility_hiffy::hiffy_decode::<humility::reflect::Struct>(
-                    hubris, &op_port, r,
-                )
-            })
-            .collect::<Result<Vec<Result<_, _>>>>()?;
+            .map(move |r| op_port.decode::<humility::reflect::Struct>(&r))
+            .collect::<Vec<_>>();
         let phy_results = phy_results
             .into_iter()
-            .map(move |r| {
-                humility_hiffy::hiffy_decode::<humility::reflect::Struct>(
-                    hubris, &op_phy, r,
-                )
-            })
-            .collect::<Result<Vec<Result<_, _>>>>()?;
+            .map(move |r| op_phy.decode::<humility::reflect::Struct>(&r))
+            .collect::<Vec<_>>();
 
         // Decode the port and phy status values into reflect::Value
         port_results.into_iter().zip(phy_results).collect::<Vec<_>>()
@@ -717,19 +700,10 @@ fn monorail_status(
         v => panic!("Expected enum, got {:?}", v),
     };
     // Extracts a device name from a reflected value, e.g. "DEV1G_0"
-    let decode_dev = |value: &Value| match value {
-        Value::Tuple(dev) => {
-            let d = match &dev[0] {
-                Value::Enum(d) => d.disc(),
-                d => panic!("Could not get enum from {:?}", d),
-            };
-            let n = match &dev[1] {
-                Value::Base(Base::U8(n)) => n,
-                d => panic!("Could not get U8 from {:?}", d),
-            };
-            format!("{}_{}", d.to_uppercase(), n)
-        }
-        dev => panic!("Expected tuple, got {:?}", dev),
+    let decode_dev = |dev: &Tuple| -> Result<_> {
+        let d = dev.field::<Enum>(0)?;
+        let n = dev.field::<u8>(1)?;
+        Ok(format!("{}_{}", d.disc().to_uppercase(), n))
     };
 
     let fmt_link = |v: &Value| match v {
@@ -759,20 +733,18 @@ fn monorail_status(
         match port_value {
             Ok(s) => {
                 assert_eq!(s.name(), "PortStatus");
-                let (dev, serdes, mode, speed) = match &s["cfg"] {
-                    Value::Struct(cfg) => {
-                        assert_eq!(cfg.name(), "PortConfig");
-                        let dev = decode_dev(&cfg["dev"]);
-                        let serdes = decode_dev(&cfg["serdes"]);
-                        let (mode, speed) = decode_mode(&cfg["mode"]);
-                        (
-                            dev.replace("DEV", ""),
-                            serdes.replace("SERDES", ""),
-                            mode,
-                            speed,
-                        )
-                    }
-                    v => panic!("Expected Struct, got {:?}", v),
+                let (dev, serdes, mode, speed) = {
+                    let cfg = s.field::<Struct>("cfg")?;
+                    assert_eq!(cfg.name(), "PortConfig");
+                    let dev = decode_dev(&cfg.field("dev")?)?;
+                    let serdes = decode_dev(&cfg.field("serdes")?)?;
+                    let (mode, speed) = decode_mode(&cfg["mode"]);
+                    (
+                        dev.replace("DEV", ""),
+                        serdes.replace("SERDES", ""),
+                        mode,
+                        speed,
+                    )
                 };
                 let fmt_mode = match mode.as_str() {
                     "SGMII" => mode.cyan(),
@@ -791,7 +763,9 @@ fn monorail_status(
                 )
             }
             Err(e) => {
-                if e == "UnconfiguredPort" {
+                if let IdolDecodeError::Idol(IdolError::Named(e)) = &e
+                    && e == "UnconfiguredPort"
+                {
                     print!(
                         "{}",
                         "--      --     --      --      --  ".dimmed()
@@ -805,19 +779,17 @@ fn monorail_status(
         match phy_value {
             Ok(s) => {
                 assert_eq!(s.name(), "PhyStatus");
-                let phy_ty = match &s["ty"] {
-                    Value::Enum(e) => e.disc().to_uppercase(),
-                    v => panic!("Expected struct, got {:?}", v),
-                };
                 println!(
                     "{:<6}  {:<8}  {:<10}",
-                    phy_ty,
+                    s.field::<Enum>("ty")?.disc().to_uppercase(),
                     fmt_link(&s["mac_link_up"]),
                     fmt_link(&s["media_link_up"]),
                 )
             }
             Err(e) => {
-                if e == "UnconfiguredPort" || e == "NoPhy" {
+                if let IdolDecodeError::Idol(IdolError::Named(e)) = &e
+                    && (e == "UnconfiguredPort" || e == "NoPhy")
+                {
                     println!("{}", "--       --         --".dimmed());
                 } else {
                     println!("Got unexpected error {e}");
@@ -840,7 +812,6 @@ fn monorail_mac_table(
     // - Read the number of entries in the MAC table
     // - Loop over the table that many times, reading entries
     let mac_count = humility_hiffy::hiffy_call::<u32>(
-        hubris,
         core,
         context,
         &op_mac_count,
@@ -880,12 +851,8 @@ fn monorail_mac_table(
     let results = context.run(core, ops.as_slice(), None)?;
     let results = results
         .into_iter()
-        .map(move |r| {
-            humility_hiffy::hiffy_decode::<humility::reflect::Struct>(
-                hubris, &op, r,
-            )
-        })
-        .collect::<Result<Vec<Result<_, _>>>>()?;
+        .map(move |r| op.decode::<humility::reflect::Struct>(&r))
+        .collect::<Vec<Result<_, _>>>();
 
     let mut mac_table: BTreeMap<u16, Vec<[u8; 6]>> = BTreeMap::new();
     for r in results {
@@ -933,7 +900,6 @@ fn monorail_reset_counters(
 ) -> Result<()> {
     let op = hubris.get_idol_command("Monorail.reset_port_counters")?;
     humility_hiffy::hiffy_call::<()>(
-        hubris,
         core,
         context,
         &op,
@@ -952,7 +918,6 @@ fn monorail_counters(
 ) -> Result<()> {
     let op = hubris.get_idol_command("Monorail.get_port_counters")?;
     let s = humility_hiffy::hiffy_call::<humility::reflect::Struct>(
-        hubris,
         core,
         context,
         &op,
@@ -981,9 +946,10 @@ fn monorail_counters(
     Ok(())
 }
 
-fn monorail(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = MonorailArgs::try_parse_from(&context.cli.cmd)?;
-
+fn monorail(
+    subargs: MonorailArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     // Early exit for subcommands which don't require an archive or Core
     match &subargs.cmd {
         Command::Info { reg, value } => {
@@ -1095,10 +1061,4 @@ fn monorail(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> humility_cmd::Command {
-    humility_cmd::Command {
-        app: MonorailArgs::command(),
-        name: "monorail",
-        run: monorail,
-    }
-}
+humility_cmd!(MonorailArgs, monorail);

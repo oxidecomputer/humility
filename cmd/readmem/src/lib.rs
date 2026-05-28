@@ -116,10 +116,10 @@
 //!
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use humility::hubris::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::{Command, Dumper};
+use humility_cli::{ExecutionContext, humility_cmd};
+use humility_hexdump::Dumper;
 use std::convert::TryInto;
 use std::io::Write;
 use std::path::PathBuf;
@@ -141,7 +141,7 @@ fn parse_size(src: &str) -> Result<u64, parse_size::Error> {
 
 #[derive(Parser, Debug)]
 #[clap(name = "readmem", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct ReadmemArgs {
+pub struct ReadmemArgs {
     /// print out as halfwords instead of as bytes
     #[clap(long, short = 'H', conflicts_with_all = &["word", "symbol", "file"])]
     halfword: bool,
@@ -166,8 +166,7 @@ struct ReadmemArgs {
     length: Option<u64>,
 }
 
-fn readmem(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = ReadmemArgs::try_parse_from(&context.cli.cmd)?;
+fn readmem(subargs: ReadmemArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = context.cli.try_archive()?;
     let core = &mut *context.cli.attach_live_or_dump(hubris.as_ref(), None)?;
 
@@ -268,6 +267,4 @@ fn readmem(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: ReadmemArgs::command(), name: "readmem", run: readmem }
-}
+humility_cmd!(ReadmemArgs, readmem);

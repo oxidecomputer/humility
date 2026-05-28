@@ -36,11 +36,7 @@ So you've decided to add a subcommand to Humility. Here's what you need to do.
    make sure any new name starts with `humility-cmd-` (e.g.
    `humility-cmd-yourcommand`).
 
-2. Review the settings in the `init` routine you cribbed from to make sure they
-   reflect your subcommand. In particular, the name must appear a second time in
-   the `name:` field.
-
-3. Cite your new subcommand from the root `Cargo.toml`. This needs to happen in
+2. Cite your new subcommand from the root `Cargo.toml`. This needs to happen in
    three places using two different names: in the `workspace.members` element
    using the relative path (e.g. `cmd/yourcommand`); in the
    `workspace.dependencies` section using the name of your package with the
@@ -48,10 +44,10 @@ So you've decided to add a subcommand to Humility. Here's what you need to do.
    `dependencies` table with a line reading `cmd-yourcommand = {workspace =
    true}`.
 
-4. Regenerate the README file by running `cargo xtask readme`. The `xtask` bit
+3. Regenerate the README file by running `cargo xtask readme`. The `xtask` bit
    there is very important.
 
-5. If you're adding a new command, you almost certainly want to bump Humility's
+4. If you're adding a new command, you almost certainly want to bump Humility's
    patch version. This makes it easier to tell whether users have the command.
    Doing this requires an extra step compared to a normal Rust package; see the
    previous section in this file.

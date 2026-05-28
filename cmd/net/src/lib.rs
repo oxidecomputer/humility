@@ -40,14 +40,13 @@
 use std::collections::BTreeMap;
 
 use anyhow::Result;
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use colored::Colorize;
 
 use humility::core::Core;
 use humility::hubris::HubrisArchive;
 use humility::reflect::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::HiffyContext;
 use humility_idol::HubrisIdol;
 
@@ -77,7 +76,7 @@ enum NetCommand {
 
 #[derive(Parser, Debug)]
 #[clap(name = "net", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct NetArgs {
+pub struct NetArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -97,7 +96,6 @@ fn net_ip(
     let op = hubris.get_idol_command("Net.get_mac_address")?;
 
     let v = humility_hiffy::hiffy_call::<humility::reflect::Tuple>(
-        hubris,
         core,
         &mut hiffy_context,
         &op,
@@ -148,7 +146,6 @@ fn net_mac_table(
     // - Read the number of entries in the MAC table
     // - Loop over the table that many times, reading entries
     let mac_count = humility_hiffy::hiffy_call::<u32>(
-        hubris,
         core,
         &mut hiffy_context,
         &op_mac_count,
@@ -199,12 +196,8 @@ fn net_mac_table(
     let results = hiffy_context.run(core, ops.as_slice(), None)?;
     let results = results
         .into_iter()
-        .map(move |r| {
-            humility_hiffy::hiffy_decode::<humility::reflect::Struct>(
-                hubris, &op, r,
-            )
-        })
-        .collect::<Result<Vec<Result<_, _>>>>()?;
+        .map(move |r| op.decode::<humility::reflect::Struct>(&r))
+        .collect::<Vec<_>>();
 
     let mut mac_table: BTreeMap<u16, Vec<[u8; 6]>> = BTreeMap::new();
     for r in results {
@@ -255,7 +248,6 @@ fn net_status(
     let op = hubris.get_idol_command("Net.management_link_status")?;
 
     let s = humility_hiffy::hiffy_call::<humility::reflect::Struct>(
-        hubris,
         core,
         &mut hiffy_context,
         &op,
@@ -319,7 +311,6 @@ fn net_counters(
     let op = hubris.get_idol_command("Net.management_counters")?;
 
     let s = humility_hiffy::hiffy_call::<humility::reflect::Struct>(
-        hubris,
         core,
         &mut hiffy_context,
         &op,
@@ -522,9 +513,7 @@ fn net_counters_diagram(s: &Struct) -> Result<()> {
     Ok(())
 }
 
-fn net(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = NetArgs::try_parse_from(&context.cli.cmd)?;
-
+fn net(subargs: NetArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let timeout = std::time::Duration::from_millis(subargs.timeout);
@@ -541,6 +530,4 @@ fn net(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: NetArgs::command(), name: "net", run: net }
-}
+humility_cmd!(NetArgs, net);

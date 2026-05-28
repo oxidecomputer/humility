@@ -43,19 +43,18 @@
 //!
 
 use anyhow::{Result, anyhow};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use colored::Colorize;
 use hif::*;
 use humility::hubris::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::{HiffyContext, IpcError};
 use humility_i2c::I2cArgs;
 use humility_idol::{self as idol, HubrisIdol};
 
 #[derive(Parser, Debug)]
 #[clap(name = "validate", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct ValidateArgs {
+pub struct ValidateArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -98,10 +97,19 @@ struct ValidateArgs {
     id: Option<usize>,
 }
 
+const REFDES_HDR: &str = "REFDES";
+const NO_REFDES: &str = "-";
+
 fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
+    let refdes_len = hubris
+        .manifest
+        .fmt_meta
+        .max_refdes_len
+        .max(REFDES_HDR.len())
+        .max(NO_REFDES.len());
     println!(
-        "{:2} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
-        "ID", "C", "P", "MUX", "ADDR", "DEVICE"
+        "{:2} {:refdes_len$} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
+        "ID", REFDES_HDR, "C", "P", "MUX", "ADDR", "DEVICE"
     );
 
     for (ndx, device) in hubris.manifest.i2c_devices.iter().enumerate() {
@@ -118,8 +126,9 @@ fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
         };
 
         println!(
-            "{:2} {:2} {:2} {:3} 0x{:02x} {:13} {}",
+            "{:2} {:refdes_len$} {:2} {:2} {:3} 0x{:02x} {:13} {}",
             ndx,
+            device.refdes.as_deref().unwrap_or(NO_REFDES),
             device.controller,
             device.port.name,
             mux,
@@ -131,10 +140,18 @@ fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
 
     Ok(())
 }
-fn validate(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = ValidateArgs::try_parse_from(&context.cli.cmd)?;
+fn validate(
+    subargs: ValidateArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
+    let refdes_len = hubris
+        .manifest
+        .fmt_meta
+        .max_refdes_len
+        .max(REFDES_HDR.len())
+        .max(NO_REFDES.len());
 
     let hargs = if subargs.bus.is_some() || subargs.controller.is_some() {
         Some(I2cArgs::parse(
@@ -196,8 +213,8 @@ fn validate(context: &mut ExecutionContext) -> Result<()> {
     };
 
     println!(
-        "{:2} {:11} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
-        "ID", "VALIDATION", "C", "P", "MUX", "ADDR", "DEVICE"
+        "{:2} {:refdes_len$} {:11} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
+        "ID", REFDES_HDR, "VALIDATION", "C", "P", "MUX", "ADDR", "DEVICE"
     );
 
     let ok = hubris.lookup_enum(op.ok)?;
@@ -222,7 +239,7 @@ fn validate(context: &mut ExecutionContext) -> Result<()> {
                 }
             }
             Err(IpcError::Error(e)) => {
-                if let idol::IdolError::CLike(err) = op.error {
+                if let idol::IdolErrorType::CLike(err) = op.error {
                     // TODO: assumes discriminant is a u8. Since this is using
                     // Hiffy call results instead of looking at a Rust value in
                     // memory, it's not clear from context what changes would be
@@ -258,8 +275,9 @@ fn validate(context: &mut ExecutionContext) -> Result<()> {
         };
 
         println!(
-            "{:2} {:11} {:2} {:2} {:3} 0x{:02x} {:13} {}",
+            "{:2} {:refdes_len$} {:11} {:2} {:2} {:3} 0x{:02x} {:13} {}",
             ndx,
+            device.refdes.as_deref().unwrap_or(NO_REFDES),
             result,
             device.controller,
             device.port.name,
@@ -273,6 +291,4 @@ fn validate(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: ValidateArgs::command(), name: "validate", run: validate }
-}
+humility_cmd!(ValidateArgs, validate);

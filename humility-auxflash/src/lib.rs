@@ -6,7 +6,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 
 use humility::core::Core;
 use humility::hubris::*;
-use humility_hiffy::{HiffyCallError, HiffyContext};
+use humility_hiffy::{HiffyContext, HiffyError};
 use humility_idol::{HubrisIdol, IdolArgument};
 use std::time::Duration;
 
@@ -45,7 +45,6 @@ impl<'a> AuxFlashHandler<'a> {
     pub fn slot_count(&mut self) -> Result<u32> {
         let op = self.hubris.get_idol_command("AuxFlash.slot_count")?;
         let value = humility_hiffy::hiffy_call::<u32>(
-            self.hubris,
             self.core,
             &mut self.context,
             &op,
@@ -62,7 +61,6 @@ impl<'a> AuxFlashHandler<'a> {
             .hubris
             .get_idol_command("AuxFlash.scan_and_get_active_slot")?;
         let value = humility_hiffy::hiffy_call::<u32>(
-            self.hubris,
             self.core,
             &mut self.context,
             &op,
@@ -72,7 +70,11 @@ impl<'a> AuxFlashHandler<'a> {
         );
         match value {
             Ok(v) => Ok(Some(v)),
-            Err(HiffyCallError::Hiffy(s)) if s == "NoActiveSlot" => Ok(None),
+            Err(HiffyError::Hiffy(humility_idol::IdolError::Named(e)))
+                if e == "NoActiveSlot" =>
+            {
+                Ok(None)
+            }
             Err(e) => Err(e.into()),
         }
     }
@@ -81,7 +83,6 @@ impl<'a> AuxFlashHandler<'a> {
     pub fn slot_erase(&mut self, slot: u32) -> Result<()> {
         let op = self.hubris.get_idol_command("AuxFlash.erase_slot")?;
         humility_hiffy::hiffy_call::<()>(
-            self.hubris,
             self.core,
             &mut self.context,
             &op,
@@ -99,7 +100,6 @@ impl<'a> AuxFlashHandler<'a> {
     pub fn slot_status(&mut self, slot: u32) -> Result<Option<[u8; 32]>> {
         let op = self.hubris.get_idol_command("AuxFlash.read_slot_chck")?;
         let value = humility_hiffy::hiffy_call::<([u8; 32],)>(
-            self.hubris,
             self.core,
             &mut self.context,
             &op,
@@ -109,7 +109,11 @@ impl<'a> AuxFlashHandler<'a> {
         );
         match value {
             Ok(v) => Ok(Some(v.0)),
-            Err(HiffyCallError::Hiffy(e)) if e == "MissingChck" => Ok(None),
+            Err(HiffyError::Hiffy(humility_idol::IdolError::Named(e)))
+                if e == "MissingChck" =>
+            {
+                Ok(None)
+            }
             Err(e) => Err(e.into()),
         }
     }
@@ -137,7 +141,6 @@ impl<'a> AuxFlashHandler<'a> {
         for (i, chunk) in out.chunks_mut(READ_CHUNK_SIZE).enumerate() {
             let offset = i * READ_CHUNK_SIZE;
             humility_hiffy::hiffy_call::<()>(
-                self.hubris,
                 self.core,
                 &mut self.context,
                 &op,
@@ -236,7 +239,6 @@ impl<'a> AuxFlashHandler<'a> {
         for (i, chunk) in data.chunks(data_size).enumerate() {
             let offset = i * data_size;
             humility_hiffy::hiffy_call::<()>(
-                self.hubris,
                 self.core,
                 &mut self.context,
                 &op,

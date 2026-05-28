@@ -8,11 +8,11 @@ members = [
     "humility-arch-cortex",
     "humility-auxflash",
     "humility-bin",
-    "humility-cmd",
     "humility-cli",
     "humility-core",
     "humility-doppel",
     "humility-dump-agent",
+    "humility-hexdump",
     "humility-hiffy",
     "humility-i2c",
     "humility-idol",
@@ -114,10 +114,10 @@ humility = { path = "./humility-core", package = "humility-core" }
 humility-arch-arm = { path = "./humility-arch-arm" }
 humility-auxflash = { path = "./humility-auxflash" }
 humility-cortex = { path = "./humility-arch-cortex" }
-humility-cmd = { path = "./humility-cmd" }
 humility-cli = { path = "./humility-cli", default-features = false }
 humility-dump-agent = { path = "./humility-dump-agent" }
 humility-doppel = { path = "./humility-doppel" }
+humility-hexdump = { path = "./humility-hexdump" }
 humility-hiffy = { path = "./humility-hiffy" }
 humility-i2c = { path = "./humility-i2c" }
 humility-idol = { path = "./humility-idol" }
@@ -205,6 +205,7 @@ ctrlc = "3.1.5"
 env_logger = "0.11.10"
 gimli = "0.33.0"
 goblin = "0.10"
+heck = "0.5"
 hex = "0.4.3"
 hubpack = "0.1.1"
 ihex = "3.0"

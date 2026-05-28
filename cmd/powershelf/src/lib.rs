@@ -14,18 +14,17 @@
 //! indices 0 through 5).
 
 use anyhow::{Context, Result, anyhow};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use hif::*;
 use humility::hubris::HubrisArchive;
 use humility::hubris::HubrisEnum;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
-use humility_idol::{self as idol, HubrisIdol};
+use humility_idol::{self as idol, HubrisIdol, IdolDecodeError};
 
 #[derive(Parser, Debug)]
 #[clap(name = "powershelf", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct PowershelfArgs {
+pub struct PowershelfArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -129,8 +128,10 @@ fn interpret_raw_variant(variant: &str, payload: &[u8]) {
     }
 }
 
-fn powershelf_run(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = PowershelfArgs::try_parse_from(&context.cli.cmd)?;
+fn powershelf_run(
+    subargs: PowershelfArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
@@ -164,12 +165,17 @@ fn powershelf_run(context: &mut ExecutionContext) -> Result<()> {
     let results = context.run(core, ops.as_slice(), None)?;
 
     for (ndx, variant) in operation.variants.iter().enumerate() {
-        let result = hiffy_decode(hubris, &idol_cmd, results[ndx].clone())?;
+        let result =
+            match idol_cmd.decode::<humility::reflect::Value>(&results[ndx]) {
+                Ok(s) => Ok(s),
+                Err(IdolDecodeError::Idol(s)) => Err(s),
+                Err(IdolDecodeError::DecodeFailed(e)) => return Err(e.into()),
+            };
 
         println!(
             "{:<20} => {}",
             variant.name,
-            hiffy_format_result(hubris, result.clone())
+            hiffy_format_result(hubris, &result)
         );
 
         if subargs.verbose {
@@ -210,10 +216,4 @@ fn powershelf_run(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command {
-        app: PowershelfArgs::command(),
-        name: "powershelf",
-        run: powershelf_run,
-    }
-}
+humility_cmd!(PowershelfArgs, powershelf_run);

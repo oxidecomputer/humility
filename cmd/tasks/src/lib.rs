@@ -112,13 +112,12 @@
 //!
 
 use anyhow::{Context, Result, anyhow, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load};
 use humility_arch_arm::ARMRegister;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_doppel::{self as doppel, Task, TaskDesc, TaskId, TaskState};
 use num_traits::FromPrimitive;
 use std::collections::{BTreeMap, HashMap};
@@ -126,7 +125,7 @@ use std::io::Write;
 
 #[derive(Parser, Debug)]
 #[clap(name = "tasks", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct TasksArgs {
+pub struct TasksArgs {
     /// show registers
     #[clap(long, short)]
     registers: bool,
@@ -183,8 +182,7 @@ fn print_regs(
     Ok(())
 }
 
-fn tasks(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = TasksArgs::try_parse_from(&context.cli.cmd)?;
+fn tasks(subargs: TasksArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
 
@@ -923,6 +921,4 @@ fn explain_recv(
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: TasksArgs::command(), name: "tasks", run: tasks }
-}
+humility_cmd!(TasksArgs, tasks);

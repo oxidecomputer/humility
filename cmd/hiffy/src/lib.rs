@@ -47,11 +47,11 @@
 
 use ::idol::syntax::send::{Operation, Reply};
 use anyhow::{Context, Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use humility::hubris::*;
 use humility::warn;
-use humility_cli::ExecutionContext;
-use humility_cmd::{Command, Dumper};
+use humility_cli::{ExecutionContext, humility_cmd};
+use humility_hexdump::Dumper;
 use humility_hiffy::*;
 use humility_idol as idol;
 use std::io::IsTerminal;
@@ -59,7 +59,7 @@ use std::io::Read;
 
 #[derive(Parser, Debug)]
 #[clap(name = "hiffy", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct HiffyArgs {
+pub struct HiffyArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -124,14 +124,14 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
         }
 
         match idol::lookup_reply(hubris, module, op.0) {
-            Ok((_, idol::IdolError::CLike(e))) => match &op.1.reply {
+            Ok((_, idol::IdolErrorType::CLike(e))) => match &op.1.reply {
                 Reply::Result { ok, .. } => {
                     println!("{}{:<27} {}", margin, "<ok>", ok.ty);
                     println!("{}{:<27} {}", margin, "<error>", e.name);
                 }
                 _ => warn!("mismatch on reply: found {op:?}"),
             },
-            Ok((_, idol::IdolError::Complex(t))) => match &op.1.reply {
+            Ok((_, idol::IdolErrorType::Complex(t))) => match &op.1.reply {
                 Reply::Result { ok, .. } => {
                     println!("{}{:<27} {}", margin, "<ok>", ok.ty);
                     println!("{}{:<27} {}", margin, "<error>", t.name);
@@ -139,7 +139,7 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
                 _ => warn!("mismatch on reply: found {op:?}"),
             },
 
-            Ok((_, idol::IdolError::None)) => match &op.1.reply {
+            Ok((_, idol::IdolErrorType::None)) => match &op.1.reply {
                 Reply::Result { ok, .. } => {
                     //
                     // This is possible if the only error is ServerDeath
@@ -199,8 +199,7 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-fn hiffy(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = HiffyArgs::try_parse_from(&context.cli.cmd)?;
+fn hiffy(subargs: HiffyArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
 
     if subargs.list {
@@ -313,7 +312,6 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
 
             (
                 match hiffy_call(
-                    hubris,
                     core,
                     &mut context,
                     &op,
@@ -322,14 +320,14 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
                     output.as_deref_mut(),
                 ) {
                     Ok(s) => Ok(s),
-                    Err(HiffyCallError::Hiffy(s)) => Err(s),
-                    Err(HiffyCallError::Other(e)) => return Err(e),
+                    Err(HiffyError::Hiffy(s)) => Err(s),
+                    Err(HiffyError::Other(e)) => return Err(e),
                 },
                 output,
             )
         };
 
-        hiffy_print_result(hubris, &op, return_code)?;
+        hiffy_print_result(hubris, &op, &return_code)?;
         if let Some(data) = output {
             if let Some(out) = &subargs.output {
                 std::fs::write(out, &data)
@@ -348,6 +346,4 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: HiffyArgs::command(), name: "hiffy", run: hiffy }
-}
+humility_cmd!(HiffyArgs, hiffy);

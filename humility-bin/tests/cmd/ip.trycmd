@@ -1,43 +1,56 @@
+If we are using a command that requires a net connection, then it should fail
+when trying to parse the interface:
+
+```
+$ humility --ip 'fe80::0c1d:8cff:fec0:e207%en1234' --archive=tests/cmd/archives/build-gimlet-c-dev-image-default-v1.0.2.zip tasks
+? failed
+humility tasks failed: could not find interface for en1234
+
+```
+
+If the command doesn't need the connection, then the interface doesn't prevent
+it from working:
+```
+$ humility --ip 'fe80::0c1d:8cff:fec0:e207%en1234' --archive=tests/cmd/archives/build-gimlet-c-dev-image-default-v1.0.2.zip manifest
      version => hubris build archive v8
-     git rev => 1463da11d07f00077a4be64261c63d7484c6f702-dirty
-    image id => [5d, 39, 76, 88, e9, ca, 6e, d3]
+     git rev => bd53b2cbaa2ece304531d048dcbb857cdfb574d3
+    image id => [e1, b5, c6, cb, d9, e8, 8e, 13]
        board => gimlet-c
-        name => gimlet-c-lab
+        name => gimlet-c-dev
        image => default
       target => thumbv7em-none-eabihf
     features => dump
-  total size => 778K
+  total size => 938K
  kernel size => 36K
-       tasks => 28
+       tasks => 27
                 ID OBJ TASK                SIZE FEATURES
-                 0  11 gimlet_seq         66.1K h753, client-counters, stay-in-a2
-                 1   5 i2c_driver         16.2K h753, client-counters
-                 2   2 net                125.2K mgmt, h753, gimlet, vlan, vpd-mac, client-counters
-                 3   8 thermal            25.9K gimlet, client-counters
-                 4  23 vpd                 7.0K client-counters
-                 5  10 hiffy              50.5K h753, stm32h7, i2c, gpio, spi, qspi, hash, sprot, client-counters
-                 6  22 validate           10.1K client-counters
-                 7  12 gimlet_inspector   10.6K vlan, client-counters
-                 8  15 update_server      11.1K client-counters
-                 9  17 host_sp_comms      67.1K stm32h753, uart7, baud_rate_3M, hardware_flow_control, vlan, gimlet, client-counters
-                10   4 spi2_driver        13.2K spi2, h753, client-counters
-                11  25 dump_agent         27.1K net, vlan, client-counters
-                12   1 jefe                9.8K dump
-                13  24 user_leds           1.3K stm32h7, client-counters
-                14   9 power              39.2K gimlet, client-counters
-                15  14 hf                 13.8K h753, hash, client-counters
-                16   7 packrat            16.1K gimlet, boot-kmdb
-                17  27 idle                0.1K 
-                18   6 spd                10.4K h753, client-counters
-                19   3 sys                 2.3K h753, client-counters
-                20  16 sensor             14.3K client-counters
-                21  26 sbrmi               5.8K client-counters
-                22  13 hash_driver         8.7K h753, client-counters
-                23  18 udpecho             9.8K vlan, client-counters
-                24  19 udpbroadcast        8.6K vlan, client-counters
-                25  20 control_plane_agent 118.4K gimlet, usart1, vlan, baud_rate_3M, vpd, client-counters
-                26  21 sprot              42.6K sink_test, use-spi-core, h753, spi4, client-counters
-                27  28 udprpc             11.0K vlan
+                 0   8 thermal            33.4K gimlet
+                 1  11 gimlet_seq         64.7K h753
+                 2   2 net                168.9K mgmt, h753, gimlet, vlan, vpd-mac
+                 3  19 control_plane_agent 139.2K gimlet, usart1, vlan, baud_rate_3M
+                 4  16 host_sp_comms      84.4K stm32h753, uart7, baud_rate_3M, hardware_flow_control, vlan, gimlet
+                 5  20 sprot              67.9K sink_test, use-spi-core, h753, spi4
+                 6   9 power              33.7K gimlet
+                 7  10 hiffy              56.6K h753, stm32h7, i2c, gpio, spi, qspi, hash, sprot
+                 8  24 dump_agent         34.6K net, vlan
+                 9   1 jefe               16.3K dump
+                10   4 spi2_driver        16.1K spi2, h753
+                11   5 i2c_driver         16.1K h753
+                12   6 spd                16.1K h753
+                13  12 hash_driver        16.1K h753
+                14  13 hf                 16.1K h753, hash
+                15  14 update_server      16.1K 
+                16  17 udpecho            16.1K vlan
+                17  21 validate           16.1K 
+                18  27 udprpc             16.1K vlan
+                19   7 packrat            16.8K gimlet
+                20  15 sensor             11.5K 
+                21  18 udpbroadcast        8.1K vlan
+                22  22 vpd                 8.1K 
+                23  25 sbrmi               8.7K 
+                24   3 sys                 2.0K h753
+                25  23 user_leds           2.0K stm32h7
+                26  26 idle                0.1K 
    i2c buses => 4 controllers, 5 buses
                 C PORT MODE NAME          DESCRIPTION
                 1 B    trgt spd           SPD proxy
@@ -259,11 +272,13 @@
                 130 DIMM_H1                 i2c id=74   M15    temp
                 131 M2_A                    i2c id=75   -      temp
                 132 M2_B                    i2c id=76   -      temp
-     sockets => 6 sockets
+     sockets => 5 sockets
                NAME                 KIND    PORT  RXSIZE OWNER
                echo                 udp        7    1024 udpecho
                broadcast            udp      997    1024 udpbroadcast
                control_plane_agent  udp    11111    2048 control_plane_agent
                dump_agent           udp    11113    1024 dump_agent
-               inspector            udp    23547     512 gimlet_inspector
                rpc                  udp      998    1024 udprpc
+
+```
+

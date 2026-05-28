@@ -107,8 +107,7 @@
 //!
 
 use humility::hubris::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 use humility_log::msg;
@@ -118,12 +117,12 @@ use std::io::Write;
 use std::str;
 
 use anyhow::{Result, anyhow, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use hif::*;
 
 #[derive(Parser, Debug)]
 #[clap(name = "spd", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct SpdArgs {
+pub struct SpdArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
@@ -330,8 +329,7 @@ fn set_page(
     ops.push(Op::DropN(4));
 }
 
-fn spd(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = SpdArgs::try_parse_from(&context.cli.cmd)?;
+fn spd(subargs: SpdArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
 
@@ -519,6 +517,4 @@ fn dump_ddr4_over_i2c(
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: SpdArgs::command(), name: "spd", run: spd }
-}
+humility_cmd!(SpdArgs, spd);

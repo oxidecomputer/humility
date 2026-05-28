@@ -990,32 +990,6 @@ impl<'a> HiffyContext<'a> {
         )
     }
 
-    /// Convenience routine to pull out the result of an Idol call
-    pub fn idol_result<T: humility::reflect::Load>(
-        &mut self,
-        op: &idol::IdolOperation,
-        result: &Result<Vec<u8>, IpcError>,
-    ) -> Result<T> {
-        use humility::reflect::{deserialize_value, load_value};
-
-        let value = match result {
-            Ok(val) => {
-                let ty = self.hubris.lookup_type(op.ok).unwrap();
-                match op.operation.encoding {
-                    ::idol::syntax::Encoding::Zerocopy => {
-                        load_value(self.hubris, val, ty, 0)?
-                    }
-                    ::idol::syntax::Encoding::Ssmarshal
-                    | ::idol::syntax::Encoding::Hubpack => {
-                        deserialize_value(self.hubris, val, ty)?.0
-                    }
-                }
-            }
-            Err(e) => bail!("{}", op.strerror(*e)),
-        };
-        T::from_value(&value)
-    }
-
     /// Begins HIF execution.  This is potentially non-blocking with respect to
     /// the HIF program, so you will need to poll [Self::done] to check for
     /// completion.
@@ -1440,10 +1414,10 @@ fn has_task_started(
 
 /// Error returned from [`hiffy_call`]
 #[derive(thiserror::Error, Debug)]
-pub enum HiffyCallError {
+pub enum HiffyError {
     /// A function called in the HIF program returned an error
-    #[error("hiffy error: {0}")]
-    Hiffy(String),
+    #[error("hiffy error")]
+    Hiffy(#[from] idol::IdolError),
     /// There was an error invoking the HIF program
     #[error(transparent)]
     Other(#[from] anyhow::Error),
@@ -1451,14 +1425,13 @@ pub enum HiffyCallError {
 
 /// Executes a Hiffy call, returning the output value (or an error)
 pub fn hiffy_call<T: humility::reflect::Load>(
-    hubris: &HubrisArchive,
     core: &mut dyn Core,
     context: &mut HiffyContext,
     op: &idol::IdolOperation,
     args: &[(&str, idol::IdolArgument)],
     lease_write: Option<&[u8]>,
     lease_read: Option<&mut [u8]>,
-) -> Result<T, HiffyCallError> {
+) -> Result<T, HiffyError> {
     check_op(op)?;
     check_leases(op, lease_write, lease_read.as_deref())?;
 
@@ -1496,7 +1469,7 @@ pub fn hiffy_call<T: humility::reflect::Load>(
     let mut results = context.run(core, ops.as_slice(), lease_write)?;
 
     if results.len() != 1 {
-        return Err(HiffyCallError::Other(anyhow!(
+        return Err(HiffyError::Other(anyhow!(
             "unexpected results length: {:?}",
             results
         )));
@@ -1504,73 +1477,24 @@ pub fn hiffy_call<T: humility::reflect::Load>(
 
     let mut v: Result<Vec<u8>, IpcError> = results.pop().unwrap();
 
-    // If this is a Read operation, steal extra data from the returned stack
-    // and copy it into the incoming 'read' argument
-    let out = match lease_read {
-        Some(data) => {
-            let ok_size = op.reply_size()?;
-            if let Ok(v) = v.as_mut() {
-                let extra_data = v.drain(ok_size..).collect::<Vec<u8>>();
-                data.copy_from_slice(&extra_data);
-            }
-            // Shoehorn that extra data in, assuming decoding worked.
-            hiffy_decode(hubris, op, v)?
-        }
-        _ => hiffy_decode(hubris, op, v)?,
-    };
-    out.map_err(HiffyCallError::Hiffy)
+    // If this is a successful Read operation, steal extra data from the
+    // returned stack and copy it into the incoming 'read' argument
+    if let Ok(v) = v.as_mut()
+        && let Some(data) = lease_read
+    {
+        let ok_size = op.reply_size()?;
+        let extra_data = v.drain(ok_size..).collect::<Vec<u8>>();
+        data.copy_from_slice(&extra_data);
+    }
+    op.decode(&v).map_err(|e| match e {
+        idol::IdolDecodeError::DecodeFailed(v) => HiffyError::Other(v.into()),
+        idol::IdolDecodeError::Idol(v) => HiffyError::Hiffy(v),
+    })
 }
 
-/// Decodes a value returned from [hiffy_call] or equivalent.
-///
-/// Returns an outer error if decoding fails, or an inner error if the Hiffy
-/// call returns an error code (formatted as a String).
-pub fn hiffy_decode<T: humility::reflect::Load>(
+pub fn hiffy_format_result<E: std::fmt::Display>(
     hubris: &HubrisArchive,
-    op: &idol::IdolOperation,
-    val: Result<Vec<u8>, impl Into<IpcError>>,
-) -> Result<std::result::Result<T, String>> {
-    let r = match val.map_err(Into::into) {
-        Ok(val) => {
-            let ty = hubris.lookup_type(op.ok).unwrap();
-            let value = match op.operation.encoding {
-                ::idol::syntax::Encoding::Zerocopy => {
-                    humility::reflect::load_value(hubris, &val, ty, 0)?
-                }
-                ::idol::syntax::Encoding::Ssmarshal
-                | ::idol::syntax::Encoding::Hubpack => {
-                    humility::reflect::deserialize_value(hubris, &val, ty)?.0
-                }
-            };
-            Ok(T::from_value(&value)?)
-        }
-        Err(IpcError::Error(e)) => match op.error {
-            idol::IdolError::CLike(error) => {
-                // TODO potentially sign-extended discriminator represented as
-                // u32 and then zero-extended to u64; won't work for signed
-                // values. Can't use determine_variant here because it's not
-                // laid out in memory, it's been unfolded onto the return stack.
-                if let Some(v) =
-                    error.lookup_variant_by_tag(Tag::from(e as u64))
-                {
-                    Err(v.name.to_string())
-                } else {
-                    Err(format!("<Unknown variant {e}>"))
-                }
-            }
-            idol::IdolError::Complex(error) => {
-                Err(format!("<Complex error: {}>", error.name))
-            }
-            _ => Err(format!("<Unhandled error {e:x?}>")),
-        },
-        Err(dead @ IpcError::ServerDied(_)) => Err(format!("<{dead}>")),
-    };
-    Ok(r)
-}
-
-pub fn hiffy_format_result(
-    hubris: &HubrisArchive,
-    result: std::result::Result<humility::reflect::Value, String>,
+    result: &std::result::Result<humility::reflect::Value, E>,
 ) -> String {
     let fmt = HubrisPrintFormat {
         newline: false,
@@ -1591,10 +1515,10 @@ pub fn hiffy_format_result(
     }
 }
 
-pub fn hiffy_print_result(
+pub fn hiffy_print_result<E: std::fmt::Display>(
     hubris: &HubrisArchive,
     op: &idol::IdolOperation,
-    result: std::result::Result<humility::reflect::Value, String>,
+    result: &std::result::Result<humility::reflect::Value, E>,
 ) -> Result<()> {
     println!(
         "{}.{}() => {}",

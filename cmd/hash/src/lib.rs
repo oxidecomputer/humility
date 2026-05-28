@@ -17,10 +17,9 @@
 //!
 
 use anyhow::{Context, Result, anyhow, bail};
-use clap::{ArgGroup, CommandFactory, Parser};
+use clap::{ArgGroup, Parser};
 
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use sha2::{Digest, Sha256};
 use std::fs::File;
@@ -36,7 +35,7 @@ use indicatif::{ProgressBar, ProgressStyle};
     group = ArgGroup::new("command").multiple(false),
     group = ArgGroup::new("data").multiple(false)
 )]
-struct HashArgs {
+pub struct HashArgs {
     /// Initialize the hash block and optionally provide a length.
     #[clap(long, short)] // not in group "command" to allow -i update
     init: bool,
@@ -92,8 +91,7 @@ struct HashArgs {
     long: bool,
 }
 
-fn hash(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = HashArgs::try_parse_from(&context.cli.cmd)?;
+fn hash(subargs: HashArgs, context: &mut ExecutionContext) -> Result<()> {
     let archive = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(archive)?;
 
@@ -474,6 +472,4 @@ fn print_hash(buf: &[u8]) {
     }
 }
 
-pub fn init() -> Command {
-    Command { app: HashArgs::command(), name: "hash", run: hash }
-}
+humility_cmd!(HashArgs, hash);

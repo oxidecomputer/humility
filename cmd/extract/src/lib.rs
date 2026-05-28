@@ -130,9 +130,8 @@
 //!
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use clap::Parser;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_log::msg;
 use std::fs::File;
 use std::io::Cursor;
@@ -140,7 +139,7 @@ use std::io::{self, Read, Write};
 
 #[derive(Parser, Debug)]
 #[clap(name = "extract", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct ExtractArgs {
+pub struct ExtractArgs {
     /// list contents
     #[clap(long, short)]
     list: bool,
@@ -153,8 +152,7 @@ struct ExtractArgs {
     file: Option<String>,
 }
 
-fn extract(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = ExtractArgs::try_parse_from(&context.cli.cmd)?;
+fn extract(subargs: ExtractArgs, context: &mut ExecutionContext) -> Result<()> {
     let archive = context.cli.raw_archive()?;
 
     if subargs.list {
@@ -235,6 +233,4 @@ fn extract(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: ExtractArgs::command(), name: "extract", run: extract }
-}
+humility_cmd!(ExtractArgs, extract);

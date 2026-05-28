@@ -100,13 +100,12 @@
 //! # etc...
 //! ```
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow};
 use chrono::DateTime;
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 
 use humility::{core::Core, hubris::HubrisArchive, reflect, reflect::Load};
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_doppel as doppel;
 use humility_hiffy::HiffyContext;
 use humility_idol::HubrisIdol;
@@ -141,7 +140,7 @@ enum CosmoHostCommand {
 
 #[derive(Parser, Debug)]
 #[clap(name = "host", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct HostArgs {
+pub struct HostArgs {
     #[clap(subcommand)]
     cmd: HostCommand,
 }
@@ -358,7 +357,6 @@ fn host_post_codes(
     )?;
     let op = hubris.get_idol_command("Sequencer.post_code_buffer_len")?;
     let count = humility_hiffy::hiffy_call::<u32>(
-        hubris,
         core,
         &mut context,
         &op,
@@ -369,9 +367,6 @@ fn host_post_codes(
 
     let op = hubris.get_idol_command("Sequencer.get_post_code")?;
     let handle_value = |v| {
-        let Ok(reflect::Value::Base(reflect::Base::U32(v))) = v else {
-            bail!("Got bad value from get_post_code: expected U32, got {v:?}");
-        };
         if raw {
             println!("{v:08x}");
         } else {
@@ -379,7 +374,6 @@ fn host_post_codes(
             let detail = decoded.lines().join("\n");
             println!("{detail}");
         }
-        Ok(())
     };
 
     let send = context.get_function("Send", 4)?;
@@ -422,8 +416,8 @@ fn host_post_codes(
         ops.push(Op::Done); // Finish
 
         for r in context.run(core, ops.as_slice(), None)? {
-            let v = humility_hiffy::hiffy_decode(hubris, &op, r)?;
-            handle_value(v)?;
+            let v = op.decode(&r)?;
+            handle_value(v);
         }
     }
     Ok(())
@@ -443,7 +437,6 @@ fn host_last_post_code(
     )?;
     let op = hubris.get_idol_command("Sequencer.last_post_code")?;
     let v = humility_hiffy::hiffy_call::<u32>(
-        hubris,
         core,
         &mut context,
         &op,
@@ -461,8 +454,7 @@ fn host_last_post_code(
     Ok(())
 }
 
-fn host(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = HostArgs::try_parse_from(&context.cli.cmd)?;
+fn host(subargs: HostArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
 
     match subargs.cmd {
@@ -491,6 +483,4 @@ fn host(context: &mut ExecutionContext) -> Result<()> {
     }
 }
 
-pub fn init() -> Command {
-    Command { app: HostArgs::command(), name: "host", run: host }
-}
+humility_cmd!(HostArgs, host);

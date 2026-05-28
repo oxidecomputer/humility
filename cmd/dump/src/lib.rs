@@ -66,12 +66,11 @@
 //!
 
 use anyhow::{Result, bail};
-use clap::{ArgGroup, CommandFactory, Parser};
+use clap::{ArgGroup, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_arch_arm::ARMRegister;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_dump_agent::{
     DumpAgent, DumpAgentCore, DumpAgentExt, DumpArea, DumpBreakdown,
     HiffyDumpAgent, UdpDumpAgent, task_areas,
@@ -89,7 +88,7 @@ use std::time::Instant;
     group = ArgGroup::new("simulation").multiple(false)
         .required(false).requires("force_dump_agent")
 )]
-struct DumpArgs {
+pub struct DumpArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 20000, value_name = "timeout_ms",
@@ -851,8 +850,7 @@ fn dump_agent_status(
     Ok(())
 }
 
-fn dumpcmd(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = DumpArgs::try_parse_from(&context.cli.cmd)?;
+fn dumpcmd(subargs: DumpArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_match(hubris)?;
 
@@ -898,6 +896,4 @@ fn dumpcmd(context: &mut ExecutionContext) -> Result<()> {
     }
 }
 
-pub fn init() -> Command {
-    Command { app: DumpArgs::command(), name: "dump", run: dumpcmd }
-}
+humility_cmd!(DumpArgs, dumpcmd);

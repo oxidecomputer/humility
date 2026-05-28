@@ -190,14 +190,13 @@
 use colored::Colorize;
 use humility::hubris::*;
 use humility::{core::Core, warn};
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 use humility_idol::{HubrisIdol, IdolArgument, IdolOperation};
 
 use anyhow::{Result, anyhow, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use hif::*;
 use indexmap::IndexMap;
 use pmbus::commands::*;
@@ -207,7 +206,7 @@ use std::fmt::Write;
 
 #[derive(Parser, Debug)]
 #[clap(name = "pmbus", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct PmbusArgs {
+pub struct PmbusArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
@@ -1904,8 +1903,7 @@ impl PmbusWorker for IdolWorker<'_> {
 }
 
 #[allow(clippy::print_literal)]
-fn pmbus(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = PmbusArgs::try_parse_from(&context.cli.cmd)?;
+fn pmbus(subargs: PmbusArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
 
     if subargs.list {
@@ -2244,6 +2242,4 @@ fn pmbus_main(
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: PmbusArgs::command(), name: "pmbus", run: pmbus }
-}
+humility_cmd!(PmbusArgs, pmbus);

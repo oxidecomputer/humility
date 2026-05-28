@@ -7,13 +7,12 @@
 //! Tools to interact with the Tofino EEPROM
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
-use humility_cli::ExecutionContext;
+use clap::Parser;
+use humility_cli::{ExecutionContext, humility_cmd};
 use indicatif::{ProgressBar, ProgressStyle};
 
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::Command;
 use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument};
 
@@ -25,7 +24,7 @@ const EEPROM_SIZE_BYTES: usize = 65536;
 
 #[derive(Parser, Debug)]
 #[clap(name = "tofino-eeprom", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct EepromArgs {
+pub struct EepromArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 15000, value_name = "timeout_ms",
@@ -87,7 +86,6 @@ impl<'a> EepromHandler<'a> {
         for (i, chunk) in out.chunks_mut(READ_CHUNK_SIZE).enumerate() {
             let offset = i * READ_CHUNK_SIZE;
             humility_hiffy::hiffy_call::<()>(
-                self.hubris,
                 self.core,
                 &mut self.context,
                 &op,
@@ -122,7 +120,6 @@ impl<'a> EepromHandler<'a> {
         for (i, chunk) in data.chunks(WRITE_CHUNK_SIZE).enumerate() {
             let offset = i * WRITE_CHUNK_SIZE;
             humility_hiffy::hiffy_call::<()>(
-                self.hubris,
                 self.core,
                 &mut self.context,
                 &op,
@@ -140,8 +137,7 @@ impl<'a> EepromHandler<'a> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-fn eeprom(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = EepromArgs::try_parse_from(&context.cli.cmd)?;
+fn eeprom(subargs: EepromArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let mut worker = EepromHandler::new(hubris, core, subargs.timeout)?;
@@ -159,6 +155,4 @@ fn eeprom(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: EepromArgs::command(), name: "tofino-eeprom", run: eeprom }
-}
+humility_cmd!(EepromArgs, eeprom);

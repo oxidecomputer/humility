@@ -11,7 +11,6 @@ use std::time::Duration;
 use std::{io, thread};
 
 use anyhow::{Context, Result};
-use clap::Parser;
 use crossbeam_channel::{Sender, select};
 use picocom_map::RemapRules;
 use termios::Termios;
@@ -49,7 +48,6 @@ impl<'a> UartConsoleHandler<'a> {
         let op = self.hubris.get_idol_command("ControlPlaneAgent.uart_read")?;
 
         let v = humility_hiffy::hiffy_call::<u32>(
-            self.hubris,
             self.core,
             &mut self.context,
             &op,
@@ -68,7 +66,6 @@ impl<'a> UartConsoleHandler<'a> {
         let buf = &buf[..usize::min(buf.len(), HIFFY_BUF_SIZE)];
 
         let v = humility_hiffy::hiffy_call::<u32>(
-            self.hubris,
             self.core,
             &mut self.context,
             &op,
@@ -160,7 +157,6 @@ impl<'a> UartConsoleHandler<'a> {
             .get_idol_command("ControlPlaneAgent.set_humility_uart_client")?;
 
         humility_hiffy::hiffy_call::<()>(
-            self.hubris,
             self.core,
             &mut self.context,
             &op,
@@ -177,7 +173,6 @@ impl<'a> UartConsoleHandler<'a> {
             .get_idol_command("ControlPlaneAgent.get_uart_client")?;
 
         let value = humility_hiffy::hiffy_call::<humility::reflect::Enum>(
-            self.hubris,
             self.core,
             &mut self.context,
             &op,
@@ -279,8 +274,10 @@ impl UnrawTermiosGuard {
     }
 }
 
-pub(super) fn console_proxy(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = UartConsoleArgs::try_parse_from(&context.cli.cmd)?;
+pub(super) fn console_proxy(
+    subargs: UartConsoleArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let hiffy_timeout = Duration::from_millis(subargs.hiffy_timeout);

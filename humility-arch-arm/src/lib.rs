@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{Result, bail};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::ToPrimitive;
 use std::collections::{BTreeMap, HashMap};
@@ -211,32 +210,6 @@ fn instr_operands(cs: &Capstone, instr: &capstone::Insn) -> Vec<ARMRegister> {
     rval
 }
 
-fn instr_source_target(
-    cs: &Capstone,
-    instr: &capstone::Insn,
-) -> Result<(Option<ARMRegister>, Option<ARMRegister>)> {
-    let detail = cs.insn_detail(instr).unwrap();
-
-    let mut source: Option<ARMRegister> = None;
-    let mut target: Option<ARMRegister> = None;
-
-    for op in detail.regs_read() {
-        if source.is_some() {
-            bail!("multiple source registers");
-        }
-        source = Some((*op).into());
-    }
-
-    for op in detail.regs_write() {
-        if target.is_some() {
-            bail!("multiple target registers");
-        }
-        target = Some((*op).into());
-    }
-
-    Ok((source, target))
-}
-
 //
 // On ARM, our stub frames (that is, those frames that contain system call
 // instructions) have no DWARF information that describes how to unwind
@@ -252,7 +225,7 @@ fn instr_source_target(
 pub fn presyscall_pushes(
     cs: &Capstone,
     instrs: &[capstone::Insn],
-) -> Result<Vec<ARMRegister>> {
+) -> Vec<ARMRegister> {
     const ARM_INSN_PUSH: u32 = arch::arm::ArmInsn::ARM_INS_PUSH as u32;
     const ARM_INSN_MOV: u32 = arch::arm::ArmInsn::ARM_INS_MOV as u32;
     const ARM_INSN_POP: u32 = arch::arm::ArmInsn::ARM_INS_POP as u32;
@@ -263,10 +236,20 @@ pub fn presyscall_pushes(
     for instr in instrs {
         match instr.id() {
             InsnId(ARM_INSN_MOV) => {
-                let (source, target) = instr_source_target(cs, instr)?;
+                // Get source and target registers.  The source may be absent
+                // if this is an instruction of the form `mov Rd, #imm`; the
+                // target must always be present.
+                let detail = cs.insn_detail(instr).unwrap();
 
-                if let (Some(source), Some(target)) = (source, target) {
-                    map.insert(target, source);
+                let read = detail.regs_read();
+                assert!(read.len() <= 1, "multiple source registers in MOV");
+
+                let write = detail.regs_write();
+                assert_eq!(write.len(), 1, "MOV must have a single target reg");
+                let target = ARMRegister::from(write[0]);
+
+                if let Some(source) = read.first() {
+                    map.insert(target, ARMRegister::from(*source));
                 }
             }
 
@@ -297,7 +280,7 @@ pub fn presyscall_pushes(
     //
     rval.reverse();
 
-    Ok(rval)
+    rval
 }
 
 //
