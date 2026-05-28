@@ -248,7 +248,7 @@ fn list(
         };
 
         let result = if let (Some(lop), Some(rs)) = (&locked_op, &results) {
-            Some(context.idol_result(lop, &rs[ndx]))
+            Some(lop.decode(&rs[ndx]))
         } else {
             None
         };
@@ -418,7 +418,7 @@ fn vpd_write(
         let results = context.run(core, ops.as_slice(), None)?;
 
         for (o, result) in results.iter().enumerate() {
-            context.idol_result::<()>(&op, result).with_context(|| {
+            op.decode::<()>(result).with_context(|| {
                 format!("failed to write VPD at offset {}", offset + o)
             })?;
         }
@@ -468,8 +468,7 @@ fn vpd_read_at(
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    context
-        .idol_result::<Vec<u8>>(op, &results[0])
+    op.decode::<Vec<u8>>(&results[0])
         .with_context(|| format!("failed to read at offset {offset}"))
 }
 
@@ -591,8 +590,7 @@ fn vpd_lock(
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    context
-        .idol_result::<()>(&op, &results[0])
+    op.decode::<()>(&results[0])
         .with_context(|| format!("failed to lock {index}"))?;
 
     humility::msg!("successfully locked VPD");
@@ -635,7 +633,7 @@ fn vpd_lock_all(
         use humility::reflect::Base::Bool;
         use humility::reflect::Value::Base;
 
-        let result = context.idol_result(&op, r);
+        let result = op.decode(r);
 
         match result {
             Ok(Base(Bool(true))) => {
@@ -696,8 +694,8 @@ fn vpd_lock_all(
     let mut success = 0;
 
     for (ndx, r) in locking.iter().zip(results.iter()) {
-        context
-            .idol_result::<()>(&lock_op, r)
+        lock_op
+            .decode::<()>(r)
             .with_context(|| format!("failed to lock VPD {ndx}"))?;
         success += 1;
     }

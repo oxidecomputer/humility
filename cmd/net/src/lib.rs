@@ -96,7 +96,6 @@ fn net_ip(
     let op = hubris.get_idol_command("Net.get_mac_address")?;
 
     let v = humility_hiffy::hiffy_call::<humility::reflect::Tuple>(
-        hubris,
         core,
         &mut hiffy_context,
         &op,
@@ -147,7 +146,6 @@ fn net_mac_table(
     // - Read the number of entries in the MAC table
     // - Loop over the table that many times, reading entries
     let mac_count = humility_hiffy::hiffy_call::<u32>(
-        hubris,
         core,
         &mut hiffy_context,
         &op_mac_count,
@@ -198,11 +196,7 @@ fn net_mac_table(
     let results = hiffy_context.run(core, ops.as_slice(), None)?;
     let results = results
         .into_iter()
-        .map(move |r| {
-            humility_hiffy::hiffy_decode::<humility::reflect::Struct>(
-                hubris, &op, r,
-            )
-        })
+        .map(move |r| op.decode::<humility::reflect::Struct>(&r))
         .collect::<Vec<_>>();
 
     let mut mac_table: BTreeMap<u16, Vec<[u8; 6]>> = BTreeMap::new();
@@ -254,7 +248,6 @@ fn net_status(
     let op = hubris.get_idol_command("Net.management_link_status")?;
 
     let s = humility_hiffy::hiffy_call::<humility::reflect::Struct>(
-        hubris,
         core,
         &mut hiffy_context,
         &op,
@@ -318,7 +311,6 @@ fn net_counters(
     let op = hubris.get_idol_command("Net.management_counters")?;
 
     let s = humility_hiffy::hiffy_call::<humility::reflect::Struct>(
-        hubris,
         core,
         &mut hiffy_context,
         &op,

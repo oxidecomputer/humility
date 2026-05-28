@@ -153,7 +153,7 @@ fn call_cpuid(
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
-    let registers = context.idol_result::<[u32; 4]>(&op, &results[0])?;
+    let registers = op.decode::<[u32; 4]>(&results[0])?;
 
     Ok(CpuIdResult {
         eax: registers[0],
@@ -393,8 +393,8 @@ fn mca(
     let ipid_results = &results[nbanks as usize..];
 
     for (bank, r) in results[..nbanks as usize].iter().enumerate() {
-        let status = context.idol_result::<u64>(&op, r)?;
-        let ipid = context.idol_result::<u64>(&op, &ipid_results[bank])?;
+        let status = op.decode::<u64>(r)?;
+        let ipid = op.decode::<u64>(&ipid_results[bank])?;
 
         if !all_mca {
             if status == 0 {
@@ -441,7 +441,7 @@ fn mca(
         let mut values = HashMap::new();
 
         for (ndx, reg) in reg_results.iter().enumerate() {
-            let v = context.idol_result::<u64>(&op, reg)?;
+            let v = op.decode::<u64>(reg)?;
             values.insert(allregs[ndx], v);
         }
 
@@ -535,12 +535,10 @@ fn sbrmi(subargs: SbrmiArgs, context: &mut ExecutionContext) -> Result<()> {
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    let nthreads = context.idol_result::<u8>(&nthreads, &results[0])?;
-    let enabled =
-        threadmap(&context.idol_result::<Vec<u8>>(&enabled, &results[1])?)?;
-    let alert =
-        threadmap(&context.idol_result::<Vec<u8>>(&alert, &results[2])?)?;
-    let mcg_cap = context.idol_result::<u64>(&mcg_cap, &results[3])?;
+    let nthreads = nthreads.decode::<u8>(&results[0])?;
+    let enabled = threadmap(&enabled.decode::<Vec<u8>>(&results[1])?)?;
+    let alert = threadmap(&alert.decode::<Vec<u8>>(&results[2])?)?;
+    let mcg_cap = mcg_cap.decode::<u64>(&results[3])?;
 
     if subargs.mca {
         let thread = subargs.thread.unwrap();

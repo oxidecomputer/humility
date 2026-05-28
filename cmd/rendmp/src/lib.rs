@@ -148,7 +148,7 @@ use humility::warn;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
-use humility_idol::{HubrisIdol, IdolOperation};
+use humility_idol::{HubrisIdol, IdolDecodeError, IdolOperation};
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
@@ -1126,7 +1126,6 @@ fn rendmp_blackbox(
     let (addr, _dev) = check_addr(&subargs, hubris)?;
     let op = hubris.get_idol_command("Power.rendmp_blackbox_dump")?;
     let e = hiffy_call::<humility::reflect::Enum>(
-        hubris,
         core,
         context,
         &op,
@@ -1207,7 +1206,7 @@ fn get_pin_states(
     // Decode Hiffy results
     let mut values = vec![];
     for r in results {
-        values.push(hiffy_decode::<u32>(hubris, &op, r)?);
+        values.push(op.decode::<u32>(&r)?);
     }
 
     let phases = dev.phases();
@@ -1339,7 +1338,6 @@ impl Call {
 }
 
 struct HifWorker<'a, 'b> {
-    hubris: &'a HubrisArchive,
     context: &'a mut HiffyContext<'b>,
 
     read_dma: IdolOperation<'a>,
@@ -1441,7 +1439,6 @@ impl<'a, 'b> HifWorker<'a, 'b> {
             .collect::<Result<Vec<_>>>()?;
 
         Ok(Self {
-            hubris,
             context,
 
             read_dma,
@@ -1592,7 +1589,7 @@ impl<'a, 'b> HifWorker<'a, 'b> {
     fn run(
         &mut self,
         core: &mut dyn humility::core::Core,
-    ) -> Result<Vec<Result<Call, String>>> {
+    ) -> Result<Vec<Result<Call, humility_idol::IdolError>>> {
         let mut ops = std::mem::take(&mut self.ops);
         ops.push(Op::Done);
         let r = self.context.run(core, &ops, None)?;
@@ -1612,7 +1609,7 @@ impl<'a, 'b> HifWorker<'a, 'b> {
                 Call::WriteByte => &self.write_byte,
                 Call::WriteWord32 => &self.write_word32,
             };
-            let v = hiffy_decode::<Base>(self.hubris, op, value);
+            let v = op.decode::<Base>(&value);
             match v {
                 Ok(v) => match (v, call) {
                     (Base::U32(v), Call::ReadDma(..)) => {
@@ -1641,8 +1638,8 @@ impl<'a, 'b> HifWorker<'a, 'b> {
                         bail!("got unexpected result {base} for {op:?}")
                     }
                 },
-                Err(HiffyError::Hiffy(e)) => out.push(Err(e)),
-                Err(HiffyError::Other(e)) => {
+                Err(IdolDecodeError::Idol(e)) => out.push(Err(e)),
+                Err(IdolDecodeError::DecodeFailed(e)) => {
                     return Err(e).with_context(|| {
                         format!("failed to decode {call:?} result")
                     });
@@ -1665,7 +1662,7 @@ fn rendmp_phase_check<'a>(
         .get_idol_command("Sequencer.tofino_seq_state")
         .or_else(|_| hubris.get_idol_command("Sequencer.get_state"))
         .context("could not get power state HIF operation")?;
-    let r = hiffy_call(hubris, core, context, &power_state_op, &[], None, None);
+    let r = hiffy_call(core, context, &power_state_op, &[], None, None);
     let v = match r {
         Ok(r) => Ok(r),
         Err(HiffyError::Hiffy(s)) => Err(s),
@@ -1673,7 +1670,7 @@ fn rendmp_phase_check<'a>(
             return Err(e.context("power state check"));
         }
     };
-    if hiffy_format_result(hubris, v) != "A2" {
+    if hiffy_format_result(hubris, &v) != "A2" {
         bail!("must be in A2 when checking phases");
     }
 

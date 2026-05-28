@@ -357,7 +357,6 @@ fn host_post_codes(
     )?;
     let op = hubris.get_idol_command("Sequencer.post_code_buffer_len")?;
     let count = humility_hiffy::hiffy_call::<u32>(
-        hubris,
         core,
         &mut context,
         &op,
@@ -417,7 +416,7 @@ fn host_post_codes(
         ops.push(Op::Done); // Finish
 
         for r in context.run(core, ops.as_slice(), None)? {
-            let v = humility_hiffy::hiffy_decode::<u32>(hubris, &op, r)?;
+            let v = op.decode(&r)?;
             handle_value(v);
         }
     }
@@ -438,7 +437,6 @@ fn host_last_post_code(
     )?;
     let op = hubris.get_idol_command("Sequencer.last_post_code")?;
     let v = humility_hiffy::hiffy_call::<u32>(
-        hubris,
         core,
         &mut context,
         &op,

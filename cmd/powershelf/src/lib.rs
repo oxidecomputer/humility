@@ -20,7 +20,7 @@ use humility::hubris::HubrisArchive;
 use humility::hubris::HubrisEnum;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
-use humility_idol::{self as idol, HubrisIdol};
+use humility_idol::{self as idol, HubrisIdol, IdolDecodeError};
 
 #[derive(Parser, Debug)]
 #[clap(name = "powershelf", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -165,20 +165,17 @@ fn powershelf_run(
     let results = context.run(core, ops.as_slice(), None)?;
 
     for (ndx, variant) in operation.variants.iter().enumerate() {
-        let result = match hiffy_decode::<humility::reflect::Value>(
-            hubris,
-            &idol_cmd,
-            results[ndx].clone(),
-        ) {
-            Ok(s) => Ok(s),
-            Err(HiffyError::Hiffy(s)) => Err(s),
-            Err(HiffyError::Other(e)) => return Err(e),
-        };
+        let result =
+            match idol_cmd.decode::<humility::reflect::Value>(&results[ndx]) {
+                Ok(s) => Ok(s),
+                Err(IdolDecodeError::Idol(s)) => Err(s),
+                Err(IdolDecodeError::DecodeFailed(e)) => return Err(e.into()),
+            };
 
         println!(
             "{:<20} => {}",
             variant.name,
-            hiffy_format_result(hubris, result.clone())
+            hiffy_format_result(hubris, &result)
         );
 
         if subargs.verbose {

@@ -239,7 +239,7 @@ fn validate(
                 }
             }
             Err(IpcError::Error(e)) => {
-                if let idol::IdolError::CLike(err) = op.error {
+                if let idol::IdolErrorType::CLike(err) = op.error {
                     // TODO: assumes discriminant is a u8. Since this is using
                     // Hiffy call results instead of looking at a Rust value in
                     // memory, it's not clear from context what changes would be
