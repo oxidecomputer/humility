@@ -1125,9 +1125,8 @@ fn rendmp_blackbox(
 ) -> Result<()> {
     let (addr, _dev) = check_addr(&subargs, hubris)?;
     let op = hubris.get_idol_command("Power.rendmp_blackbox_dump")?;
-    let e = hiffy_call::<humility::reflect::Enum>(
+    let e = context.call::<humility::reflect::Enum>(
         core,
-        context,
         &op,
         &[("addr", addr.into())],
         None,
@@ -1662,7 +1661,7 @@ fn rendmp_phase_check<'a>(
         .get_idol_command("Sequencer.tofino_seq_state")
         .or_else(|_| hubris.get_idol_command("Sequencer.get_state"))
         .context("could not get power state HIF operation")?;
-    let r = hiffy_call(core, context, &power_state_op, &[], None, None);
+    let r = context.call(core, &power_state_op, &[], None, None);
     let v = match r {
         Ok(r) => Ok(r),
         Err(HiffyError::Hiffy(s)) => Err(s),

@@ -356,14 +356,7 @@ fn host_post_codes(
         std::time::Duration::from_millis(5000),
     )?;
     let op = hubris.get_idol_command("Sequencer.post_code_buffer_len")?;
-    let count = humility_hiffy::hiffy_call::<u32>(
-        core,
-        &mut context,
-        &op,
-        &[],
-        None,
-        None,
-    )?;
+    let count = context.call::<u32>(core, &op, &[], None, None)?;
 
     let op = hubris.get_idol_command("Sequencer.get_post_code")?;
     let handle_value = |v| {
@@ -436,14 +429,7 @@ fn host_last_post_code(
         std::time::Duration::from_millis(5000),
     )?;
     let op = hubris.get_idol_command("Sequencer.last_post_code")?;
-    let v = humility_hiffy::hiffy_call::<u32>(
-        core,
-        &mut context,
-        &op,
-        &[],
-        None,
-        None,
-    )?;
+    let v = context.call::<u32>(core, &op, &[], None, None)?;
     if raw {
         println!("{v:08x}");
     } else {

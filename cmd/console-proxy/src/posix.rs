@@ -47,14 +47,8 @@ impl<'a> UartConsoleHandler<'a> {
     fn uart_read(&mut self, buf: &mut [u8]) -> Result<usize> {
         let op = self.hubris.get_idol_command("ControlPlaneAgent.uart_read")?;
 
-        let v = humility_hiffy::hiffy_call::<u32>(
-            self.core,
-            &mut self.context,
-            &op,
-            &[],
-            None,
-            Some(buf),
-        )?;
+        let v =
+            self.context.call::<u32>(self.core, &op, &[], None, Some(buf))?;
 
         Ok(v as usize)
     }
@@ -65,14 +59,8 @@ impl<'a> UartConsoleHandler<'a> {
 
         let buf = &buf[..usize::min(buf.len(), HIFFY_BUF_SIZE)];
 
-        let v = humility_hiffy::hiffy_call::<u32>(
-            self.core,
-            &mut self.context,
-            &op,
-            &[],
-            Some(buf),
-            None,
-        )?;
+        let v =
+            self.context.call::<u32>(self.core, &op, &[], Some(buf), None)?;
 
         Ok(v as usize)
     }
@@ -156,9 +144,8 @@ impl<'a> UartConsoleHandler<'a> {
             .hubris
             .get_idol_command("ControlPlaneAgent.set_humility_uart_client")?;
 
-        humility_hiffy::hiffy_call::<()>(
+        self.context.call::<()>(
             self.core,
-            &mut self.context,
             &op,
             &[("attach", IdolArgument::String("false"))],
             None,
@@ -172,9 +159,8 @@ impl<'a> UartConsoleHandler<'a> {
             .hubris
             .get_idol_command("ControlPlaneAgent.get_uart_client")?;
 
-        let value = humility_hiffy::hiffy_call::<humility::reflect::Enum>(
+        let value = self.context.call::<humility::reflect::Enum>(
             self.core,
-            &mut self.context,
             &op,
             &[],
             None,

@@ -311,9 +311,8 @@ fn hiffy(subargs: HiffyArgs, context: &mut ExecutionContext) -> Result<()> {
             };
 
             (
-                match hiffy_call(
+                match context.call(
                     core,
-                    &mut context,
                     &op,
                     &args,
                     input.as_deref(),

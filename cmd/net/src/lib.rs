@@ -95,9 +95,8 @@ fn net_ip(
 ) -> Result<()> {
     let op = hubris.get_idol_command("Net.get_mac_address")?;
 
-    let v = humility_hiffy::hiffy_call::<humility::reflect::Tuple>(
+    let v = hiffy_context.call::<humility::reflect::Tuple>(
         core,
-        &mut hiffy_context,
         &op,
         &[],
         None,
@@ -145,14 +144,8 @@ fn net_mac_table(
     // We need to make two HIF calls:
     // - Read the number of entries in the MAC table
     // - Loop over the table that many times, reading entries
-    let mac_count = humility_hiffy::hiffy_call::<u32>(
-        core,
-        &mut hiffy_context,
-        &op_mac_count,
-        &[],
-        None,
-        None,
-    )?;
+    let mac_count =
+        hiffy_context.call::<u32>(core, &op_mac_count, &[], None, None)?;
 
     // Due to HIF limitations (lack of Expand16 / Collect16), we're going to
     // limit ourselves to 255 MAC table entries.
@@ -247,9 +240,8 @@ fn net_status(
 ) -> Result<()> {
     let op = hubris.get_idol_command("Net.management_link_status")?;
 
-    let s = humility_hiffy::hiffy_call::<humility::reflect::Struct>(
+    let s = hiffy_context.call::<humility::reflect::Struct>(
         core,
-        &mut hiffy_context,
         &op,
         &[],
         None,
@@ -310,9 +302,8 @@ fn net_counters(
 ) -> Result<()> {
     let op = hubris.get_idol_command("Net.management_counters")?;
 
-    let s = humility_hiffy::hiffy_call::<humility::reflect::Struct>(
+    let s = hiffy_context.call::<humility::reflect::Struct>(
         core,
-        &mut hiffy_context,
         &op,
         &[],
         None,
