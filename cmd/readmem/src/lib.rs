@@ -117,7 +117,7 @@
 
 use anyhow::{Result, bail};
 use clap::Parser;
-use humility::hubris::*;
+use humility::{hubris::*, log::info};
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hexdump::Dumper;
 use std::convert::TryInto;
@@ -168,6 +168,7 @@ pub struct ReadmemArgs {
 
 fn readmem(subargs: ReadmemArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = context.cli.try_archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_or_dump(hubris.as_ref(), None)?;
 
     let max = humility::core::CORE_MAX_READSIZE;
@@ -218,7 +219,7 @@ fn readmem(subargs: ReadmemArgs, context: &mut ExecutionContext) -> Result<()> {
             core.read_8(addr, buf)?;
             f.write_all(buf)?;
         }
-        humility_log::msg!("Wrote {} bytes to {:?}", length, file);
+        info!(log, "Wrote {} bytes to {:?}", length, file);
         return Ok(());
     }
 

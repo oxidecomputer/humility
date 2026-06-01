@@ -116,10 +116,11 @@ fn phase_currents(
 
 fn power(subargs: PowerArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)?;
     let mut ops = vec![];
     let op = hubris.get_idol_command("Sensor.get")?;
 

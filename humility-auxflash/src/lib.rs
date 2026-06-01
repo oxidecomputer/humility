@@ -6,6 +6,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 
 use humility::core::Core;
 use humility::hubris::*;
+use humility::log::{Logger, info};
 use humility_hiffy::{HiffyContext, HiffyError};
 use humility_idol::{HubrisIdol, IdolArgument};
 use std::time::Duration;
@@ -18,6 +19,7 @@ pub struct GenericAuxFlashHandler<'a, C: Core> {
     hubris: &'a HubrisArchive,
     core: C,
     context: HiffyContext<'a>,
+    log: Logger,
 }
 
 pub type AuxFlashHandler<'a> = GenericAuxFlashHandler<'a, &'a mut dyn Core>;
@@ -30,9 +32,10 @@ impl<'a, C: Core> GenericAuxFlashHandler<'a, C> {
         hubris: &'a HubrisArchive,
         mut core: C,
         hiffy_timeout: Duration,
+        log: &Logger,
     ) -> Result<Self> {
-        let context = HiffyContext::new(hubris, &mut core, hiffy_timeout)?;
-        Ok(Self { hubris, core, context })
+        let context = HiffyContext::new(hubris, &mut core, hiffy_timeout, log)?;
+        Ok(Self { hubris, core, context, log: log.clone() })
     }
 
     /// Returns the auxflash slot size
@@ -181,7 +184,8 @@ impl<'a> AuxFlashWriter<'a> {
                 }
                 Ok(None) => break,
                 Err(e) => {
-                    humility::msg!(
+                    info!(
+                        self.log,
                         "Failed to load data as TLV-C ({e:?}); \
                          skipping reflash check",
                     );
@@ -193,11 +197,11 @@ impl<'a> AuxFlashWriter<'a> {
             && let Ok(Some(chck_slot)) = self.slot_status(slot)
             && chck_data == chck_slot
         {
-            humility::msg!("Slot {slot} is already programmed with our data",);
+            info!(self.log, "Slot {slot} is already programmed with our data",);
             if force {
-                humility::msg!("Reprogramming it anyways!");
+                info!(self.log, "Reprogramming it anyways!");
             } else {
-                humility::msg!("Skipping reprogramming.");
+                info!(self.log, "Skipping reprogramming.");
                 return Ok(());
             }
         }
@@ -206,7 +210,7 @@ impl<'a> AuxFlashWriter<'a> {
         // fail (if we're on a backend that doesn't support data transfers)
         let data_size = self.context.data_size()?;
 
-        humility::msg!("erasing slot {slot}");
+        info!(self.log, "erasing slot {slot}");
         self.slot_erase(slot)?;
 
         let slot_size = self.slot_size_bytes()?;
@@ -243,12 +247,12 @@ impl<'a> AuxFlashWriter<'a> {
         }
         bar.set_position(data.len() as u64);
         bar.finish_and_clear();
-        humility::msg!("done");
+        info!(self.log, "done");
         Ok(())
     }
 
     pub fn reset(&mut self) -> Result<()> {
-        self.core.reset_with_handoff(self.hubris)
+        self.core.reset_with_handoff(self.hubris, &self.log)
     }
 
     pub fn auxflash_write_from_archive(
@@ -262,7 +266,7 @@ impl<'a> AuxFlashWriter<'a> {
                  Does this Hubris app include auxiliary blobs?"
             )
         })?;
-        humility::msg!("Flashing auxiliary data from the Hubris archive");
+        info!(self.log, "Flashing auxiliary data from the Hubris archive");
         self.auxflash_write(slot, &data, force)
     }
 }

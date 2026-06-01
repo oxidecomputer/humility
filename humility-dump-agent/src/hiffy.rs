@@ -5,7 +5,11 @@ use crate::DumpAgent;
 use anyhow::{Context, Result, bail};
 use core::mem::size_of;
 use hif::*;
-use humility::{core::Core, hubris::HubrisArchive};
+use humility::{
+    core::Core,
+    hubris::HubrisArchive,
+    log::{Logger, info},
+};
 use humility_hiffy::{HiffyContext, IpcError};
 use humility_idol::{self as idol, HubrisIdol, IdolDecodeError, IdolError};
 use humpty::{DumpAreaHeader, DumpSegment, DumpSegmentHeader};
@@ -20,6 +24,7 @@ pub struct HiffyDumpAgent<'a> {
     hubris: &'a HubrisArchive,
     core: &'a mut dyn Core,
     context: HiffyContext<'a>,
+    log: Logger,
 }
 
 impl<'a> HiffyDumpAgent<'a> {
@@ -27,8 +32,9 @@ impl<'a> HiffyDumpAgent<'a> {
         hubris: &'a HubrisArchive,
         core: &'a mut dyn Core,
         timeout: Duration,
+        log: &Logger,
     ) -> Result<Self> {
-        let context = HiffyContext::new(hubris, core, timeout)?;
+        let context = HiffyContext::new(hubris, core, timeout, log)?;
 
         //
         // Do some sanity checks on the number of bytes returned by read_dump().
@@ -53,7 +59,7 @@ impl<'a> HiffyDumpAgent<'a> {
             );
         }
 
-        Ok(Self { hubris, core, context })
+        Ok(Self { hubris, core, context, log: log.clone() })
     }
     fn run(&mut self, ops: &[Op]) -> Result<Vec<Result<Vec<u8>, IpcError>>> {
         self.context.run(self.core, ops, None)
@@ -127,7 +133,8 @@ impl DumpAgent for HiffyDumpAgent<'_> {
             // dump fails for an earlier reason, it will look like we lost
             // our SWD connection no matter what.
             //
-            humility::msg!(
+            info!(
+                self.log,
                 "dump will start in 10 seconds; unplug probe now, and \
                  reset RoT via SWD after dump is complete to re-attach"
             );
@@ -152,7 +159,8 @@ impl DumpAgent for HiffyDumpAgent<'_> {
 
             iter as usize
         } else {
-            humility::msg!(
+            info!(
+                self.log,
                 "taking dump; target will be stopped for ~20 seconds"
             );
             0

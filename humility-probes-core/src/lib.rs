@@ -6,10 +6,12 @@ use ::probe_rs::{
     DebugProbeError, DebugProbeInfo, DebugProbeSelector, Probe,
     ProbeCreationError,
 };
-use humility::core::ProbeError;
+use humility::{
+    core::ProbeError,
+    log::{Logger, info},
+};
 
 use anyhow::{Result, anyhow, bail};
-use humility::msg;
 
 mod probe_rs;
 mod unattached;
@@ -113,6 +115,7 @@ fn open_probe<T: Into<DebugProbeSelector> + Clone>(
 pub fn attach_to_probe(
     probe: &str,
     speed_khz: Option<u32>,
+    log: &Logger,
 ) -> Result<UnattachedCore> {
     let (probe, index) = parse_probe(probe);
 
@@ -122,7 +125,7 @@ pub fn attach_to_probe(
 
             let probe = open_probe(&probe_info, speed_khz)?;
 
-            crate::msg!("Opened probe {}", probe_info.identifier);
+            info!(log, "Opened probe {}", probe_info.identifier);
             Ok(UnattachedCore::new(
                 probe,
                 probe_info.identifier.clone(),
@@ -131,7 +134,7 @@ pub fn attach_to_probe(
                 probe_info.serial_number,
             ))
         }
-        "auto" => attach_to_probe("usb", speed_khz),
+        "auto" => attach_to_probe("usb", speed_khz, log),
         _ => match TryInto::<DebugProbeSelector>::try_into(probe) {
             Ok(selector) => {
                 let vidpid = probe;
@@ -141,7 +144,7 @@ pub fn attach_to_probe(
                 let probe = open_probe(selector, speed_khz)?;
                 let name = probe.get_name();
 
-                crate::msg!("Opened {vidpid} via {name}");
+                info!(log, "Opened {vidpid} via {name}");
                 Ok(UnattachedCore::new(probe, name, vid, pid, serial))
             }
             Err(_) => Err(anyhow!("unrecognized probe: {}", probe)),
@@ -154,6 +157,7 @@ pub fn attach_to_chip(
     probe: &str,
     chip: Option<&str>,
     speed_khz: Option<u32>,
+    log: &Logger,
 ) -> Result<probe_rs::ProbeCore> {
     let (probe, index) = parse_probe(probe);
 
@@ -177,7 +181,7 @@ pub fn attach_to_chip(
                 None => (probe.attach("armv7m")?, false),
             };
 
-            crate::msg!("attached via {name}");
+            info!(log, "attached via {name}");
 
             Ok(probe_rs::ProbeCore::new(
                 session,
@@ -186,9 +190,10 @@ pub fn attach_to_chip(
                 probe_info.product_id,
                 probe_info.serial_number,
                 can_flash,
+                log,
             ))
         }
-        "auto" => attach_to_chip("usb", chip, speed_khz),
+        "auto" => attach_to_chip("usb", chip, speed_khz, log),
 
         _ => match TryInto::<DebugProbeSelector>::try_into(probe) {
             Ok(selector) => {
@@ -210,10 +215,10 @@ pub fn attach_to_chip(
                     None => (probe.attach("armv7m")?, false),
                 };
 
-                crate::msg!("attached to {vidpid} via {name}");
+                info!(log, "attached to {vidpid} via {name}");
 
                 Ok(probe_rs::ProbeCore::new(
-                    session, name, vid, pid, serial, can_flash,
+                    session, name, vid, pid, serial, can_flash, log,
                 ))
             }
             Err(_) => Err(anyhow!("unrecognized probe: {probe}")),
@@ -225,8 +230,9 @@ pub fn attach_for_flashing(
     probe: &str,
     chip: &str,
     speed_khz: Option<u32>,
+    log: &Logger,
 ) -> Result<probe_rs::ProbeCore> {
-    attach_to_chip(probe, Some(chip), speed_khz)
+    attach_to_chip(probe, Some(chip), speed_khz, log)
 }
 
 /// Trait to make it easier for libraries to attach to
@@ -238,12 +244,21 @@ pub trait HubrisAttach {
     /// hubris archive and that the archive matches the image
     /// id present on target. If no chip is is present in the archive
     /// this will still attach.
-    fn attach_probe(&self, probe: &str) -> Result<probe_rs::ProbeCore>;
+    fn attach_probe(
+        &self,
+        probe: &str,
+        log: &Logger,
+    ) -> Result<probe_rs::ProbeCore>;
 }
 
 impl HubrisAttach for humility::hubris::HubrisArchive {
-    fn attach_probe(&self, probe: &str) -> Result<probe_rs::ProbeCore> {
-        let mut core = attach_to_chip(probe, self.chip().as_deref(), None)?;
+    fn attach_probe(
+        &self,
+        probe: &str,
+        log: &Logger,
+    ) -> Result<probe_rs::ProbeCore> {
+        let mut core =
+            attach_to_chip(probe, self.chip().as_deref(), None, log)?;
 
         self.validate(
             &mut core,

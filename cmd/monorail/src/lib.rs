@@ -170,6 +170,7 @@ use std::convert::TryInto;
 
 use humility::core::Core;
 use humility::hubris::*;
+use humility::log::{info, warn};
 use humility::reflect::*;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::HiffyContext;
@@ -306,7 +307,8 @@ fn monorail_read(
 ) -> Result<()> {
     let reg = parse_reg_or_addr(&reg)?;
     let addr = reg.address();
-    humility::msg!("Reading {reg} from {addr:#x}");
+    let log = context.log.clone();
+    info!(log, "Reading {reg} from {addr:#x}");
 
     let op = hubris.get_idol_command("Monorail.read_vsc7448_reg")?;
     let value = context.call::<u32>(
@@ -323,7 +325,7 @@ fn monorail_read(
     // task configures appropriate padding bytes between setting the
     // target register and reading it back.
     if value == 0x88888888 {
-        log::warn!("0x88888888 typically indicates a communication issue!");
+        warn!(log, "0x88888888 typically indicates a communication issue!");
     }
     pretty_print_fields(value, reg.fields(), 0);
     Ok(())
@@ -338,7 +340,8 @@ fn monorail_write(
 ) -> Result<()> {
     let reg = parse_reg_or_addr(&reg)?;
     let addr = reg.address();
-    humility::msg!("Writing {value:#x} to {reg} at {addr:#x}");
+    let log = &context.log;
+    info!(log, "Writing {value:#x} to {reg} at {addr:#x}");
     pretty_print_fields(value, reg.fields(), 0);
 
     let op = hubris.get_idol_command("Monorail.write_vsc7448_reg")?;
@@ -600,7 +603,7 @@ fn monorail_dump(
         match parse_reg_or_addr(&addr) {
             Ok(reg) => println!("{reg}    {value:#010x}"),
             Err(e) => {
-                humility::msg!("skipping unknown register at {addr}: {e}")
+                info!(context.log, "skipping unknown register at {addr}: {e}")
             }
         }
     }
@@ -970,9 +973,10 @@ fn monorail(
     }
 
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)?;
     match subargs.cmd {
         Command::Info { .. } => panic!("Called monorail with info subcommand"),
         Command::Status { ports } => {

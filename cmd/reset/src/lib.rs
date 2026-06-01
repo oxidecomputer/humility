@@ -9,6 +9,7 @@
 
 use anyhow::Result;
 use clap::Parser;
+use humility::log::info;
 use humility_cli::{ExecutionContext, humility_cmd};
 
 #[derive(Parser, Debug)]
@@ -27,6 +28,7 @@ pub struct ResetArgs {
 
 fn reset(subargs: ResetArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = context.cli.try_archive()?;
+    let log = context.log();
 
     let probe = match &context.cli.probe {
         Some(p) => p,
@@ -87,19 +89,23 @@ fn reset(subargs: ResetArgs, context: &mut ExecutionContext) -> Result<()> {
             probe,
             Some(&chip),
             context.cli.speed,
+            log,
         )?;
         match behavior {
             Behavior::Halt => {
                 c.reset_and_halt(std::time::Duration::from_secs(2))
             }
             Behavior::ResetWithHandoff(archive) => {
-                c.reset_with_handoff(archive)
+                c.reset_with_handoff(archive, log)
             }
             Behavior::Reset => c.reset(),
         }
     } else {
-        let mut c =
-            humility_probes_core::attach_to_probe(probe, context.cli.speed)?;
+        let mut c = humility_probes_core::attach_to_probe(
+            probe,
+            context.cli.speed,
+            log,
+        )?;
         match behavior {
             Behavior::Halt | Behavior::ResetWithHandoff(..) => {
                 unreachable!()
@@ -109,11 +115,12 @@ fn reset(subargs: ResetArgs, context: &mut ExecutionContext) -> Result<()> {
     };
 
     if r.is_err() {
-        humility::msg!(
+        info!(
+            log,
             "There was an error when resetting. \
             The chip may be in an unknown state!"
         );
-        humility::msg!("Full error: {r:x?}");
+        info!(log, "Full error: {r:x?}");
     }
 
     Ok(())

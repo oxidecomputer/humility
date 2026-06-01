@@ -66,6 +66,7 @@ use anyhow::{Result, bail};
 use clap::Parser;
 use humility::core::Core;
 use humility::hubris::*;
+use humility::log::info;
 use humility::reflect::{self, Format, Load, Value};
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_doppel::{CountedRingbuf, CounterVariant, Ringbuf, StaticCell};
@@ -233,6 +234,7 @@ fn taskname<'a>(
 #[allow(clippy::print_literal)]
 fn ringbuf(subargs: RingbufArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
 
     let mut ringbufs = vec![];
 
@@ -300,13 +302,13 @@ fn ringbuf(subargs: RingbufArgs, context: &mut ExecutionContext) -> Result<()> {
         if let Some(def) = def {
             if let Err(e) = ringbuf_dump(&subargs, hubris, core, def, v.1) {
                 if subargs.verbose {
-                    humility::msg!("ringbuf dump failed: {e:?}");
+                    info!(log, "ringbuf dump failed: {e:?}");
                 } else {
-                    humility::msg!("ringbuf dump failed: {e}");
+                    info!(log, "ringbuf dump failed: {e}");
                 }
             }
         } else {
-            humility::msg!("could not look up type: {:?}", v.1.goff);
+            info!(log, "could not look up type: {:?}", v.1.goff);
         }
     }
 

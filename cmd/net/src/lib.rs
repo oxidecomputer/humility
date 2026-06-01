@@ -45,6 +45,7 @@ use colored::Colorize;
 
 use humility::core::Core;
 use humility::hubris::HubrisArchive;
+use humility::log::info;
 use humility::reflect::*;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::HiffyContext;
@@ -139,6 +140,7 @@ fn net_mac_table(
     core: &mut dyn Core,
     mut hiffy_context: HiffyContext,
 ) -> Result<()> {
+    let log = hiffy_context.log.clone();
     let op_mac_count = hubris.get_idol_command("Net.read_ksz8463_mac_count")?;
 
     // We need to make two HIF calls:
@@ -155,7 +157,7 @@ fn net_mac_table(
         (mac_count as u8, false)
     };
 
-    humility::msg!("Reading {mac_count} MAC addresses...");
+    info!(log, "Reading {mac_count} MAC addresses...");
 
     let op = hubris.get_idol_command("Net.read_ksz8463_mac")?;
     let send = hiffy_context.get_function("Send", 4)?;
@@ -199,13 +201,13 @@ fn net_mac_table(
             let port = s.field::<u16>("port")?;
             let mac = s.field::<[u8; 6]>("mac")?;
             if mac == [0; 6] && port == 0xFFFF {
-                humility::msg!("Skipping empty MAC address");
+                info!(log, "Skipping empty MAC address");
             } else {
                 mac_table.entry(port).or_default().push(mac);
             }
         } else {
             // Log the error but keep going for other entries in the table
-            humility::msg!("Got error result: {r:?}");
+            info!(log, "Got error result: {r:?}");
         }
     }
     println!(" {} |        {}", "PORT".bold(), "MAC".bold());
@@ -506,9 +508,10 @@ fn net_counters_diagram(s: &Struct) -> Result<()> {
 
 fn net(subargs: NetArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let hiffy_context = HiffyContext::new(hubris, core, timeout)?;
+    let hiffy_context = HiffyContext::new(hubris, core, timeout, log)?;
 
     match subargs.cmd {
         NetCommand::Mac => net_mac_table(hubris, core, hiffy_context)?,

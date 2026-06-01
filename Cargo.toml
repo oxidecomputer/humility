@@ -78,7 +78,7 @@ members = [
     "cmd/validate",
     "cmd/vpd",
     "cmd/writeword",
-    "xtask",
+    "xtask", "humility-log",
 ]
 resolver = "2"
 
@@ -117,15 +117,15 @@ humility-arch-arm = { path = "./humility-arch-arm" }
 humility-auxflash = { path = "./humility-auxflash" }
 humility-cortex = { path = "./humility-arch-cortex" }
 humility-cli = { path = "./humility-cli", default-features = false }
-humility-dump-agent = { path = "./humility-dump-agent" }
 humility-doppel = { path = "./humility-doppel" }
+humility-dump-agent = { path = "./humility-dump-agent" }
 humility-hexdump = { path = "./humility-hexdump" }
 humility-hiffy = { path = "./humility-hiffy" }
 humility-i2c = { path = "./humility-i2c" }
 humility-idol = { path = "./humility-idol" }
 humility-jefe = { path = "./humility-jefe" }
-humility_load_derive = { path = "./load_derive" }
 humility-log = { path = "./humility-log" }
+humility_load_derive = { path = "./load_derive" }
 humility-net-core = { path = "./humility-net-core" }
 humility-pmbus = { path = "./humility-pmbus" }
 humility-probes-core = { path = "./humility-probes-core" }
@@ -219,7 +219,6 @@ itertools = "0.14.0"
 jep106 = "0.3"
 lazy_static = "1.4.0"
 libc = "0.2"
-log = {version = "0.4.8", features = ["std"]}
 lzss = "0.9"
 multimap = "0.10.1"
 num-derive = "0.4"
@@ -244,6 +243,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0"
 serde-xml-rs = "0.8.2"
 sha2 = "0.11.0"
+slog = "2.8.2"
 splitty = "1.0.2"
 strum = "0.28"
 strum_macros = "0.28"

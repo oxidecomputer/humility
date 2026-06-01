@@ -88,8 +88,11 @@
 
 use anyhow::{Result, bail};
 use clap::Parser;
-use humility::core::Core;
-use humility::hubris::HubrisValidate;
+use humility::{
+    core::Core,
+    hubris::HubrisValidate,
+    log::{info, warn},
+};
 use humility_arch_arm::ARMRegister;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_cortex::debug::*;
@@ -106,13 +109,14 @@ pub struct ProbeArgs {
 #[rustfmt::skip::macros(format)]
 fn probecmd(subargs: ProbeArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = context.cli.try_archive()?;
+    let log = context.log();
     let core = &mut context.cli.attach_probe(hubris.as_ref())?;
 
     use num_traits::FromPrimitive;
     let mut status = vec![];
 
     let print = |what, val| {
-        humility::msg!("{what:>12} => {val}");
+        info!(log, "{what:>12} => {val}");
     };
 
     let mut statusif = |val, str: &str| {
@@ -121,7 +125,7 @@ fn probecmd(subargs: ProbeArgs, context: &mut ExecutionContext) -> Result<()> {
         }
     };
 
-    let coreinfo = CoreInfo::read(core)?;
+    let coreinfo = CoreInfo::read(core, log)?;
     let part = coreinfo.part;
 
     let dhcsr = DHCSR::read(core)?;
@@ -307,7 +311,7 @@ fn probecmd(subargs: ProbeArgs, context: &mut ExecutionContext) -> Result<()> {
             .collect::<Vec<String>>()
             .join(", ");
 
-        humility::msg!("{:>12} => {}", component.0, addrs);
+        info!(log, "{:>12} => {}", component.0, addrs);
     }
 
     if !dhcsr.halted() {
@@ -322,7 +326,8 @@ fn probecmd(subargs: ProbeArgs, context: &mut ExecutionContext) -> Result<()> {
                 // If the archive doesn't match, we'll drive on -- but we will
                 // indicate that we can't interpret registers correctly.
                 //
-                humility::warn!(
+                warn!(
+                    log,
                     "archive mismatch: {}; register contents will \
                      not be displayed symbolically",
                     err
@@ -344,7 +349,8 @@ fn probecmd(subargs: ProbeArgs, context: &mut ExecutionContext) -> Result<()> {
 
         let val = core.read_reg(reg)?;
 
-        humility::msg!(
+        info!(
+            log,
             "{:>12} => 0x{:8} {}",
             format!("{:?}", reg),
             format!("{:x}", val),
@@ -360,9 +366,10 @@ fn probecmd(subargs: ProbeArgs, context: &mut ExecutionContext) -> Result<()> {
     }
     let cfsr = CFSR::read(core)?;
     if cfsr.has_fault() {
-        humility::msg!("Fault detected! Raw CFSR: 0x{:x}", cfsr.0);
+        info!(log, "Fault detected! Raw CFSR: 0x{:x}", cfsr.0);
         if let Some(bfsr) = cfsr.get_bfsr() {
-            humility::msg!(
+            info!(
+                log,
                 "Bus Fault accessing address {}: {:x?}",
                 if bfsr.bfarvalid() {
                     format!("{:#x}", BFAR::read(core)?.address())
@@ -373,10 +380,11 @@ fn probecmd(subargs: ProbeArgs, context: &mut ExecutionContext) -> Result<()> {
             );
         }
         if let Some(ufsr) = cfsr.get_ufsr() {
-            humility::msg!("Usage Fault: {ufsr:#x?}");
+            info!(log, "Usage Fault: {ufsr:#x?}");
         }
         if let Some(mmfsr) = cfsr.get_mmfsr() {
-            humility::msg!(
+            info!(
+                log,
                 "MM Fault accessing address {}: {:x?}",
                 if mmfsr.mmfarvalid() {
                     format!("{:#x}", MMFAR::read(core)?.address())
@@ -390,7 +398,8 @@ fn probecmd(subargs: ProbeArgs, context: &mut ExecutionContext) -> Result<()> {
     if part.has_tz() {
         let sfsr = SFSR::read(core)?;
         if sfsr.has_fault() {
-            humility::msg!(
+            info!(
+                log,
                 "Secure Fault accessing address {}: (raw SFSR 0x{:x}) {:x?}",
                 if sfsr.sfarvalid() {
                     format!("{:#x}", SFAR::read(core)?.address())

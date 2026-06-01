@@ -503,9 +503,10 @@ fn mca(
 
 fn sbrmi(subargs: SbrmiArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)?;
 
     if subargs.cpuid {
         return cpuid(hubris, core, &mut context, subargs.thread);

@@ -19,10 +19,12 @@
 
 use anyhow::{Context, Result, bail};
 use clap::{ArgGroup, Parser};
-use humility::hubris::HubrisFlashMap;
+use humility::{
+    hubris::HubrisFlashMap,
+    log::{info, warn},
+};
 use humility_arch_arm::ARMRegister;
 use humility_cli::{ExecutionContext, humility_cmd};
-use humility_log::msg;
 use std::{collections::BTreeMap, io::Read, path::PathBuf};
 
 #[derive(Parser, Debug)]
@@ -106,6 +108,7 @@ impl humility::core::Core for DryCore {
 fn run(subargs: HydrateArgs, context: &mut ExecutionContext) -> Result<()> {
     let f = std::fs::File::open(&subargs.file)?;
     let mut z = zip::ZipArchive::new(f)?;
+    let log = context.log();
 
     let mut s = String::new();
     z.by_name("dump.json")?
@@ -124,9 +127,9 @@ fn run(subargs: HydrateArgs, context: &mut ExecutionContext) -> Result<()> {
     }
     let info: DumpInfo = serde_json::from_str(&s)?;
     if info.format != 1 {
-        humility_log::warn!(
-            "unexpected format in `dump.json`: expected 1, got {}",
-            info.format
+        warn!(
+            log,
+            "unexpected format in `dump.json`: expected 1, got {}", info.format
         );
     }
 
@@ -153,16 +156,20 @@ fn run(subargs: HydrateArgs, context: &mut ExecutionContext) -> Result<()> {
         mem.insert(addr, v);
     }
 
-    msg!("read dehydrated crash dump");
-    msg!("  task index: {}", info.task_index);
-    msg!("  crash time: {}", info.crash_time);
-    msg!("  archive id: {archive_id:02x?}");
-    msg!("  board:      {}", info.board_name);
-    msg!("  git commit: {}", info.git_commit);
-    msg!("  version:    {}", info.fw_version.as_deref().unwrap_or("[missing]"));
-    msg!("  {} memory regions:", mem.len());
+    info!(log, "read dehydrated crash dump");
+    info!(log, "  task index: {}", info.task_index);
+    info!(log, "  crash time: {}", info.crash_time);
+    info!(log, "  archive id: {archive_id:02x?}");
+    info!(log, "  board:      {}", info.board_name);
+    info!(log, "  git commit: {}", info.git_commit);
+    info!(
+        log,
+        "  version:    {}",
+        info.fw_version.as_deref().unwrap_or("[missing]")
+    );
+    info!(log, "  {} memory regions:", mem.len());
     for (k, v) in &mem {
-        msg!("    {k:#08x}: {} bytes", v.len());
+        info!(log, "    {k:#08x}: {} bytes", v.len());
     }
 
     // compare archive ID
@@ -186,6 +193,7 @@ fn run(subargs: HydrateArgs, context: &mut ExecutionContext) -> Result<()> {
         }),
         subargs.out.as_deref(),
         Some(std::time::Instant::now()),
+        log,
     )
 }
 

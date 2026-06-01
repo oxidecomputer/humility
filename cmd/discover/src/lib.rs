@@ -43,6 +43,7 @@ use anyhow::{Result, bail};
 use clap::{ArgGroup, Parser};
 use colored::Colorize;
 use hubpack::SerializedSize;
+use humility::log::{Logger, info, warn};
 use humility::net::decode_iface;
 use humility_cli::{ExecutionContext, humility_cmd};
 use serde::{Deserialize, Serialize};
@@ -96,6 +97,7 @@ fn discover_listen_one(
     timeout: Duration,
     interface: u32,
     port: u32,
+    log: &Logger,
 ) -> Result<BTreeSet<Target>> {
     let socket = match UdpSocket::bind(format!("[::]:{port}")) {
         Ok(s) => s,
@@ -103,9 +105,7 @@ fn discover_listen_one(
             if e.kind() == std::io::ErrorKind::PermissionDenied {
                 // If humility wasn't run as root, we can't listen on port 8;
                 // print a warning message instead of erroring out entirely.
-                humility::msg!(
-                    "Cannot listen on port {port}; permission denied",
-                );
+                info!(log, "Cannot listen on port {port}; permission denied",);
                 return Ok(Default::default());
             } else {
                 return Err(e.into());
@@ -136,7 +136,8 @@ fn discover_listen_one(
                             match hubpack::deserialize(&buf[..n]) {
                                 Ok((data, _)) => data,
                                 Err(err) => {
-                                    humility::msg!(
+                                    info!(
+                                        log,
                                         "Failed to deserialize packet {:?}: {}",
                                         &buf[..n],
                                         err,
@@ -158,7 +159,8 @@ fn discover_listen_one(
                             match hubpack::deserialize(&buf[..n]) {
                                 Ok((data, _)) => data,
                                 Err(err) => {
-                                    humility::msg!(
+                                    info!(
+                                        log,
                                         "Failed to deserialize packet {:?}: {}",
                                         &buf[..n],
                                         err,
@@ -186,17 +188,15 @@ fn discover_listen_one(
                         }
                     }
                     _ => {
-                        humility::msg!(
-                            "Skipping unknown packet {:?}",
-                            &buf[..n]
-                        );
+                        info!(log, "Skipping unknown packet {:?}", &buf[..n]);
                         continue;
                     }
                 };
                 if target.mac[0..2] != [0x0e, 0x1d]
                     && target.mac[0..3] != [0xa8, 0x40, 0x25]
                 {
-                    humility::msg!(
+                    info!(
+                        log,
                         "Skipping packet with non-matching MAC {:?}",
                         target.mac
                     );
@@ -220,7 +220,10 @@ fn discover_listen_one(
     Ok(seen)
 }
 
-fn discover_listen(discover_args: &DiscoverArgs) -> Result<BTreeSet<Target>> {
+fn discover_listen(
+    discover_args: &DiscoverArgs,
+    log: &Logger,
+) -> Result<BTreeSet<Target>> {
     // For some reason, macOS requires the interface to be non-zero:
     // https://users.rust-lang.org/t/ipv6-upnp-multicast-for-rust-dlna-server-macos/24425
     // https://bluejekyll.github.io/blog/posts/multicasting-in-rust/
@@ -237,7 +240,8 @@ fn discover_listen(discover_args: &DiscoverArgs) -> Result<BTreeSet<Target>> {
 
     let timeout = Duration::from_millis(discover_args.timeout as u64);
     let ports = [8, 8888];
-    humility::msg!(
+    info!(
+        log,
         "listening for {} seconds on ports {ports:?}...",
         timeout.as_secs(),
     );
@@ -245,8 +249,9 @@ fn discover_listen(discover_args: &DiscoverArgs) -> Result<BTreeSet<Target>> {
     let threads = ports
         .iter()
         .map(|&port| {
+            let log = log.clone();
             std::thread::spawn(move || -> Result<BTreeSet<Target>> {
-                discover_listen_one(timeout, interface, port)
+                discover_listen_one(timeout, interface, port, &log)
             })
         })
         .collect::<Vec<_>>();
@@ -259,12 +264,12 @@ fn discover_listen(discover_args: &DiscoverArgs) -> Result<BTreeSet<Target>> {
                 seen.extend(out);
             }
             Err(e) => {
-                humility::warn!("thread for port {port} failed: {e:?}");
+                warn!(log, "thread for port {port} failed: {e:?}");
             }
         }
     }
     if seen.is_empty() {
-        humility::msg!("timed out, exiting");
+        info!(log, "timed out, exiting");
     }
 
     Ok(seen)
@@ -315,14 +320,15 @@ fn discover_run(
     context: &mut ExecutionContext,
 ) -> Result<()> {
     let hubris = &context.cli.try_archive()?;
+    let log = context.log();
 
     let image_id = hubris.as_ref().map(|h| h.image_id());
     if image_id.is_none() {
-        humility::warn!("no archive provided; not checking for compatibility");
+        warn!(log, "no archive provided; not checking for compatibility");
     }
 
     // We previously had more subcommands here, but are down to just `--listen`
-    discover_dump(discover_listen(&subargs)?, image_id);
+    discover_dump(discover_listen(&subargs, log)?, image_id);
     Ok(())
 }
 

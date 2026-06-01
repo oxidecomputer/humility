@@ -10,6 +10,7 @@
 use anyhow::{Context, Result, anyhow};
 use clap::Parser;
 use humility_cli::{ExecutionContext, humility_cmd};
+use humility_log::{info, warn};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -20,6 +21,7 @@ pub struct LsUsbArgs {
 }
 
 fn lsusb(_args: LsUsbArgs, context: &mut ExecutionContext) -> Result<()> {
+    let log = context.log();
     let mut targets = if let Some(ref env) = context.cli.environment {
         humility_cli::env::Environment::read(env)
             .with_context(|| {
@@ -49,7 +51,8 @@ fn lsusb(_args: LsUsbArgs, context: &mut ExecutionContext) -> Result<()> {
         }
     }
 
-    humility::msg!(
+    info!(
+        log,
         "USB device scan, {} successful and {} failed",
         successes.len(),
         failures.len()
@@ -57,26 +60,27 @@ fn lsusb(_args: LsUsbArgs, context: &mut ExecutionContext) -> Result<()> {
 
     if !successes.is_empty() {
         successes.sort();
-        humility::msg!("--- successfully opened devices ---");
-        humility::msg!(
+        info!(log, "--- successfully opened devices ---");
+        info!(
+            log,
             "format: VID:PID:SERIAL, then manufacturer name, \
             then product name"
         );
         for (ident, desc) in successes {
             if let Some(target) = targets.remove(&ident) {
-                humility::msg!("{ident}\t{desc} (target: {target})");
+                info!(log, "{ident}\t{desc} (target: {target})");
             } else {
-                humility::msg!("{ident}\t{desc}");
+                info!(log, "{ident}\t{desc}");
             }
         }
     }
 
     if !failures.is_empty() {
         failures.sort_by_key(|(b, a, p, _)| (*b, *a, *p));
-        humility::msg!("--- failures ---");
-        humility::msg!("could not access {} devices:", failures.len());
+        info!(log, "--- failures ---");
+        info!(log, "could not access {} devices:", failures.len());
         for (bus, addr, port, e) in failures {
-            humility::msg!("bus {bus}, addr {addr}, port {port}: {e}");
+            info!(log, "bus {bus}, addr {addr}, port {port}: {e}");
         }
     }
 
@@ -85,7 +89,8 @@ fn lsusb(_args: LsUsbArgs, context: &mut ExecutionContext) -> Result<()> {
             context.cli.environment.as_ref().expect(
                 "if `targets` is non-empty, `environment` must be Some",
             );
-        humility::warn!(
+        warn!(
+            log,
             "--- could not find {} probes declared in HUMILITY_ENVIRONMENT ---",
             targets.len()
         );
@@ -94,10 +99,10 @@ fn lsusb(_args: LsUsbArgs, context: &mut ExecutionContext) -> Result<()> {
             .map(String::len)
             .max()
             .expect("must be `Some`, as `targets` is not empty");
-        humility::warn!("HUMILITY_ENVIRONMENT={env}");
-        humility::warn!("{:<target_len$} PROBE", "TARGET");
+        warn!(log, "HUMILITY_ENVIRONMENT={env}");
+        warn!(log, "{:<target_len$} PROBE", "TARGET");
         for (probe, target) in targets {
-            humility::warn!("{target:<target_len$} {probe}");
+            warn!(log, "{target:<target_len$} {probe}");
         }
     }
 

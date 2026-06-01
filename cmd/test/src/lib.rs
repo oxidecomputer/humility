@@ -162,6 +162,7 @@ impl fmt::Display for TestResult {
 
 fn test(subargs: TestArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     hubris.validate(core, HubrisValidate::Booted)?;
@@ -200,7 +201,7 @@ fn test(subargs: TestArgs, context: &mut ExecutionContext) -> Result<()> {
     writeln!(out, "{:#?}", hubris.manifest)?;
 
     let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)?;
 
     let run_test = context.get_function("RunTest", 1)?;
 
@@ -275,7 +276,7 @@ fn test(subargs: TestArgs, context: &mut ExecutionContext) -> Result<()> {
 
         cmd_tasks::print_tasks(
             &mut out, core, hubris, false, false, false, false, false, false,
-            None,
+            None, log,
         )?;
     }
     println!("Ran a total of {} cases", ran_cases);

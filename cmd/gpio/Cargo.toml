@@ -5,9 +5,9 @@ edition.workspace = true
 description = "GPIO pin manipulation"
 
 [dependencies]
-hif.workspace = true
-clap.workspace = true
 anyhow.workspace = true
+clap.workspace = true
+hif.workspace = true
 parse_int.workspace = true
 
 humility-cli.workspace = true

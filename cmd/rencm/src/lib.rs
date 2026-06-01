@@ -10,6 +10,7 @@
 
 use humility::core::Core;
 use humility::hubris::*;
+use humility::log::{Logger, info};
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hexdump::Dumper;
 use humility_hiffy::*;
@@ -99,9 +100,10 @@ fn rencm_attached(
     core: &mut dyn Core,
     subargs: &RencmArgs,
     modules: &[Module],
+    log: &Logger,
 ) -> Result<()> {
     let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)?;
     let read_func = context.get_function("I2cRead", 7)?;
     let write_func = context.get_function("I2cWrite", 8)?;
 
@@ -253,7 +255,7 @@ fn rencm_attached(
         }
     }
 
-    humility::msg!("{} registers found", work.len());
+    info!(log, "{} registers found", work.len());
 
     let mut ndx = 0;
     let maxops = 1000;
@@ -379,7 +381,8 @@ fn rencm_attached(
                             let job = work[ndx];
 
                             if let Some(write) = job.3 {
-                                humility::msg!(
+                                info!(
+                                    log,
                                     "successfully wrote {} to {} at 0x{:x}",
                                     write,
                                     jobname(&job),
@@ -741,7 +744,11 @@ struct SaleaeTraceRecord {
     acknak: String,
 }
 
-fn rencm_ingest(subargs: &RencmArgs, modules: &[Module]) -> Result<()> {
+fn rencm_ingest(
+    subargs: &RencmArgs,
+    modules: &[Module],
+    log: &Logger,
+) -> Result<()> {
     let file = fs::File::open(subargs.ingest.as_ref().unwrap())?;
 
     let mut rdr = csv::Reader::from_reader(file);
@@ -784,7 +791,7 @@ fn rencm_ingest(subargs: &RencmArgs, modules: &[Module]) -> Result<()> {
             rencm_dump(Input::Saleae, subargs, &ops, modules)?;
         }
         _ => {
-            humility::msg!("not a Saleae trace file; assuming Aardvark input");
+            info!(log, "not a Saleae trace file; assuming Aardvark input");
             rencm_aardvark(subargs, modules)?;
         }
     }
@@ -796,12 +803,13 @@ fn rencm(subargs: RencmArgs, context: &mut ExecutionContext) -> Result<()> {
     let modules = modules();
 
     if subargs.ingest.is_some() {
-        return rencm_ingest(&subargs, modules);
+        return rencm_ingest(&subargs, modules, context.log());
     }
 
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_booted(hubris)?;
-    rencm_attached(hubris, core, &subargs, modules)
+    rencm_attached(hubris, core, &subargs, modules, log)
 }
 
 humility_cmd!(RencmArgs, rencm);

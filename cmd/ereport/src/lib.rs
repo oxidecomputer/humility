@@ -9,6 +9,7 @@ use humility::reflect::Value;
 use humility::{
     core::Core,
     hubris::{HubrisArchive, HubrisTask},
+    log::{Logger, warn},
 };
 use humility_cli::{ExecutionContext, humility_cmd};
 
@@ -82,6 +83,7 @@ pub fn ereport_dump(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     recover: bool,
+    log: &Logger,
 ) -> Result<Vec<Ereport>> {
     static PACKRAT_BUF_NAME: &str = "task_packrat::main::BUFS";
     let buf_ty = hubris
@@ -99,7 +101,8 @@ pub fn ereport_dump(
     let insert_state =
         outer_storage.field::<humility::reflect::Enum>("insert_state")?;
     if insert_state.disc() != "Collecting" {
-        humility::warn!(
+        warn!(
+            log,
             "ereports are being lost; `insert_state` is {insert_state:#?}"
         );
     }
@@ -134,7 +137,7 @@ pub fn ereport_dump(
         });
         buf_data = next;
         let Some(next_ena) = current_ena.checked_add(1) else {
-            humility::warn!("ena overflow; breaking out of loop");
+            warn!(log, "ena overflow; breaking out of loop");
             break;
         };
         current_ena = next_ena;
@@ -187,8 +190,9 @@ fn ereport_print(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     flags: Flags,
+    log: &Logger,
 ) -> Result<()> {
-    let ereports = ereport_dump(hubris, core, flags.recover)?;
+    let ereports = ereport_dump(hubris, core, flags.recover, log)?;
     if flags.json {
         println!("{}", serde_json::ser::to_string_pretty(&ereports)?);
     } else {
@@ -340,7 +344,9 @@ fn ereport(subargs: EreportArgs, context: &mut ExecutionContext) -> Result<()> {
     let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
 
     match subargs.cmd {
-        EreportCmd::Dump { flags } => ereport_print(hubris, core, flags),
+        EreportCmd::Dump { flags } => {
+            ereport_print(hubris, core, flags, context.log())
+        }
     }
 }
 

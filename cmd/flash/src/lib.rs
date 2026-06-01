@@ -21,7 +21,11 @@
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
-use humility::{core::Core, hubris::*};
+use humility::{
+    core::Core,
+    hubris::*,
+    log::{Logger, info},
+};
 use humility_auxflash::{AuxFlashHandler, AuxFlashWriter};
 use humility_cli::{ExecutionContext, humility_cmd};
 
@@ -79,12 +83,14 @@ fn validate(
     hubris: &HubrisArchive,
     core: &mut humility_probes_core::ProbeCore,
     subargs: &FlashArgs,
+    log: &Logger,
 ) -> Result<()> {
     let r = get_image_state(
         hubris,
         core,
         subargs.verify || subargs.check,
         subargs.verbose,
+        log,
     );
     if subargs.check {
         core.run()?;
@@ -94,7 +100,8 @@ fn validate(
     match r {
         Ok(()) => {
             if subargs.force {
-                humility::msg!(
+                info!(
+                    log,
                     "archive appears to be already flashed; forcing re-flash"
                 );
                 Ok(())
@@ -111,7 +118,7 @@ fn validate(
             }
         }
         Err(e) => {
-            humility::msg!("{e}; reflashing");
+            info!(log, "{e}; reflashing");
             Ok(())
         }
     }
@@ -127,6 +134,7 @@ fn get_image_state(
     core: &mut dyn humility::core::Core,
     full_check: bool,
     verbose: bool,
+    log: &Logger,
 ) -> Result<()> {
     core.halt()?;
 
@@ -137,7 +145,7 @@ fn get_image_state(
 
     // More rigorous checks if requested
     if full_check {
-        hubris.verify(core, verbose).with_context(|| {
+        hubris.verify(core, verbose, log).with_context(|| {
             let mut s = "image IDs match, but flash contents do not \
                          match archive contents"
                 .to_owned();
@@ -161,6 +169,7 @@ fn get_image_state(
             hubris,
             core,
             std::time::Duration::from_millis(15_000),
+            log,
         ) {
             Ok(w) => w,
             Err(e) => {
@@ -171,7 +180,7 @@ fn get_image_state(
         };
         let r = match worker.active_slot() {
             Ok(Some(s)) => {
-                humility::msg!("verified auxflash in slot {s}");
+                info!(log, "verified auxflash in slot {s}");
                 Ok(())
             }
             Ok(None) => Err(anyhow!("no active auxflash slot")),
@@ -193,6 +202,7 @@ fn get_image_state(
 
 fn flashcmd(subargs: FlashArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
 
     let config = hubris.load_flash_config()?;
 
@@ -210,14 +220,15 @@ fn flashcmd(subargs: FlashArgs, context: &mut ExecutionContext) -> Result<()> {
         None => bail!("Archive is very old and missing a chip"),
     };
 
-    humility::msg!("attaching with chip set to {chip:x?}");
+    info!(log, "attaching with chip set to {chip:x?}");
     let core = &mut humility_probes_core::attach_for_flashing(
         probe,
         &chip,
         context.cli.speed,
+        log,
     )?;
 
-    validate(hubris, core, &subargs)?;
+    validate(hubris, core, &subargs, log)?;
     if subargs.check {
         return Ok(());
     }
@@ -247,7 +258,7 @@ fn flashcmd(subargs: FlashArgs, context: &mut ExecutionContext) -> Result<()> {
     }
 
     // Reset, using the handoff token if present in the archive
-    core.reset_with_handoff(hubris)?;
+    core.reset_with_handoff(hubris, log)?;
 
     // At this point, we can attempt to program the auxiliary flash.  This has
     // to happen *after* the image is flashed and the core is reset, because it
@@ -256,26 +267,29 @@ fn flashcmd(subargs: FlashArgs, context: &mut ExecutionContext) -> Result<()> {
     // chip, we couldn't do hiffy calls before flashing.
     //
     // This is called out in RFD 311 as a weakness of our approach!
-    try_program_auxflash(hubris, core)?;
-    humility::msg!("flashing done");
+    try_program_auxflash(hubris, core, log)?;
+    info!(log, "flashing done");
     Ok(())
 }
 
 fn try_program_auxflash(
     hubris: &HubrisArchive,
     core: &mut humility_probes_core::ProbeCore,
+    log: &Logger,
 ) -> Result<()> {
     match hubris.read_auxflash_data()? {
-        Some(auxflash) => match program_auxflash(hubris, core, &auxflash) {
-            Ok(_) => {
-                humility::msg!("done with auxiliary flash");
-                Ok(())
-            }
-            Err(e) => bail!(
-                "failed to program auxflash: {e:?}; \
+        Some(auxflash) => {
+            match program_auxflash(hubris, core, &auxflash, log) {
+                Ok(_) => {
+                    info!(log, "done with auxiliary flash");
+                    Ok(())
+                }
+                Err(e) => bail!(
+                    "failed to program auxflash: {e:?}; \
                  your system may not be functional!",
-            ),
-        },
+                ),
+            }
+        }
         None => Ok(()),
     }
 }
@@ -284,11 +298,13 @@ fn program_auxflash(
     hubris: &HubrisArchive,
     core: &mut humility_probes_core::ProbeCore,
     data: &[u8],
+    log: &Logger,
 ) -> Result<()> {
     let mut worker = AuxFlashWriter::new(
         hubris,
         core,
         std::time::Duration::from_millis(15_000),
+        log,
     )?;
 
     // At this point, we've already rebooted into the new image.
@@ -297,7 +313,8 @@ fn program_auxflash(
     // set: our target image was already loaded (or was unchanged).
     match worker.active_slot() {
         Ok(Some(i)) => {
-            humility::msg!(
+            info!(
+                log,
                 "auxiliary flash data is already loaded in slot {i}; \
                  skipping programming",
             );
@@ -305,7 +322,7 @@ fn program_auxflash(
         }
         Ok(None) => (),
         Err(e) => {
-            humility::msg!("Got error while checking active slot: {e:?}");
+            info!(log, "Got error while checking active slot: {e:?}");
         }
     };
 
@@ -333,7 +350,7 @@ fn program_auxflash(
     worker.reset()?;
 
     // Give the SP plenty of time to do its mirroring operation
-    humility::msg!("resetting the SP, please wait...");
+    info!(log, "resetting the SP, please wait...");
     std::thread::sleep(std::time::Duration::from_secs(5));
 
     match worker.active_slot() {

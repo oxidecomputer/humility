@@ -204,6 +204,7 @@ use clap::{Parser, ValueEnum};
 use colored::Colorize;
 use humility::core::Core;
 use humility::hubris::*;
+use humility::log::warn;
 use humility::reflect::{self, Load, Value};
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_doppel::{CountedRingbuf, CounterVariant, Counters};
@@ -327,10 +328,11 @@ fn counters(
     context: &mut ExecutionContext,
 ) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
 
     if let Some(Subcmd::Ipc(ipc)) = subargs.command {
         let core = &mut *context.cli.attach_live_or_dump_match(hubris)?;
-        return ipc.ipc_counter_dump(hubris, core);
+        return ipc.ipc_counter_dump(hubris, core, log);
     }
     let name = subargs.name();
 
@@ -446,9 +448,9 @@ fn counters(
                 for (varname, ctr) in resolved_counters {
                     match ctr {
                         Err(e) if subargs.opts.verbose => {
-                            humility::warn!("counter dump failed: {e:?}")
+                            warn!(log, "counter dump failed: {e:?}")
                         }
-                        Err(e) => humility::warn!("counter dump failed: {e}"),
+                        Err(e) => warn!(log, "counter dump failed: {e}"),
                         Ok(mut ctr) => {
                             counters_dump_csv(
                                 &mut ctr,
@@ -464,9 +466,9 @@ fn counters(
                 for (varname, ctr) in resolved_counters {
                     match ctr {
                         Err(e) if subargs.opts.verbose => {
-                            humility::warn!("counter dump failed: {e:?}")
+                            warn!(log, "counter dump failed: {e:?}")
                         }
-                        Err(e) => humility::warn!("counter dump failed: {e}"),
+                        Err(e) => warn!(log, "counter dump failed: {e}"),
                         Ok(ctr) => {
                             json.entry(t)
                                 .or_default()
@@ -484,9 +486,9 @@ fn counters(
                         if ctrs.peek().is_some() { " |  " } else { "    " };
                     match ctr {
                         Err(e) if subargs.opts.verbose => {
-                            humility::warn!("counter dump failed: {e:?}")
+                            warn!(log, "counter dump failed: {e:?}")
                         }
-                        Err(e) => humility::warn!("counter dump failed: {e}"),
+                        Err(e) => warn!(log, "counter dump failed: {e}"),
                         Ok(mut ctr) => {
                             counter_dump(&mut ctr, &subargs.opts, pad)
                         }

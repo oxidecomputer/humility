@@ -8,4 +8,7 @@ pub mod hubris;
 pub mod net;
 pub mod reflect;
 
-pub use humility_log::{msg, warn};
+// Re-export `humility_log`, so clients don't need to import it (or `slog`)
+pub mod log {
+    pub use humility_log::*;
+}

@@ -131,7 +131,7 @@
 
 use anyhow::{Result, bail};
 use clap::Parser;
-use humility::hubris::*;
+use humility::{hubris::*, log::info};
 use humility_arch_arm::{ARMRegister, ARMRegisterField};
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_cortex::debug::*;
@@ -236,6 +236,7 @@ fn registers(
     context: &mut ExecutionContext,
 ) -> Result<()> {
     let hubris = &context.cli.try_archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_or_dump(hubris.as_ref(), None)?;
     let mut regs = BTreeMap::new();
 
@@ -254,7 +255,7 @@ fn registers(
             Ok(regions) => regions,
             Err(err) => {
                 // If we can't ascertain our memory regions, we will drive on.
-                humility::msg!("failed to determine memory regions: {err}");
+                info!(log, "failed to determine memory regions: {err}");
                 BTreeMap::new()
             }
         }
@@ -320,9 +321,9 @@ fn registers(
                 let task = if region.tasks.len() == 1 {
                     region.tasks[0]
                 } else {
-                    humility::msg!(
-                        "multiple tasks map 0x{val:x}: {:?}",
-                        region.tasks
+                    info!(
+                        log,
+                        "multiple tasks map 0x{val:x}: {:?}", region.tasks
                     );
                     continue;
                 };
@@ -330,8 +331,13 @@ fn registers(
                 // `regions` is empty if there's no Hubris archive, so we can
                 // unwrap it here:
                 let hubris = hubris.as_ref().unwrap();
-                match hubris.stack(core, task, region.base + region.size, &regs)
-                {
+                match hubris.stack(
+                    core,
+                    task,
+                    region.base + region.size,
+                    &regs,
+                    log,
+                ) {
                     Ok(stack) => printer.print(hubris, &stack),
                     Err(e) => {
                         //
@@ -341,19 +347,20 @@ fn registers(
                         // our hunch in the form of a question.
                         //
                         if core.is_dump() && task == HubrisTask::Kernel {
-                            humility::msg!(
+                            info!(
+                                log,
                                 "kernel stack missing; \
                                 does the dump pre-date dumped kernel stacks?"
                             );
                         } else {
-                            humility::msg!("stack unwind failed: {e:?}");
+                            info!(log, "stack unwind failed: {e:?}");
                         }
 
                         continue;
                     }
                 }
             } else {
-                humility::msg!("unknown region for SP 0x{val:08x}");
+                info!(log, "unknown region for SP 0x{val:08x}");
             }
         }
     }

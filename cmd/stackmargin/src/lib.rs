@@ -29,7 +29,7 @@
 
 use anyhow::{Result, bail};
 use clap::Parser;
-use humility::hubris::*;
+use humility::{hubris::*, log::info};
 use humility_cli::{ExecutionContext, humility_cmd};
 use std::{collections::HashSet, convert::TryInto};
 
@@ -46,6 +46,7 @@ fn stackmargin(
     context: &mut ExecutionContext,
 ) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
 
     let valid_tasks = if subargs.tasks.is_empty() {
@@ -74,7 +75,8 @@ fn stackmargin(
         let addr = base + offs as u32;
         core.read_8(addr, &mut taskblock[offs..offs + task.size])?;
     } else if core.is_net() {
-        humility::msg!(
+        info!(
+            log,
             "skipping supervisor because we are reading over the network"
         );
         core.read_8(base + task.size as u32, &mut taskblock[task.size..])?;

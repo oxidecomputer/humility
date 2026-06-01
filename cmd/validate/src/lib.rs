@@ -143,6 +143,7 @@ fn validate(
     context: &mut ExecutionContext,
 ) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let refdes_len = hubris
         .manifest
         .fmt_meta
@@ -200,6 +201,7 @@ fn validate(
         core,
         &devices,
         std::time::Duration::from_millis(subargs.timeout),
+        log,
     )?;
 
     for (index, r) in devices.into_iter().zip(results) {

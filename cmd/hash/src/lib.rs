@@ -94,9 +94,10 @@ pub struct HashArgs {
 fn hash(subargs: HashArgs, context: &mut ExecutionContext) -> Result<()> {
     let archive = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(archive)?;
+    let log = context.log();
 
     let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(archive, core, timeout)?;
+    let mut context = HiffyContext::new(archive, core, timeout, log)?;
     let scratch_size = context.scratch_size();
     let mut ops = vec![];
 

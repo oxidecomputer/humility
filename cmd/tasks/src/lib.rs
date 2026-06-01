@@ -115,6 +115,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
 use humility::core::Core;
 use humility::hubris::*;
+use humility::log::{Logger, debug, info, warn};
 use humility::reflect::{self, Format, Load};
 use humility_arch_arm::ARMRegister;
 use humility_cli::{ExecutionContext, humility_cmd};
@@ -184,6 +185,7 @@ fn print_regs(
 
 fn tasks(subargs: TasksArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
 
     print_tasks(
@@ -197,6 +199,7 @@ fn tasks(subargs: TasksArgs, context: &mut ExecutionContext) -> Result<()> {
         subargs.spin,
         subargs.verbose,
         subargs.task,
+        log,
     )
 }
 #[rustfmt::skip::macros(println)]
@@ -212,9 +215,10 @@ pub fn print_tasks(
     spin: bool,
     verbose: bool,
     task_arg: Option<String>,
+    log: &Logger,
 ) -> Result<()> {
     let (base, task_count) = hubris.task_table(core)?;
-    log::debug!("task table: {:#x?}, count: {}", base, task_count);
+    debug!(log, "task table: {:#x?}, count: {}", base, task_count);
 
     let task_t = hubris.lookup_struct_byname("Task")?;
     let save = task_t.lookup_member("save")?.offset;
@@ -255,14 +259,12 @@ pub fn print_tasks(
                 base + task_t.size as u32,
                 &mut taskblock[task_t.size..],
             )?;
-            humility::msg!(
-                "reading tasks remotely; state may not be consistent"
-            );
+            info!(log, "reading tasks remotely; state may not be consistent");
         } else {
             core.read_8(base, &mut taskblock)?;
 
             if let Some(epitaph) = hubris.epitaph(core)? {
-                humility::warn!("kernel has panicked: {}", epitaph);
+                warn!(log, "kernel has panicked: {}", epitaph);
             }
         }
 
@@ -400,14 +402,16 @@ pub fn print_tasks(
                         if stack {
                             let initial = desc.initial_stack;
 
-                            match hubris.stack(core, t, initial, &regs).or_else(
-                                |e| {
+                            match hubris
+                                .stack(core, t, initial, &regs, log)
+                                .or_else(|e| {
                                     // Restore original error if the syscall
                                     // stack handler didn't work.
-                                    stack_syscall(core, hubris, t, &desc, &regs)
-                                        .map_err(|_| e)
-                                },
-                            ) {
+                                    stack_syscall(
+                                        core, hubris, t, &desc, &regs, log,
+                                    )
+                                    .map_err(|_| e)
+                                }) {
                                 Ok(stack) => printer.print(hubris, &stack),
                                 Err(e) => {
                                     writeln!(
@@ -427,7 +431,7 @@ pub fn print_tasks(
                         if stack {
                             if guess {
                                 match stack_guess(
-                                    w, core, hubris, t, task_value, &desc,
+                                    w, core, hubris, t, task_value, &desc, log,
                                 ) {
                                     Ok(stack) => printer.print(hubris, &stack),
                                     Err(e) => writeln!(
@@ -504,6 +508,7 @@ fn stack_syscall<'a>(
     t: HubrisTask,
     desc: &'a TaskDesc,
     regs: &'a BTreeMap<ARMRegister, u32>,
+    log: &Logger,
 ) -> Result<Vec<HubrisStackFrame<'a>>> {
     let pc = regs
         .get(&ARMRegister::PC)
@@ -530,7 +535,8 @@ fn stack_syscall<'a>(
     frameregs.insert(ARMRegister::PC, *lr);
     frameregs.remove(&ARMRegister::LR);
 
-    let mut frames = hubris.stack(core, t, desc.initial_stack, &frameregs)?;
+    let mut frames =
+        hubris.stack(core, t, desc.initial_stack, &frameregs, log)?;
 
     // Insert a synthetic frame for the syscall stub
     let name = hubris.instr_sym(*pc).map(|(name, _addr)| name);
@@ -558,6 +564,7 @@ fn stack_guess<'a>(
     t: HubrisTask,
     task_value: &'a reflect::Value,
     desc: &'a TaskDesc,
+    log: &Logger,
 ) -> Result<Vec<HubrisStackFrame<'a>>> {
     writeln!(w, "   guessing at stack trace using saved frame pointer")?;
     let reflect::Value::Struct(s) = &task_value else {
@@ -590,7 +597,7 @@ fn stack_guess<'a>(
 
     let initial = desc.initial_stack;
 
-    hubris.stack(core, t, initial, &regs)
+    hubris.stack(core, t, initial, &regs, log)
 }
 
 #[derive(Copy, Clone, Debug)]

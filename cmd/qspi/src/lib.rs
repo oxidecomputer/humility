@@ -82,7 +82,7 @@
 //! this is required for erases and writes that would otherwise modify sector 0,
 //! as well as bulk erase.
 
-use humility::core::Core;
+use humility::{core::Core, log::info};
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hexdump::Dumper;
 use humility_hiffy::*;
@@ -373,7 +373,8 @@ fn erase(
 
     bar.finish_and_clear();
 
-    humility::msg!(
+    info!(
+        context.log,
         "erased {} in {}",
         HumanBytes(len.into()),
         HumanDuration(started.elapsed())
@@ -474,16 +475,17 @@ fn write(
 
 fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)?;
 
     match subargs.slot {
-        None => humility::msg!("Using existing slot settings"),
+        None => info!(log, "Using existing slot settings"),
         s @ (Some(0) | Some(1)) => {
             let s = s.unwrap();
-            humility::msg!("Setting slot to {s}");
+            info!(log, "Setting slot to {s}");
             context.call::<()>(
                 core,
                 &hubris.get_idol_command("HostFlash.set_dev")?,
@@ -618,7 +620,7 @@ fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
 
             erase(&device, core, &mut context, &sectors)?;
         } else {
-            humility::msg!("will verify {filelen} bytes...");
+            info!(context.log, "will verify {filelen} bytes...");
         }
 
         //
@@ -639,7 +641,7 @@ fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
             if sector0.iter().any(|c| *c != 0xFF) {
                 bail!("cannot skip sector 0 with non-empty bytes");
             } else {
-                humility::msg!("skipping sector 0");
+                info!(context.log, "skipping sector 0");
             }
         }
 
@@ -716,7 +718,8 @@ fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
 
                         if r[0] != 0 {
                             let a = offset + (i as u32 * BLOCK_SIZE);
-                            humility::msg!(
+                            info!(
+                                context.log,
                                 "block at 0x{a:x} failed to verify\n",
                             );
                         }
@@ -731,13 +734,15 @@ fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
         bar.finish_and_clear();
 
         if subargs.verify {
-            humility::msg!(
+            info!(
+                context.log,
                 "verified {} in {}",
                 HumanBytes(filelen as u64),
                 HumanDuration(started.elapsed())
             );
         } else {
-            humility::msg!(
+            info!(
+                context.log,
                 "flashed {} in {}",
                 HumanBytes(filelen as u64),
                 HumanDuration(started.elapsed())
@@ -850,7 +855,8 @@ fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
         }
         writer.flush().unwrap();
         bar.finish_and_clear();
-        humility::msg!(
+        info!(
+            context.log,
             "read {} in {}",
             HumanBytes(nbytes as u64),
             HumanDuration(started.elapsed())
@@ -947,7 +953,8 @@ fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
         })?;
 
         if sectors.is_empty() {
-            humility::msg!(
+            info!(
+                context.log,
                 "no delta; hashed {} in {}",
                 HumanBytes(filelen as u64),
                 HumanDuration(started.elapsed())
@@ -964,7 +971,7 @@ fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
             if buf.iter().any(|c| *c != 0xFF) {
                 bail!("cannot skip sector 0 with non-empty bytes");
             } else {
-                humility::msg!("skipping sector 0");
+                info!(context.log, "skipping sector 0");
             }
         }
         erase(&device, core, &mut context, &sectors)?;
@@ -999,7 +1006,8 @@ fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
 
         bar.finish_and_clear();
 
-        humility::msg!(
+        info!(
+            context.log,
             "hashed {}, wrote {} in {}",
             HumanBytes(filelen as u64),
             HumanBytes(total),
@@ -1020,7 +1028,7 @@ fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
             None,
             None,
         )?;
-        humility::msg!("write_persistent_data succeeded");
+        info!(context.log, "write_persistent_data succeeded");
         return Ok(());
     } else {
         bail!("expected an operation");

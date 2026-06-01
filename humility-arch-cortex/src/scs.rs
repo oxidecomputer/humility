@@ -8,6 +8,7 @@ use crate::register_offs;
 use anyhow::{Result, bail};
 use bitfield::bitfield;
 use humility::core::Core;
+use humility::log::{Logger, warn};
 use multimap::MultiMap;
 use std::mem::size_of;
 
@@ -408,7 +409,10 @@ pub struct CoreInfo {
 }
 
 impl CoreInfo {
-    pub fn read(core: &mut dyn humility::core::Core) -> Result<Self> {
+    pub fn read(
+        core: &mut dyn humility::core::Core,
+        log: &Logger,
+    ) -> Result<Self> {
         use num_traits::FromPrimitive;
 
         let cpuid = CPUID::read(core)?;
@@ -470,7 +474,7 @@ impl CoreInfo {
             let ctrl = LPC55_SYSCON_AHBCLKCTRL0::read(core)?;
 
             if !ctrl.iocon() {
-                warn!("IOCON is not clocked");
+                warn!(log, "IOCON is not clocked");
             }
         }
 

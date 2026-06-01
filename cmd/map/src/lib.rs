@@ -71,9 +71,10 @@ pub struct MapArgs {}
 
 fn mapcmd(_args: MapArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
 
     // Use an archive core to easily read from flash
-    let core = &mut humility::core::attach_archive(hubris)?;
+    let core = &mut humility::core::attach_archive(hubris, log)?;
     let regions = hubris.regions(core)?;
 
     println!(

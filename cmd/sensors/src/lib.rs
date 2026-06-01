@@ -532,6 +532,7 @@ fn print(
 
 fn sensors(subargs: SensorsArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
 
     let types = if let Some(ref types) = subargs.types {
         let mut rval = HashSet::new();
@@ -627,7 +628,7 @@ fn sensors(subargs: SensorsArgs, context: &mut ExecutionContext) -> Result<()> {
             if core.is_dump() {
                 bail!("cannot use hiffy backend on dump");
             }
-            let context = HiffyContext::new(hubris, core, timeout)?;
+            let context = HiffyContext::new(hubris, core, timeout, log)?;
             Box::new(HiffySensorReader::new(hubris, &sensors, context)?)
         }
         Some(Backend::Readmem) => {
@@ -636,7 +637,7 @@ fn sensors(subargs: SensorsArgs, context: &mut ExecutionContext) -> Result<()> {
         None if core.is_dump() => {
             Box::new(RamSensorReader::new(hubris, &sensors)?)
         }
-        None => match HiffyContext::new(hubris, core, timeout) {
+        None => match HiffyContext::new(hubris, core, timeout, log) {
             Ok(ctx) => Box::new(HiffySensorReader::new(hubris, &sensors, ctx)?),
             Err(_) => Box::new(RamSensorReader::new(hubris, &sensors)?),
         },

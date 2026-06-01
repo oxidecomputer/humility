@@ -5,11 +5,11 @@ edition.workspace = true
 description = "Do something kind of like embootleby to recover a device with bad CFPA/CMPA"
 
 [dependencies]
-humility = { workspace = true }
-humility-arch-arm = { workspace = true }
-humility-cortex = { workspace = true }
-humility-cli = { workspace = true }
-clap = { workspace = true }
-anyhow = { workspace = true }
+humility.workspace = true
+humility-arch-arm.workspace = true
+humility-cortex.workspace = true
+humility-cli.workspace = true
+
+anyhow.workspace = true
+clap.workspace = true
 zip.workspace = true
-log.workspace = true

@@ -6,7 +6,7 @@ use clap::{
     ArgGroup, CommandFactory, FromArgMatches, Parser, parser::ValueSource,
 };
 mod cmd;
-use humility::{msg, warn};
+use humility::log::{info, warn};
 use humility_cli::{Cli, ExecutionContext, env::Environment};
 
 /// Main CLI entry point
@@ -39,6 +39,7 @@ fn main() -> std::process::ExitCode {
         }
     };
     let OuterCli { mut cli, cmd } = outer_cli;
+    let log = cli.log().clone();
 
     // The --version (-V) and --list-targets operations are implemented as
     // flags, rather than subcommands, so we'll special-case them here.
@@ -50,7 +51,7 @@ fn main() -> std::process::ExitCode {
             PROBES_ENABLED
         );
         if cmd.is_some() {
-            warn!("ignoring subcommand after printing version");
+            warn!(log, "ignoring subcommand after printing version");
         }
         return std::process::ExitCode::SUCCESS;
     } else if cli.list_targets {
@@ -58,7 +59,7 @@ fn main() -> std::process::ExitCode {
         let targets = match Environment::targets(env) {
             Ok(targets) => targets,
             Err(err) => {
-                msg!("failed to parse environment: {err:?}");
+                info!(log, "failed to parse environment: {err:?}");
                 return std::process::ExitCode::FAILURE;
             }
         };
@@ -88,12 +89,16 @@ fn main() -> std::process::ExitCode {
         }
 
         if cmd.is_some() {
-            warn!("ignoring subcommand after listing targets");
+            warn!(log, "ignoring subcommand after listing targets");
         }
         return std::process::ExitCode::SUCCESS;
     }
 
+    // We initialize `env_logger` even though Humility uses `slog` for logging,
+    // so that we can do trace-level logging of dependencies (e.g. `probe-rs`)
     let log_level = if cli.verbose { "trace" } else { "warn" };
+    let env = env_logger::Env::default().filter_or("RUST_LOG", log_level);
+    env_logger::init_from_env(env);
 
     // Before we do our processing, we need to check for the presence of
     // environment variables on our mutually exclusive attach options
@@ -134,7 +139,7 @@ fn main() -> std::process::ExitCode {
             let env = match Environment::from_file(env, target) {
                 Ok(e) => e,
                 Err(err) => {
-                    msg!("failed to match environment: {err:?}");
+                    info!(log, "failed to match environment: {err:?}");
                     return std::process::ExitCode::FAILURE;
                 }
             };
@@ -162,12 +167,12 @@ fn main() -> std::process::ExitCode {
                     "archive in environment variable"
                 };
 
-                warn!("{msg} overriding archive in environment file");
+                warn!(log, "{msg} overriding archive in environment file");
             } else {
                 cli.archive = match env.archive(&cli.archive_name) {
                     Ok(a) => Some(a),
                     Err(e) => {
-                        msg!("Failed to get archive: {e}");
+                        info!(log, "Failed to get archive: {e}");
                         return std::process::ExitCode::FAILURE;
                     }
                 }
@@ -201,12 +206,13 @@ fn main() -> std::process::ExitCode {
             m.value_source("archive") == Some(ValueSource::CommandLine),
         ) {
             (true, true) => {
-                msg!("cannot specify both a dump and an archive");
+                info!(log, "cannot specify both a dump and an archive");
                 return std::process::ExitCode::FAILURE;
             }
 
             (false, false) => {
-                msg!(
+                info!(
+                    log,
                     "both dump and archive have been set via environment \
                         variables; unset one of them, or use a command-line \
                         option to override"
@@ -215,12 +221,18 @@ fn main() -> std::process::ExitCode {
             }
 
             (true, false) => {
-                warn!("dump on command-line overriding archive in environment");
+                warn!(
+                    log,
+                    "dump on command-line overriding archive in environment"
+                );
                 cli.archive = None;
             }
 
             (false, true) => {
-                warn!("archive on command-line overriding dump in environment");
+                warn!(
+                    log,
+                    "archive on command-line overriding dump in environment"
+                );
                 cli.dump = None;
             }
         }
@@ -232,10 +244,6 @@ fn main() -> std::process::ExitCode {
         return std::process::ExitCode::FAILURE;
     };
     let name = cmd::name(&cmd);
-
-    let env = env_logger::Env::default().filter_or("RUST_LOG", log_level);
-
-    env_logger::init_from_env(env);
 
     if let Err(err) = cmd::dispatch(cmd, &mut context) {
         eprintln!("humility {name} failed: {:?}", err);

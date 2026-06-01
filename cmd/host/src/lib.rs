@@ -104,12 +104,17 @@ use anyhow::{Result, anyhow};
 use chrono::DateTime;
 use clap::Parser;
 
-use humility::{core::Core, hubris::HubrisArchive, reflect, reflect::Load};
+use humility::{
+    core::Core,
+    hubris::HubrisArchive,
+    log::{Logger, info, warn},
+    reflect,
+    reflect::Load,
+};
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_doppel as doppel;
 use humility_hiffy::HiffyContext;
 use humility_idol::HubrisIdol;
-use humility_log::msg;
 
 #[derive(Parser, Debug)]
 enum HostCommand {
@@ -245,11 +250,15 @@ fn host_boot_fail(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
     Ok(())
 }
 
-fn host_last_panic(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
+fn host_last_panic(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    log: &Logger,
+) -> Result<()> {
     // Try original name:
     let d = read_uqvar(hubris, core, SEPARATE_LAST_HOST_PANIC_NAME)?;
     if let Some(d) = d {
-        return print_panic(d);
+        return print_panic(d, log);
     }
 
     // Try new name:
@@ -261,14 +270,14 @@ fn host_last_panic(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
             )
         })?;
 
-    print_panic(buf.last_panic)
+    print_panic(buf.last_panic, log)
 }
 
-fn print_panic(d: Vec<u8>) -> Result<()> {
+fn print_panic(d: Vec<u8>, log: &Logger) -> Result<()> {
     let data = match ipcc_data::PanicData::from_bytes(d)? {
         Some(data) => data,
         None => {
-            msg!("panic information is empty");
+            info!(log, "panic information is empty");
             return Ok(());
         }
     };
@@ -332,9 +341,10 @@ fn print_panic(d: Vec<u8>) -> Result<()> {
 }
 
 /// Print a warning message if the archive is not for a `cosmo` board
-fn check_post_code_target(hubris: &HubrisArchive) {
+fn check_post_code_target(hubris: &HubrisArchive, log: &Logger) {
     if !hubris.manifest.board.contains("cosmo") {
-        humility::warn!(
+        warn!(
+            log,
             "POST code buffer is only present on 'cosmo' hardware \
              but this is a '{}'; hiffy may fail and time out",
             hubris.manifest.board,
@@ -346,14 +356,16 @@ fn host_post_codes(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     raw: bool,
+    log: &Logger,
 ) -> Result<()> {
-    check_post_code_target(hubris);
+    check_post_code_target(hubris, log);
     use hif::*;
 
     let mut context = HiffyContext::new(
         hubris,
         core,
         std::time::Duration::from_millis(5000),
+        log,
     )?;
     let op = hubris.get_idol_command("Sequencer.post_code_buffer_len")?;
     let count = context.call::<u32>(core, &op, &[], None, None)?;
@@ -420,13 +432,15 @@ fn host_last_post_code(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     raw: bool,
+    log: &Logger,
 ) -> Result<()> {
-    check_post_code_target(hubris);
+    check_post_code_target(hubris, log);
 
     let mut context = HiffyContext::new(
         hubris,
         core,
         std::time::Duration::from_millis(5000),
+        log,
     )?;
     let op = hubris.get_idol_command("Sequencer.last_post_code")?;
     let v = context.call::<u32>(core, &op, &[], None, None)?;
@@ -442,6 +456,7 @@ fn host_last_post_code(
 
 fn host(subargs: HostArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
 
     match subargs.cmd {
         // BootFail and LastPanic just need to read memory, so they can attach
@@ -452,17 +467,17 @@ fn host(subargs: HostArgs, context: &mut ExecutionContext) -> Result<()> {
         }
         HostCommand::LastPanic => {
             let core = &mut *context.cli.attach_live_or_dump_match(hubris)?;
-            host_last_panic(hubris, core)
+            host_last_panic(hubris, core, log)
         }
         HostCommand::Cosmo { cmd } => {
             // All cosmo subcommands require making hiffy calls on a live system
             let core = &mut *context.cli.attach_live_booted(hubris)?;
             match cmd {
                 CosmoHostCommand::PostCodes { raw } => {
-                    host_post_codes(hubris, core, raw)
+                    host_post_codes(hubris, core, raw, log)
                 }
                 CosmoHostCommand::LastPostCode { raw } => {
-                    host_last_post_code(hubris, core, raw)
+                    host_last_post_code(hubris, core, raw, log)
                 }
             }
         }

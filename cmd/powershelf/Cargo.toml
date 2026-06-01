@@ -17,5 +17,4 @@ pmbus.workspace = true
 anyhow.workspace = true
 clap.workspace = true
 indexmap.workspace = true
-log.workspace = true
 parse_int.workspace = true

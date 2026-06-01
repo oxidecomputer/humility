@@ -48,8 +48,10 @@
 use ::idol::syntax::send::{Operation, Reply};
 use anyhow::{Context, Result, bail};
 use clap::Parser;
-use humility::hubris::*;
-use humility::warn;
+use humility::{
+    hubris::*,
+    log::{Logger, warn},
+};
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hexdump::Dumper;
 use humility_hiffy::*;
@@ -108,7 +110,11 @@ pub struct HiffyArgs {
     filter: Vec<String>,
 }
 
-pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
+pub fn hiffy_list(
+    hubris: &HubrisArchive,
+    filter: Vec<String>,
+    log: &Logger,
+) -> Result<()> {
     let print_args = |op: &(&String, &Operation), module, margin| {
         let mut args = op.1.args.iter();
 
@@ -129,14 +135,14 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
                     println!("{}{:<27} {}", margin, "<ok>", ok.ty);
                     println!("{}{:<27} {}", margin, "<error>", e.name);
                 }
-                _ => warn!("mismatch on reply: found {op:?}"),
+                _ => warn!(log, "mismatch on reply: found {op:?}"),
             },
             Ok((_, idol::IdolErrorType::Complex(t))) => match &op.1.reply {
                 Reply::Result { ok, .. } => {
                     println!("{}{:<27} {}", margin, "<ok>", ok.ty);
                     println!("{}{:<27} {}", margin, "<error>", t.name);
                 }
-                _ => warn!("mismatch on reply: found {op:?}"),
+                _ => warn!(log, "mismatch on reply: found {op:?}"),
             },
 
             Ok((_, idol::IdolErrorType::None)) => match &op.1.reply {
@@ -151,7 +157,7 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
                 }
             },
             Err(e) => {
-                warn!("{}", e);
+                warn!(log, "{e}");
             }
         }
     };
@@ -201,9 +207,10 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
 
 fn hiffy(subargs: HiffyArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
 
     if subargs.list {
-        hiffy_list(hubris, subargs.filter)?;
+        hiffy_list(hubris, subargs.filter, log)?;
         return Ok(());
     } else if subargs.listfuncs {
         let funcs = HiffyContext::get_hiffy_functions(hubris)?;
@@ -257,7 +264,7 @@ fn hiffy(subargs: HiffyArgs, context: &mut ExecutionContext) -> Result<()> {
 
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)?;
 
     if let Some(call) = subargs.call {
         let func: Vec<&str> = call.split('.').collect();

@@ -18,12 +18,12 @@ use std::path::{Path, PathBuf};
 use std::str::{self, FromStr};
 use std::time::Instant;
 
-use crate::{msg, warn};
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use capstone::InsnGroupType;
 use gimli::UnwindSection;
 use goblin::elf::Elf;
 use hubtools::RawHubrisArchive;
+use humility_log::{Logger, debug, error, info, trace, warn};
 use humpty::DumpTask;
 use idol::syntax::send::Interface;
 use multimap::MultiMap;
@@ -1399,14 +1399,16 @@ impl HubrisArchive {
 
     pub fn load_from_path<P: AsRef<Path> + std::fmt::Debug + Copy>(
         path: P,
+        log: &Logger,
     ) -> Result<Self> {
         let hubris = RawHubrisArchive::load(path)?;
-        Self::load(hubris, None)
+        Self::load(hubris, None, log)
     }
 
     pub fn load(
         hubris: RawHubrisArchive,
         task_dump: Option<DumpTask>,
+        log: &Logger,
     ) -> Result<Self> {
         // Check the version early and bail if we don't match/can't read
         let archive_version = hubris.archive_version();
@@ -1495,7 +1497,7 @@ impl HubrisArchive {
         // forward slash: regardless of platform, paths within a ZIP archive
         // use the forward slash as a separator.
         //
-        let mut loader = HubrisObjectLoader::new(0);
+        let mut loader = HubrisObjectLoader::new(0, log);
         loader.load_object(
             "kernel",
             HubrisTask::Kernel,
@@ -1552,7 +1554,7 @@ impl HubrisArchive {
             .into_par_iter()
             .map(|(id, name, buf)| {
                 let id: u32 = id.try_into().unwrap();
-                let mut loader = HubrisObjectLoader::new(id + 1);
+                let mut loader = HubrisObjectLoader::new(id + 1, log);
                 loader.load_object(&name, HubrisTask::Task(id), &buf)?;
                 Ok(loader)
             })
@@ -2256,6 +2258,7 @@ impl HubrisArchive {
         &self,
         core: &mut dyn crate::core::Core,
         check_all: bool,
+        log: &Logger,
     ) -> Result<()> {
         use indicatif::{HumanBytes, HumanDuration};
         use indicatif::{ProgressBar, ProgressStyle};
@@ -2327,7 +2330,8 @@ impl HubrisArchive {
         // Third and final pass: read out the actual ranges from the target and
         // see if they match!
         'outer: for (paddr, mut expected_bytes) in phdrs {
-            log::info!(
+            info!(
+                log,
                 "verifying {} bytes at {:#x}",
                 expected_bytes.len(),
                 paddr
@@ -2344,7 +2348,8 @@ impl HubrisArchive {
                     if expected_bytes[i] != buffer[i] {
                         bar.finish_and_clear();
 
-                        log::error!(
+                        error!(
+                            log,
                             "differs at addr 0x{:x}: \
                              found 0x{:x}, expected 0x{:x}",
                             addr + i as u32,
@@ -2376,7 +2381,8 @@ impl HubrisArchive {
                 bail!("found problems!");
             }
         } else {
-            msg!(
+            info!(
+                log,
                 "verified {} in {}",
                 HumanBytes(verified as u64),
                 HumanDuration(started.elapsed())
@@ -2831,6 +2837,7 @@ impl HubrisArchive {
         task: HubrisTask,
         limit: u32,
         regs: &BTreeMap<ARMRegister, u32>,
+        log: &Logger,
     ) -> Result<Vec<HubrisStackFrame<'_>>> {
         let regions = self.regions(core)?;
         let sp = regs
@@ -2899,7 +2906,7 @@ impl HubrisArchive {
             let mut pos_valid = true;
             match self.addr2line[&task].find_frames(u64::from(pc)) {
                 addr2line::LookupResult::Load { .. } => {
-                    warn!("addr2line wants to load extern data");
+                    warn!(log, "addr2line wants to load extern data");
                     pos_valid = false;
                 }
                 addr2line::LookupResult::Output(Ok(mut v)) => loop {
@@ -2913,13 +2920,13 @@ impl HubrisArchive {
                         }
                         Ok(None) => break,
                         Err(e) => {
-                            warn!("addr2line returned error: {e}");
+                            warn!(log, "addr2line returned error: {e}");
                             pos_valid = false;
                         }
                     }
                 },
                 addr2line::LookupResult::Output(Err(e)) => {
-                    warn!("addr2line lookup failed: {e}");
+                    warn!(log, "addr2line lookup failed: {e}");
                     pos_valid = false;
                 }
             }
@@ -3253,6 +3260,7 @@ impl HubrisArchive {
         task: Option<DumpTask>,
         dumpfile: Option<&Path>,
         started: Option<Instant>,
+        log: &Logger,
     ) -> Result<()> {
         use indicatif::{HumanBytes, HumanDuration};
         use indicatif::{ProgressBar, ProgressStyle};
@@ -3351,7 +3359,7 @@ impl HubrisArchive {
         let mut file =
             OpenOptions::new().write(true).create_new(true).open(&filename)?;
 
-        msg!("dumping to {filename:?}");
+        info!(log, "dumping to {filename:?}");
 
         file.iowrite_with(header, ctx)?;
 
@@ -3482,7 +3490,8 @@ impl HubrisArchive {
 
         bar.finish_and_clear();
 
-        msg!(
+        info!(
+            log,
             "dumped {} in {}",
             HumanBytes(written as u64),
             HumanDuration(started.elapsed())
@@ -3589,10 +3598,11 @@ impl HubrisArchive {
     pub fn clock(
         &self,
         core: &mut dyn crate::core::Core,
+        log: &Logger,
     ) -> Result<Option<u32>> {
         let name = "CLOCK_FREQ_KHZ";
 
-        log::trace!("determining clock requency via {}", name);
+        trace!(log, "determining clock frequency via {}", name);
 
         match self.variables.get(name) {
             Some(variable) => {
@@ -3688,6 +3698,9 @@ impl HubrisArchive {
 /// meant to be used for parallel loading, after which point everything is
 /// merged using `HubrisArchive::merge`.
 struct HubrisObjectLoader {
+    /// Log handle
+    log: Logger,
+
     object_id: u32,
 
     // image ID
@@ -3780,8 +3793,9 @@ struct HubrisObjectLoader {
 }
 
 impl HubrisObjectLoader {
-    fn new(object_id: u32) -> Self {
+    fn new(object_id: u32, log: &Logger) -> Self {
         Self {
+            log: log.clone(),
             object_id,
             imageid: None,
             arrays: HashMap::new(),
@@ -3934,7 +3948,7 @@ impl HubrisObjectLoader {
         let offset = textsec.sh_offset as u32;
         let textsize = textsec.sh_size as u32;
 
-        log::trace!("loading {} as object {}", object, self.object_id);
+        trace!(self.log, "loading {} as object {}", object, self.object_id);
 
         for sym in elf.syms.iter() {
             if sym.st_name == 0 {
@@ -4459,8 +4473,11 @@ impl HubrisObjectLoader {
             match Interface::from_str(s) {
                 Ok(interface) => Ok(Some(interface)),
                 Err(err) => {
-                    warn!("failed to load Idol definition for {object}: {err}");
-                    log::debug!("failed Idol for {object} ({err:?}): {s}");
+                    warn!(
+                        self.log,
+                        "failed to load Idol definition for {object}: {err}"
+                    );
+                    debug!(self.log, "failed Idol for {object} ({err:?}): {s}");
                     Ok(None)
                 }
             }
@@ -4709,7 +4726,7 @@ impl HubrisObjectLoader {
                 bail!("union {} is incomplete", parent);
             }
         } else {
-            log::trace!("no struct/enum found for {}", parent);
+            trace!(self.log, "no struct/enum found for {}", parent);
         }
 
         Ok(())
@@ -5341,7 +5358,7 @@ impl HubrisObjectLoader {
                 _ => {}
             }
         } else {
-            log::trace!("no name found for {}", goff);
+            trace!(self.log, "no name found for {}", goff);
         }
 
         Ok(())
@@ -5386,9 +5403,9 @@ impl HubrisObjectLoader {
                             Ok(r) => r,
                             Err(e) => {
                                 warn!(
+                                    self.log,
                                     "AT_location evaluation failed \
-                                    for entry {:?}: {}",
-                                    name, e
+                                    for entry {name:?}: {e}",
                                 );
 
                                 continue;
@@ -5404,16 +5421,18 @@ impl HubrisObjectLoader {
                                         Ok(r) => r,
                                         Err(e) => {
                                             warn!(
+                                                self.log,
                                                 "AT_location failed \
-                                                after resume: {}", e
+                                                after resume: {e}"
                                             );
                                             break None;
                                         }
                                     };
                                 }
                                 x => {
-                                    log::debug!(
-                                        "unsupported eval result: {:?}", x
+                                    debug!(
+                                        self.log,
+                                        "unsupported eval result: {x:?}"
                                     );
                                     break None;
                                 }
@@ -5530,7 +5549,8 @@ impl HubrisObjectLoader {
                     }
                 }
             } else if let Some((addr, size)) = dwarf_location {
-                log::debug!(
+                debug!(
+                    self.log,
                     "Symbol {} missing from ELF info, using DWARF as fallback.",
                     linkage
                 );

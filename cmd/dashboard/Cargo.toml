@@ -5,12 +5,12 @@ edition.workspace = true
 description = "dashboard for Hubris sensor data"
 
 [dependencies]
-hif.workspace = true
-clap.workspace = true
 anyhow.workspace = true
-parse_int.workspace = true
-idol.workspace = true
+clap.workspace = true
 crossterm.workspace = true
+hif.workspace = true
+idol.workspace = true
+parse_int.workspace = true
 ratatui.workspace = true
 
 humility.workspace = true

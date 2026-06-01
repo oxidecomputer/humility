@@ -9,6 +9,6 @@ humility = { workspace = true }
 humility-cli = { workspace = true }
 humility-probes-core = { workspace = true }
 humility-auxflash = { workspace = true }
-clap = { workspace = true }
 anyhow = { workspace = true }
+clap = { workspace = true }
 parse_int = { workspace = true }

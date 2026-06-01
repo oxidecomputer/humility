@@ -5,7 +5,8 @@ edition.workspace = true
 description = "print memory map, with association of regions to tasks"
 
 [dependencies]
-humility = { workspace = true }
-humility-cli = { workspace = true }
-clap = { workspace = true }
-anyhow = { workspace = true }
+humility.workspace = true
+humility-cli.workspace = true
+
+anyhow.workspace = true
+clap.workspace = true

@@ -7,6 +7,7 @@ use anyhow::{Result, anyhow};
 use bitfield::bitfield;
 use humility::core::Core;
 use humility::hubris::*;
+use humility::log::Logger;
 
 pub trait Register:
     Clone + From<u32> + Into<u32> + Sized + std::fmt::Debug
@@ -818,10 +819,14 @@ pub fn stm32_chipname(partno: u32) -> String {
     .to_string()
 }
 
-pub fn swoscaler(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<u16> {
+pub fn swoscaler(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    log: &Logger,
+) -> Result<u16> {
     let debug_clock_mhz = 2_000_000;
 
-    match hubris.clock(core)? {
+    match hubris.clock(core, log)? {
         None => Err(anyhow!(
             "clock couldn't be determined; set clock scaler explicitly"
         )),

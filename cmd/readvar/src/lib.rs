@@ -40,6 +40,7 @@ use anyhow::{Result, bail};
 use clap::Parser;
 use humility::core::Core;
 use humility::hubris::*;
+use humility::log::info;
 use humility_cli::{ExecutionContext, humility_cmd};
 
 #[derive(Parser, Debug)]
@@ -104,6 +105,7 @@ fn readvar_dump(
 
 fn readvar(subargs: ReadvarArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
 
     if subargs.list {
         println!("{:18} {:<42} {:<10} SIZE", "MODULE", "VARIABLE", "ADDR");
@@ -136,7 +138,7 @@ fn readvar(subargs: ReadvarArgs, context: &mut ExecutionContext) -> Result<()> {
 
     // If the user calls out that we should attach to the archive, do that
     let mut core = if subargs.archive {
-        humility::core::attach_archive(hubris).map(Box::new)?
+        humility::core::attach_archive(hubris, log).map(Box::new)?
     } else {
         // Otherwise, attach to a live system or dump
         context.cli.attach_live_or_dump_match(hubris)?
@@ -162,7 +164,7 @@ fn readvar(subargs: ReadvarArgs, context: &mut ExecutionContext) -> Result<()> {
     }
 
     if subargs.leave_halted {
-        humility::msg!("leaving target halted");
+        info!(log, "leaving target halted");
     }
 
     Ok(())

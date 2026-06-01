@@ -106,11 +106,13 @@
 //! ```
 //!
 
-use humility::hubris::*;
+use humility::{
+    hubris::*,
+    log::{Logger, info, warn},
+};
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
-use humility_log::msg;
 use humility_spd::{GIMLET_SPD_SIZE, SpdData, spd_lookup};
 use std::fs::File;
 use std::io::Write;
@@ -189,6 +191,7 @@ fn dump_spd(
     addr: u8,
     data: &SpdData,
     header: bool,
+    log: &Logger,
 ) -> Result<()> {
     // We're reading the same data out of both DDR4 and DDR5 SPD buffers, but
     // they have different positions.
@@ -249,7 +252,7 @@ fn dump_spd(
     if let Some(filename) = &subargs.output {
         let mut output = File::create(filename)?;
         output.write_all(buf)?;
-        msg!("wrote SPD data for address {addr} as binary to {filename}");
+        info!(log, "wrote SPD data for address {addr} as binary to {filename}");
         return Ok(());
     }
 
@@ -331,6 +334,7 @@ fn set_page(
 
 fn spd(subargs: SpdArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
 
     // If we have been given no device-related arguments, we will attempt
@@ -345,12 +349,12 @@ fn spd(subargs: SpdArgs, context: &mut ExecutionContext) -> Result<()> {
                 continue;
             }
 
-            dump_spd(&subargs, addr as u8, data, header)?;
+            dump_spd(&subargs, addr as u8, data, header, log)?;
             header = false;
         }
 
         if header {
-            msg!("all SPD data is empty");
+            info!(log, "all SPD data is empty");
         }
 
         Ok(())
@@ -360,7 +364,7 @@ fn spd(subargs: SpdArgs, context: &mut ExecutionContext) -> Result<()> {
         // At this point, the user wants to poll DDR SPDs directly over I2C.  We
         // only support this with DDR4, because on subsequent product
         // generations the DDRs are not directly connected to the SP.
-        dump_ddr4_over_i2c(hubris, core, &subargs)
+        dump_ddr4_over_i2c(hubris, core, &subargs, log)
     }
 }
 
@@ -368,17 +372,19 @@ fn dump_ddr4_over_i2c(
     hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
     subargs: &SpdArgs,
+    log: &Logger,
 ) -> Result<()> {
     // Warn the user that we probably can't talk to DDR4s on non-Gimlet hardware
     if !hubris.manifest.target.contains("gimlet") {
-        humility::warn!(
+        warn!(
+            log,
             "trying to talk to DDR4 SPDs on an invalid target `{}`",
             hubris.manifest.target,
         );
     };
 
     let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)?;
 
     let i2c_read = context.get_function("I2cRead", 7)?;
     let i2c_write = context.get_function("I2cWrite", 8)?;
@@ -509,7 +515,7 @@ fn dump_ddr4_over_i2c(
                 bail!("bad SPD length ({} bytes): {results:?}", buf.len());
             }
 
-            dump_spd(subargs, addr, &SpdData::new(buf), header)?;
+            dump_spd(subargs, addr, &SpdData::new(buf), header, log)?;
             header = false;
         }
     }
