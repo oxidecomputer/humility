@@ -27,7 +27,6 @@ use humility_dump_agent::{
 };
 use std::{
     net::{ToSocketAddrs, UdpSocket},
-    path::Path,
     time::Duration,
 };
 
@@ -367,10 +366,6 @@ impl Core for NetCore {
 
     fn step(&mut self) -> Result<()> {
         bail!("can't step over network");
-    }
-
-    fn load(&mut self, _path: &Path) -> Result<()> {
-        bail!("cannot load flash over network");
     }
 
     fn reset(&mut self) -> Result<()> {

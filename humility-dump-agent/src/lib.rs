@@ -28,7 +28,6 @@ use indicatif::{HumanBytes, HumanDuration, ProgressBar, ProgressStyle};
 use num_traits::FromPrimitive;
 use std::{
     collections::{BTreeMap, HashMap},
-    path::Path,
     time::Instant,
 };
 use zerocopy::FromBytes;
@@ -347,10 +346,6 @@ impl Core for DumpAgentCore {
 
     fn step(&mut self) -> Result<()> {
         bail!("can't step over dump agent");
-    }
-
-    fn load(&mut self, _path: &Path) -> Result<()> {
-        bail!("cannot load flash over dump agent");
     }
 
     fn reset(&mut self) -> Result<()> {

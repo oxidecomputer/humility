@@ -11,7 +11,6 @@ use num_traits::FromPrimitive;
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::io::Read;
-use std::path::Path;
 
 pub struct DumpCore {
     contents: Vec<u8>,
@@ -201,10 +200,6 @@ impl Core for DumpCore {
 
     fn is_dump(&self) -> bool {
         true
-    }
-
-    fn load(&mut self, _path: &Path) -> Result<()> {
-        bail!("Flash loading is not supported on a dump");
     }
 
     fn reset(&mut self) -> Result<()> {

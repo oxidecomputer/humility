@@ -14,6 +14,9 @@ use humility::msg;
 mod probe_rs;
 mod unattached;
 
+pub use probe_rs::ProbeCore;
+pub use unattached::UnattachedCore;
+
 fn parse_probe(probe: &str) -> (&str, Option<usize>) {
     if probe.contains('-') {
         let str = probe.to_owned();
@@ -153,7 +156,7 @@ pub fn attach_to_chip(
     probe: &str,
     chip: Option<&str>,
     speed_khz: Option<u32>,
-) -> Result<Box<dyn Core>> {
+) -> Result<probe_rs::ProbeCore> {
     let (probe, index) = parse_probe(probe);
 
     match probe {
@@ -178,14 +181,14 @@ pub fn attach_to_chip(
 
             crate::msg!("attached via {name}");
 
-            Ok(Box::new(probe_rs::ProbeCore::new(
+            Ok(probe_rs::ProbeCore::new(
                 session,
                 probe_info.identifier.clone(),
                 probe_info.vendor_id,
                 probe_info.product_id,
                 probe_info.serial_number,
                 can_flash,
-            )))
+            ))
         }
         "auto" => attach_to_chip("usb", chip, speed_khz),
 
@@ -211,9 +214,9 @@ pub fn attach_to_chip(
 
                 crate::msg!("attached to {vidpid} via {name}");
 
-                Ok(Box::new(probe_rs::ProbeCore::new(
+                Ok(probe_rs::ProbeCore::new(
                     session, name, vid, pid, serial, can_flash,
-                )))
+                ))
             }
             Err(_) => Err(anyhow!("unrecognized probe: {probe}")),
         },
@@ -224,7 +227,7 @@ pub fn attach_for_flashing(
     probe: &str,
     chip: &str,
     speed_khz: Option<u32>,
-) -> Result<Box<dyn Core>> {
+) -> Result<probe_rs::ProbeCore> {
     attach_to_chip(probe, Some(chip), speed_khz)
 }
 
@@ -237,15 +240,15 @@ pub trait HubrisAttach {
     /// hubris archive and that the archive matches the image
     /// id present on target. If no chip is is present in the archive
     /// this will still attach.
-    fn attach_probe(&self, probe: &str) -> Result<Box<dyn Core>>;
+    fn attach_probe(&self, probe: &str) -> Result<probe_rs::ProbeCore>;
 }
 
 impl HubrisAttach for humility::hubris::HubrisArchive {
-    fn attach_probe(&self, probe: &str) -> Result<Box<dyn Core>> {
+    fn attach_probe(&self, probe: &str) -> Result<probe_rs::ProbeCore> {
         let mut core = attach_to_chip(probe, self.chip().as_deref(), None)?;
 
         self.validate(
-            &mut *core,
+            &mut core,
             humility::hubris::HubrisValidate::ArchiveMatch,
         )?;
 

@@ -87,7 +87,8 @@ fn reset(subargs: ResetArgs, context: &mut ExecutionContext) -> Result<()> {
             probe,
             Some(&chip),
             context.cli.speed,
-        )?
+        )
+        .map(Box::new)?
     } else {
         humility_probes_core::attach_to_probe(probe, context.cli.speed)?
     };

@@ -222,6 +222,7 @@ impl Cli {
 
         let chip = hubris.and_then(|h| h.chip());
         humility_probes_core::attach_to_chip(probe, chip.as_deref(), self.speed)
+            .map(|b| Box::new(b) as Box<dyn Core>)
     }
 
     #[cfg(not(feature = "probes"))]

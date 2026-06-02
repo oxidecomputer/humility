@@ -8,7 +8,6 @@ use crate::archive::ArchiveCore;
 use crate::dump::DumpCore;
 use crate::hubris::*;
 use humility_arch_arm::ARMRegister;
-use std::path::Path;
 use std::str;
 use std::time::Duration;
 use thiserror::Error;
@@ -56,11 +55,6 @@ pub trait Core {
         self.read_8(addr, &mut buf)?;
         Ok(u64::from_le_bytes(buf))
     }
-
-    ///
-    /// Called to load a flash image.
-    ///
-    fn load(&mut self, path: &Path) -> Result<()>;
 
     /// Reset the chip
     fn reset(&mut self) -> Result<()>;
