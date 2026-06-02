@@ -92,12 +92,12 @@ use std::fmt;
 use std::fs;
 use std::fs::File;
 use std::io::{BufWriter, Read, Write};
-use std::mem;
 use std::time::Instant;
 
 use anyhow::{Result, anyhow, bail};
 use clap::{ArgGroup, Parser};
 use hif::*;
+use zerocopy::{FromBytes, Immutable, KnownLayout};
 
 use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -224,18 +224,9 @@ fn optional_nbytes<'a>(
             match context.run(core, ops.as_slice(), None) {
                 Ok(results) => match &results[0] {
                     Ok(buf) => {
-                        if mem::size_of::<DeviceIdData>() == buf.len() {
-                            let did: DeviceIdData = unsafe {
-                                std::ptr::read(buf.as_ptr() as *const _)
-                            };
-                            Ok(did.size()? as u32)
-                        } else {
-                            Err(anyhow!(
-                                "Unexpected result length: {} != {}",
-                                mem::size_of::<DeviceIdData>(),
-                                buf.len()
-                            ))
-                        }
+                        let did = DeviceIdData::ref_from_bytes(buf)
+                            .map_err(|err| anyhow!("{err}"))?;
+                        Ok(did.size()? as u32)
                     }
                     Err(e) => Err(anyhow!(
                         "failed to read ID: {}",
@@ -1058,17 +1049,9 @@ fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
     } else if subargs.id {
         // If the response is well formatted, print it out in addition to raw hex.
         if let Ok(results) = &results[0] {
-            if mem::size_of::<DeviceIdData>() == results.len() {
-                let did: DeviceIdData =
-                    unsafe { std::ptr::read(results.as_ptr() as *const _) };
-                println!("{}", did);
-            } else {
-                println!(
-                    "Unexpected result length: {} != {}",
-                    mem::size_of::<DeviceIdData>(),
-                    results.len()
-                );
-            }
+            let did = DeviceIdData::ref_from_bytes(results)
+                .map_err(|err| anyhow!("{err}"))?;
+            println!("{}", did);
         }
     } else if subargs.hash {
         if let Ok(buf) = &results[0] {
@@ -1090,8 +1073,8 @@ fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
 /// Micron's Device ID Data
 // Responses to the Read ID family of instructions can be more flexible than
 // the struct below, but until we need support beyond Micron MT25Q, this will do.
-#[derive(Debug, Copy, Clone)]
-#[repr(C, packed)]
+#[derive(Debug, Copy, Clone, FromBytes, KnownLayout, Immutable)]
+#[repr(C)]
 struct DeviceIdData {
     manufacturer_id: u8,
     memory_type: u8,
