@@ -147,7 +147,7 @@ fn readvar(subargs: ReadvarArgs, context: &mut ExecutionContext) -> Result<()> {
                     "attaching failed, falling back to archive: {err}"
                 );
             }
-            humility::core::attach_archive(hubris)?
+            humility::core::attach_archive(hubris).map(Box::new)?
         }
     };
     let core = &mut *core;

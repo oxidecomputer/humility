@@ -75,7 +75,7 @@ fn reset(subargs: ResetArgs, context: &mut ExecutionContext) -> Result<()> {
         }
     };
 
-    let mut c = if subargs.soft_reset
+    let mut c: Box<dyn humility::core::Core> = if subargs.soft_reset
         || matches!(behavior, Behavior::Halt | Behavior::ResetWithHandoff(..))
     {
         let chip = hubris.as_ref().and_then(|h| h.chip()).ok_or_else(|| {
@@ -90,7 +90,8 @@ fn reset(subargs: ResetArgs, context: &mut ExecutionContext) -> Result<()> {
         )
         .map(Box::new)?
     } else {
-        humility_probes_core::attach_to_probe(probe, context.cli.speed)?
+        humility_probes_core::attach_to_probe(probe, context.cli.speed)
+            .map(Box::new)?
     };
 
     let r = match behavior {

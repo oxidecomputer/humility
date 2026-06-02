@@ -385,8 +385,8 @@ pub fn attach_net(
     ip: ScopedV6Addr,
     hubris: &HubrisArchive,
     timeout: Duration,
-) -> Result<Box<dyn Core>> {
+) -> Result<NetCore> {
     let core = NetCore::new(ip, hubris, timeout)?;
     msg!("connecting to {ip}");
-    Ok(Box::new(core))
+    Ok(core)
 }

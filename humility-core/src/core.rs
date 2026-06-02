@@ -123,16 +123,16 @@ pub enum NetAgent {
     Hiffy,
 }
 
-pub fn attach_dump(dump: &str) -> Result<Box<dyn Core>> {
+pub fn attach_dump(dump: &str) -> Result<DumpCore> {
     let core = DumpCore::new(dump)?;
     crate::msg!("attached to dump");
-    Ok(Box::new(core))
+    Ok(core)
 }
 
-pub fn attach_archive(hubris: &HubrisArchive) -> Result<Box<dyn Core>> {
+pub fn attach_archive(hubris: &HubrisArchive) -> Result<ArchiveCore> {
     let core = ArchiveCore::new(hubris)?;
     crate::msg!("attached to archive");
-    Ok(Box::new(core))
+    Ok(core)
 }
 
 pub const CORE_MAX_READSIZE: usize = 65536; // 64K ought to be enough for anyone

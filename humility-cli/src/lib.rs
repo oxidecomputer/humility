@@ -171,6 +171,7 @@ impl Cli {
             };
             let timeout = Duration::from_millis(self.timeout as u64);
             humility_net_core::attach_net(ip.0.clone()?, hubris, timeout)
+                .map(|b| Box::new(b) as Box<dyn Core>)
         } else {
             self.attach_probe(hubris)
         }?;
@@ -211,7 +212,8 @@ impl Cli {
         let probe = match self.probe.as_deref() {
             Some("archive") => {
                 if let Some(hubris) = hubris {
-                    return humility::core::attach_archive(hubris);
+                    return humility::core::attach_archive(hubris)
+                        .map(|b| Box::new(b) as Box<dyn Core>);
                 } else {
                     bail!("cannot specify `--probe=archive` with no archive");
                 }
@@ -243,16 +245,18 @@ impl Cli {
         validate: Option<HubrisValidate>,
     ) -> Result<Box<dyn Core>> {
         let mut core = if let Some(dump) = &self.dump {
-            humility::core::attach_dump(dump)?
+            humility::core::attach_dump(dump)
+                .map(|b| Box::new(b) as Box<dyn Core>)
         } else if let Some(ip) = &self.ip {
             let Some(hubris) = hubris else {
                 bail!("cannot connect over the network without archive");
             };
             let timeout = Duration::from_millis(self.timeout as u64);
-            humility_net_core::attach_net(ip.0.clone()?, hubris, timeout)?
+            humility_net_core::attach_net(ip.0.clone()?, hubris, timeout)
+                .map(|b| Box::new(b) as Box<dyn Core>)
         } else {
-            self.attach_probe(hubris)?
-        };
+            self.attach_probe(hubris)
+        }?;
         if let Some(validate) = validate {
             let Some(hubris) = hubris else {
                 bail!("cannot validate without Hubris archive");
@@ -290,7 +294,7 @@ impl Cli {
     /// Attaches to a dump
     ///
     /// Reads from the `--dump` argument to pick a target file
-    pub fn attach_dump(&self) -> Result<Box<dyn Core>> {
+    pub fn attach_dump(&self) -> Result<humility::dump::DumpCore> {
         let core = if let Some(dump) = &self.dump {
             humility::core::attach_dump(dump)?
         } else {

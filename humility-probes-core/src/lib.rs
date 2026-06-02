@@ -6,7 +6,7 @@ use ::probe_rs::{
     DebugProbeError, DebugProbeInfo, DebugProbeSelector, Probe,
     ProbeCreationError,
 };
-use humility::core::{Core, ProbeError};
+use humility::core::ProbeError;
 
 use anyhow::{Result, anyhow, bail};
 use humility::msg;
@@ -113,7 +113,7 @@ fn open_probe<T: Into<DebugProbeSelector> + Clone>(
 pub fn attach_to_probe(
     probe: &str,
     speed_khz: Option<u32>,
-) -> Result<Box<dyn Core>> {
+) -> Result<UnattachedCore> {
     let (probe, index) = parse_probe(probe);
 
     match probe {
@@ -123,13 +123,13 @@ pub fn attach_to_probe(
             let probe = open_probe(&probe_info, speed_khz)?;
 
             crate::msg!("Opened probe {}", probe_info.identifier);
-            Ok(Box::new(unattached::UnattachedCore::new(
+            Ok(UnattachedCore::new(
                 probe,
                 probe_info.identifier.clone(),
                 probe_info.vendor_id,
                 probe_info.product_id,
                 probe_info.serial_number,
-            )))
+            ))
         }
         "auto" => attach_to_probe("usb", speed_khz),
         _ => match TryInto::<DebugProbeSelector>::try_into(probe) {
@@ -142,9 +142,7 @@ pub fn attach_to_probe(
                 let name = probe.get_name();
 
                 crate::msg!("Opened {vidpid} via {name}");
-                Ok(Box::new(unattached::UnattachedCore::new(
-                    probe, name, vid, pid, serial,
-                )))
+                Ok(UnattachedCore::new(probe, name, vid, pid, serial))
             }
             Err(_) => Err(anyhow!("unrecognized probe: {}", probe)),
         },
