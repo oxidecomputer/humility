@@ -34,7 +34,7 @@ impl Kind {
     fn options(&self) -> &'static str {
         match self {
             Kind::Postmortem => "-d",
-            Kind::Archive => "-p archive -a",
+            Kind::Archive => "-a",
             Kind::All => panic!(),
         }
     }
@@ -183,7 +183,7 @@ fn make_all_tests() -> Result<()> {
             Kind::Archive,
             "readvar-tasks",
             "readvar",
-            "HUBRIS_TASK_DESCS",
+            "--archive HUBRIS_TASK_DESCS",
         ),
         Test::witharg(Kind::All, "sensors", "sensors", "--list"),
         Test::witharg(Kind::Postmortem, "sensors-read", "sensors", ""),

@@ -6,5 +6,5 @@
 #
 fs.base = "../archives"
 bin.name = "humility"
-args = "-p archive -a build-sidecar-b-image-default.zip map"
+args = "-a build-sidecar-b-image-default.zip map"
 

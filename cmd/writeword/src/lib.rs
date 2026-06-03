@@ -49,6 +49,7 @@
 
 use anyhow::{Result, bail};
 use clap::Parser;
+use humility::core::Core;
 use humility_cli::{ExecutionContext, humility_cmd};
 
 #[derive(Parser, Debug)]
@@ -68,7 +69,7 @@ fn writeword(
     context: &mut ExecutionContext,
 ) -> Result<()> {
     let hubris = context.cli.try_archive()?;
-    let core = &mut *context.cli.attach_probe(hubris.as_ref())?;
+    let core = &mut context.cli.attach_probe(hubris.as_ref())?;
     if subargs.address & 0b11 != 0 {
         bail!("address must be word aligned");
     }

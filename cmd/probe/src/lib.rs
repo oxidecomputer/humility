@@ -88,6 +88,7 @@
 
 use anyhow::{Result, bail};
 use clap::Parser;
+use humility::core::Core;
 use humility::hubris::HubrisValidate;
 use humility_arch_arm::ARMRegister;
 use humility_cli::{ExecutionContext, humility_cmd};
@@ -105,7 +106,7 @@ pub struct ProbeArgs {
 #[rustfmt::skip::macros(format)]
 fn probecmd(subargs: ProbeArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = context.cli.try_archive()?;
-    let core = &mut *context.cli.attach_probe(hubris.as_ref())?;
+    let core = &mut context.cli.attach_probe(hubris.as_ref())?;
 
     use num_traits::FromPrimitive;
     let mut status = vec![];

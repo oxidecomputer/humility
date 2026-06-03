@@ -173,7 +173,7 @@ impl Cli {
             humility_net_core::attach_net(ip.0.clone()?, hubris, timeout)
                 .map(|b| Box::new(b) as Box<dyn Core>)
         } else {
-            self.attach_probe(hubris)
+            self.attach_probe(hubris).map(|b| Box::new(b) as Box<dyn Core>)
         }?;
         if let Some(validate) = validate {
             let Some(hubris) = hubris else {
@@ -208,30 +208,23 @@ impl Cli {
     pub fn attach_probe(
         &self,
         hubris: Option<&HubrisArchive>,
-    ) -> Result<Box<dyn Core>> {
-        let probe = match self.probe.as_deref() {
-            Some("archive") => {
-                if let Some(hubris) = hubris {
-                    return humility::core::attach_archive(hubris)
-                        .map(|b| Box::new(b) as Box<dyn Core>);
-                } else {
-                    bail!("cannot specify `--probe=archive` with no archive");
-                }
-            }
-            Some(p) => p,
-            None => "auto",
-        };
-
+    ) -> Result<humility_probes_core::ProbeCore> {
+        let probe = self.probe.as_deref().unwrap_or("auto");
         let chip = hubris.and_then(|h| h.chip());
         humility_probes_core::attach_to_chip(probe, chip.as_deref(), self.speed)
-            .map(|b| Box::new(b) as Box<dyn Core>)
     }
 
+    // If the `probes` feature is disabled, then we don't have access to
+    // `ProbeCore`, but we still need to return a concrete type that implements
+    // `Core` (for everything else to typecheck).
+    //
+    // We'll have the signature return an `ArchiveCore` instead, with the
+    // knowledge that it will never actually be used.
     #[cfg(not(feature = "probes"))]
     pub fn attach_probe(
         &self,
         _hubris: Option<&HubrisArchive>,
-    ) -> Result<Box<dyn Core>> {
+    ) -> Result<humility::archive::ArchiveCore> {
         bail!("Did not build with probes!");
     }
 
@@ -255,7 +248,7 @@ impl Cli {
             humility_net_core::attach_net(ip.0.clone()?, hubris, timeout)
                 .map(|b| Box::new(b) as Box<dyn Core>)
         } else {
-            self.attach_probe(hubris)
+            self.attach_probe(hubris).map(|b| Box::new(b) as Box<dyn Core>)
         }?;
         if let Some(validate) = validate {
             let Some(hubris) = hubris else {
