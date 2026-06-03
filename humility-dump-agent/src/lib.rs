@@ -348,14 +348,6 @@ impl Core for DumpAgentCore {
         bail!("can't step over dump agent");
     }
 
-    fn reset(&mut self) -> Result<()> {
-        bail!("cannot reset over dump agent");
-    }
-
-    fn reset_and_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
-        bail!("cannot reset over dump agent");
-    }
-
     fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
         bail!("cannot wait for halt over dump agent");
     }

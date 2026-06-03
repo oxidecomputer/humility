@@ -75,7 +75,7 @@ fn reset(subargs: ResetArgs, context: &mut ExecutionContext) -> Result<()> {
         }
     };
 
-    let mut c: Box<dyn humility::core::Core> = if subargs.soft_reset
+    let r = if subargs.soft_reset
         || matches!(behavior, Behavior::Halt | Behavior::ResetWithHandoff(..))
     {
         let chip = hubris.as_ref().and_then(|h| h.chip()).ok_or_else(|| {
@@ -83,21 +83,29 @@ fn reset(subargs: ResetArgs, context: &mut ExecutionContext) -> Result<()> {
                 "Need a chip to do a soft reset, halt after reset, or handoff"
             )
         })?;
-        humility_probes_core::attach_to_chip(
+        let mut c = humility_probes_core::attach_to_chip(
             probe,
             Some(&chip),
             context.cli.speed,
-        )
-        .map(Box::new)?
+        )?;
+        match behavior {
+            Behavior::Halt => {
+                c.reset_and_halt(std::time::Duration::from_secs(2))
+            }
+            Behavior::ResetWithHandoff(archive) => {
+                c.reset_with_handoff(archive)
+            }
+            Behavior::Reset => c.reset(),
+        }
     } else {
-        humility_probes_core::attach_to_probe(probe, context.cli.speed)
-            .map(Box::new)?
-    };
-
-    let r = match behavior {
-        Behavior::Halt => c.reset_and_halt(std::time::Duration::from_secs(2)),
-        Behavior::ResetWithHandoff(archive) => c.reset_with_handoff(archive),
-        Behavior::Reset => c.reset(),
+        let mut c =
+            humility_probes_core::attach_to_probe(probe, context.cli.speed)?;
+        match behavior {
+            Behavior::Halt | Behavior::ResetWithHandoff(..) => {
+                unreachable!()
+            }
+            Behavior::Reset => c.reset(),
+        }
     };
 
     if r.is_err() {

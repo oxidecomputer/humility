@@ -62,14 +62,12 @@ impl humility::core::Core for DryCore {
     unsupported!(run());
     unsupported!(halt());
     unsupported!(step());
-    unsupported!(reset());
     unsupported!(write_8(_addr: u32, _data: &[u8]));
     unsupported!(op_done());
     unsupported!(op_start());
     unsupported!(read_reg(_reg: ARMRegister) -> Result<u32>);
     unsupported!(write_reg(_reg: ARMRegister, _value: u32));
     unsupported!(write_word_32(_addr: u32, _data: u32));
-    unsupported!(reset_and_halt(_dur: std::time::Duration));
     unsupported!(wait_for_halt(_dur: std::time::Duration));
 
     fn info(&self) -> (String, Option<String>) {
