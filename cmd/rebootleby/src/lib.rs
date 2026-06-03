@@ -87,7 +87,7 @@ fn rebootleby(
     }
 
     let mut core = context.cli.attach_probe(None)?;
-    let mut flash = FlashHack { core: &mut *core };
+    let mut flash = FlashHack { core: &mut core };
 
     humility::msg!("Connected to core.");
 

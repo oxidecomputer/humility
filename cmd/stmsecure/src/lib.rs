@@ -303,7 +303,7 @@ fn stmsecure(
     subargs: StmSecureArgs,
     context: &mut ExecutionContext,
 ) -> Result<()> {
-    let core = &mut *context.cli.attach_probe(None)?;
+    let core = &mut context.cli.attach_probe(None)?;
 
     match subargs.cmd {
         StmSecureCmd::Status => stmsecure_status(core),

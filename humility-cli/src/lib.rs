@@ -157,7 +157,9 @@ impl Cli {
     /// Attaches to a live core
     ///
     /// Uses the network-based core if `--ip` is provided in the [`Cli`];
-    /// otherwises attaches to a probe.
+    /// otherwises attaches to a probe, with one exception: if the `probe`
+    /// argument matches the string "archive", then we attach to the archive
+    /// instead.
     pub fn attach_live(
         &self,
         hubris: Option<&HubrisArchive>,
@@ -173,7 +175,7 @@ impl Cli {
             humility_net_core::attach_net(ip.0.clone()?, hubris, timeout)
                 .map(|b| Box::new(b) as Box<dyn Core>)
         } else {
-            self.attach_probe(hubris)
+            self.attach_probe_with_archive_fallback(hubris)
         }?;
         if let Some(validate) = validate {
             let Some(hubris) = hubris else {
@@ -204,8 +206,9 @@ impl Cli {
         self.attach_live(Some(hubris), Some(HubrisValidate::Booted))
     }
 
+    /// Attach to a probe, falling back to the archive if `probe` is "archive"
     #[cfg(feature = "probes")]
-    pub fn attach_probe(
+    pub fn attach_probe_with_archive_fallback(
         &self,
         hubris: Option<&HubrisArchive>,
     ) -> Result<Box<dyn Core>> {
@@ -228,10 +231,34 @@ impl Cli {
     }
 
     #[cfg(not(feature = "probes"))]
-    pub fn attach_probe(
+    pub fn attach_probe_with_archive_fallback(
         &self,
         _hubris: Option<&HubrisArchive>,
     ) -> Result<Box<dyn Core>> {
+        bail!("Did not build with probes!");
+    }
+
+    #[cfg(feature = "probes")]
+    pub fn attach_probe(
+        &self,
+        hubris: Option<&HubrisArchive>,
+    ) -> Result<humility_probes_core::ProbeCore> {
+        let probe = self.probe.as_deref().unwrap_or("auto");
+        let chip = hubris.and_then(|h| h.chip());
+        humility_probes_core::attach_to_chip(probe, chip.as_deref(), self.speed)
+    }
+
+    // If the `probes` feature is disabled, then we don't have access to
+    // `ProbeCore`, but we still need to return a concrete type that implements
+    // `Core` (for everything else to typecheck).
+    //
+    // We'll have the signature return an `ArchiveCore` instead, with the
+    // knowledge that it will never actually be used.
+    #[cfg(not(feature = "probes"))]
+    pub fn attach_probe(
+        &self,
+        _hubris: Option<&HubrisArchive>,
+    ) -> Result<humility::archive::ArchiveCore> {
         bail!("Did not build with probes!");
     }
 
@@ -239,6 +266,9 @@ impl Cli {
     ///
     /// The `hubris` archive is mandatory if `validate` is `Some(..)` or if we
     /// are trying to connect over the network.
+    ///
+    /// If the `probe` argument is "archive", then we attach to the archive
+    /// instead as a fallback.
     pub fn attach_live_or_dump(
         &self,
         hubris: Option<&HubrisArchive>,
@@ -255,7 +285,7 @@ impl Cli {
             humility_net_core::attach_net(ip.0.clone()?, hubris, timeout)
                 .map(|b| Box::new(b) as Box<dyn Core>)
         } else {
-            self.attach_probe(hubris)
+            self.attach_probe_with_archive_fallback(hubris)
         }?;
         if let Some(validate) = validate {
             let Some(hubris) = hubris else {
