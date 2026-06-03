@@ -20,56 +20,103 @@ pub struct AuxFlashHandler<'a> {
     context: HiffyContext<'a>,
 }
 
-impl<'a> AuxFlashHandler<'a> {
-    /// Builds a new [`AuxFlashHandler`]
-    pub fn new(
-        hubris: &'a HubrisArchive,
-        core: &'a mut dyn Core,
-        hiffy_timeout: Duration,
-    ) -> Result<Self> {
-        let context = HiffyContext::new(hubris, core, hiffy_timeout)?;
-        Ok(Self { hubris, core, context })
-    }
+/// Trait for common functions on [`AuxFlashHandler`] and [`AuxFlashWriter`]
+///
+/// Each one implements [`get_components`](Self::get_components) then gets a
+/// bunch of other trait functions for free.
+pub trait AuxFlashWorker<'a> {
+    fn get_components(
+        &mut self,
+    ) -> (&HubrisArchive, &mut dyn Core, &mut HiffyContext<'a>);
+
+    fn get_archive(&self) -> &HubrisArchive;
 
     /// Returns the auxflash slot size
-    pub fn slot_size_bytes(&self) -> Result<usize> {
-        slot_size_bytes(self.hubris)
+    fn slot_size_bytes(&self) -> Result<usize> {
+        let hubris = self.get_archive();
+        hubris
+            .manifest
+            .auxflash
+            .as_ref()
+            .map(|i| i.slot_size_bytes())
+            .unwrap_or(Ok(DEFAULT_SLOT_SIZE_BYTES))
     }
 
     /// Returns the number of auxflash slots
-    pub fn slot_count(&mut self) -> Result<u32> {
-        slot_count(self.hubris, &mut self.context, self.core)
+    fn slot_count(&mut self) -> Result<u32> {
+        let (hubris, core, context) = self.get_components();
+        let op = hubris.get_idol_command("AuxFlash.slot_count")?;
+        let value = context.call::<u32>(core, &op, &[], None, None)?;
+        Ok(value)
     }
 
     /// Returns the active slot, or `None` if there is no active slot
-    pub fn active_slot(&mut self) -> Result<Option<u32>> {
-        active_slot(self.hubris, &mut self.context, self.core)
+    fn active_slot(&mut self) -> Result<Option<u32>> {
+        let (hubris, core, context) = self.get_components();
+        let op =
+            hubris.get_idol_command("AuxFlash.scan_and_get_active_slot")?;
+        let value = context.call::<u32>(core, &op, &[], None, None);
+        match value {
+            Ok(v) => Ok(Some(v)),
+            Err(HiffyError::Hiffy(humility_idol::IdolError::Named(e)))
+                if e == "NoActiveSlot" =>
+            {
+                Ok(None)
+            }
+            Err(e) => Err(e.into()),
+        }
     }
 
     /// Erases a single auxflash slot
-    pub fn slot_erase(&mut self, slot: u32) -> Result<()> {
-        slot_erase(slot, self.hubris, &mut self.context, self.core)
+    fn slot_erase(&mut self, slot: u32) -> Result<()> {
+        let (hubris, core, context) = self.get_components();
+        let op = hubris.get_idol_command("AuxFlash.erase_slot")?;
+        context.call::<()>(
+            core,
+            &op,
+            &[("slot", IdolArgument::Scalar(u64::from(slot)))],
+            None,
+            None,
+        )?;
+        Ok(())
     }
 
     /// Returns the checksum of an auxflash slot
     ///
     /// This is `None` if the checksum is not present (because the slot has been
     /// erased).
-    pub fn slot_status(&mut self, slot: u32) -> Result<Option<[u8; 32]>> {
-        slot_status(slot, self.hubris, &mut self.context, self.core)
+    fn slot_status(&mut self, slot: u32) -> Result<Option<[u8; 32]>> {
+        let (hubris, core, context) = self.get_components();
+        let op = hubris.get_idol_command("AuxFlash.read_slot_chck")?;
+        let value = context.call::<([u8; 32],)>(
+            core,
+            &op,
+            &[("slot", IdolArgument::Scalar(u64::from(slot)))],
+            None,
+            None,
+        );
+        match value {
+            Ok(v) => Ok(Some(v.0)),
+            Err(HiffyError::Hiffy(humility_idol::IdolError::Named(e)))
+                if e == "MissingChck" =>
+            {
+                Ok(None)
+            }
+            Err(e) => Err(e.into()),
+        }
     }
 
     /// Reads some number of bytes from a particular slot
     ///
     /// If `count` is empty, reads the entire slot
-    pub fn auxflash_read(
+    fn auxflash_read(
         &mut self,
         slot: u32,
         count: Option<usize>,
     ) -> Result<Vec<u8>> {
-        let op =
-            self.hubris.get_idol_command("AuxFlash.read_slot_with_offset")?;
         let slot_size = self.slot_size_bytes()?;
+        let (hubris, core, context) = self.get_components();
+        let op = hubris.get_idol_command("AuxFlash.read_slot_with_offset")?;
 
         let mut out = vec![0u8; count.unwrap_or(slot_size)];
         let bar = ProgressBar::new(0);
@@ -81,8 +128,8 @@ impl<'a> AuxFlashHandler<'a> {
         bar.set_length(out.len() as u64);
         for (i, chunk) in out.chunks_mut(READ_CHUNK_SIZE).enumerate() {
             let offset = i * READ_CHUNK_SIZE;
-            self.context.call::<()>(
-                self.core,
+            context.call::<()>(
+                core,
                 &op,
                 &[
                     ("slot", IdolArgument::Scalar(slot as u64)),
@@ -97,6 +144,29 @@ impl<'a> AuxFlashHandler<'a> {
         bar.finish_and_clear();
 
         Ok(out)
+    }
+}
+
+impl<'a> AuxFlashHandler<'a> {
+    /// Builds a new [`AuxFlashHandler`]
+    pub fn new(
+        hubris: &'a HubrisArchive,
+        core: &'a mut dyn Core,
+        hiffy_timeout: Duration,
+    ) -> Result<Self> {
+        let context = HiffyContext::new(hubris, core, hiffy_timeout)?;
+        Ok(Self { hubris, core, context })
+    }
+}
+
+impl<'a> AuxFlashWorker<'a> for AuxFlashHandler<'a> {
+    fn get_components(
+        &mut self,
+    ) -> (&HubrisArchive, &mut dyn Core, &mut HiffyContext<'a>) {
+        (self.hubris, self.core, &mut self.context)
+    }
+    fn get_archive(&self) -> &HubrisArchive {
+        self.hubris
     }
 }
 
@@ -175,9 +245,9 @@ impl<'a> AuxFlashWriter<'a> {
         let data_size = self.context.data_size()?;
 
         humility::msg!("erasing slot {slot}");
-        slot_erase(slot, self.hubris, &mut self.context, self.core)?;
+        self.slot_erase(slot)?;
 
-        let slot_size = slot_size_bytes(self.hubris)?;
+        let slot_size = self.slot_size_bytes()?;
         if data.len() > slot_size {
             bail!(
                 "Data is too large ({} bytes, slot size is {} bytes)",
@@ -233,101 +303,15 @@ impl<'a> AuxFlashWriter<'a> {
         humility::msg!("Flashing auxiliary data from the Hubris archive");
         self.auxflash_write(slot, &data, force)
     }
-
-    /// Returns the active slot, or `None` if there is no active slot
-    pub fn active_slot(&mut self) -> Result<Option<u32>> {
-        active_slot(self.hubris, &mut self.context, self.core)
-    }
-
-    /// Returns the number of auxflash slots
-    pub fn slot_count(&mut self) -> Result<u32> {
-        slot_count(self.hubris, &mut self.context, self.core)
-    }
-
-    /// Returns the checksum of an auxflash slot
-    ///
-    /// This is `None` if the checksum is not present (because the slot has been
-    /// erased).
-    pub fn slot_status(&mut self, slot: u32) -> Result<Option<[u8; 32]>> {
-        slot_status(slot, self.hubris, &mut self.context, self.core)
-    }
 }
 
-fn slot_status(
-    slot: u32,
-    hubris: &HubrisArchive,
-    context: &mut HiffyContext,
-    core: &mut dyn Core,
-) -> Result<Option<[u8; 32]>> {
-    let op = hubris.get_idol_command("AuxFlash.read_slot_chck")?;
-    let value = context.call::<([u8; 32],)>(
-        core,
-        &op,
-        &[("slot", IdolArgument::Scalar(u64::from(slot)))],
-        None,
-        None,
-    );
-    match value {
-        Ok(v) => Ok(Some(v.0)),
-        Err(HiffyError::Hiffy(humility_idol::IdolError::Named(e)))
-            if e == "MissingChck" =>
-        {
-            Ok(None)
-        }
-        Err(e) => Err(e.into()),
+impl<'a> AuxFlashWorker<'a> for AuxFlashWriter<'a> {
+    fn get_components(
+        &mut self,
+    ) -> (&HubrisArchive, &mut dyn Core, &mut HiffyContext<'a>) {
+        (self.hubris, self.core, &mut self.context)
     }
-}
-
-pub fn slot_erase(
-    slot: u32,
-    hubris: &HubrisArchive,
-    context: &mut HiffyContext,
-    core: &mut dyn Core,
-) -> Result<()> {
-    let op = hubris.get_idol_command("AuxFlash.erase_slot")?;
-    context.call::<()>(
-        core,
-        &op,
-        &[("slot", IdolArgument::Scalar(u64::from(slot)))],
-        None,
-        None,
-    )?;
-    Ok(())
-}
-
-fn slot_size_bytes(hubris: &HubrisArchive) -> Result<usize> {
-    hubris
-        .manifest
-        .auxflash
-        .as_ref()
-        .map(|i| i.slot_size_bytes())
-        .unwrap_or(Ok(DEFAULT_SLOT_SIZE_BYTES))
-}
-
-fn active_slot(
-    hubris: &HubrisArchive,
-    context: &mut HiffyContext,
-    core: &mut dyn Core,
-) -> Result<Option<u32>> {
-    let op = hubris.get_idol_command("AuxFlash.scan_and_get_active_slot")?;
-    let value = context.call::<u32>(core, &op, &[], None, None);
-    match value {
-        Ok(v) => Ok(Some(v)),
-        Err(HiffyError::Hiffy(humility_idol::IdolError::Named(e)))
-            if e == "NoActiveSlot" =>
-        {
-            Ok(None)
-        }
-        Err(e) => Err(e.into()),
+    fn get_archive(&self) -> &HubrisArchive {
+        self.hubris
     }
-}
-
-fn slot_count(
-    hubris: &HubrisArchive,
-    context: &mut HiffyContext,
-    core: &mut dyn Core,
-) -> Result<u32> {
-    let op = hubris.get_idol_command("AuxFlash.slot_count")?;
-    let value = context.call::<u32>(core, &op, &[], None, None)?;
-    Ok(value)
 }

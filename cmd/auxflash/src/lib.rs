@@ -15,7 +15,7 @@ use colored::Colorize;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_probes_core::HubrisAttach;
 
-use humility_auxflash::{AuxFlashHandler, AuxFlashWriter};
+use humility_auxflash::{AuxFlashHandler, AuxFlashWorker, AuxFlashWriter};
 
 #[derive(Parser, Debug)]
 #[clap(name = "auxflash", about = env!("CARGO_PKG_DESCRIPTION"))]
