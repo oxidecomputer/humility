@@ -7,7 +7,6 @@ use humility::core::Core;
 use humility_arch_arm::ARMRegister;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
-use std::path::Path;
 use std::rc::Rc;
 
 use probe_rs::MemoryInterface;
@@ -217,8 +216,25 @@ impl Core for ProbeCore {
     }
 }
 
+/// Error returned from [`ProbeCore::load`]
+#[derive(Debug, thiserror::Error)]
+pub enum LoadError {
+    /// Loading is not allowed when `can_flash = false`
+    #[error("probe core must be initialized with flashing enabled")]
+    NotAllowed,
+
+    /// `probe_rs` internal error when pre-loading file data
+    #[error("could not load data")]
+    FileDownloadError(#[from] probe_rs::flashing::FileDownloadError),
+
+    /// `probe_rs` internal error when writing to flash
+    #[error("could not program flash")]
+    FlashError(#[from] probe_rs::flashing::FlashError),
+}
+
 impl ProbeCore {
-    pub fn load(&mut self, path: &Path) -> Result<()> {
+    /// Loads an ELF file onto the target
+    pub fn load(&mut self, elf_data: &[u8]) -> Result<(), LoadError> {
         #[derive(Debug, Default)]
         struct LoadProgress {
             /// total bytes that need to be erased
@@ -237,7 +253,7 @@ impl ProbeCore {
         use indicatif::{ProgressBar, ProgressStyle};
 
         if !self.can_flash {
-            bail!("cannot flash without explicitly attaching to flash");
+            return Err(LoadError::NotAllowed);
         }
 
         let progress =
@@ -245,9 +261,11 @@ impl ProbeCore {
 
         let bar = ProgressBar::new(0);
         let erase_style = ProgressStyle::default_bar()
-            .template("humility: erasing [{bar:30}] {bytes}/{total_bytes}")?;
+            .template("humility: erasing [{bar:30}] {bytes}/{total_bytes}")
+            .unwrap();
         let flash_style = ProgressStyle::default_bar()
-            .template("humility: flashing [{bar:30}] {bytes}/{total_bytes}")?;
+            .template("humility: flashing [{bar:30}] {bytes}/{total_bytes}")
+            .unwrap();
         let progress = flashing::FlashProgress::new(move |event| match event {
             flashing::ProgressEvent::Initialized { flash_layout } => {
                 progress.borrow_mut().total_erase = flash_layout
@@ -294,14 +312,9 @@ impl ProbeCore {
         let mut options = flashing::DownloadOptions::default();
         options.progress = Some(&progress);
 
-        if let Err(e) = flashing::download_file_with_options(
-            &mut self.session,
-            path,
-            flashing::Format::Hex,
-            options,
-        ) {
-            bail!("Flash loading failed {:?}", e);
-        };
+        let mut loader = self.session.target().flash_loader();
+        loader.load_elf_data(&mut std::io::Cursor::new(elf_data))?;
+        loader.commit(&mut self.session, options)?;
 
         Ok(())
     }

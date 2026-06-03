@@ -1898,19 +1898,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "goblin",
  "humility-auxflash",
  "humility-cli",
  "humility-core",
- "humility-cortex",
  "humility-probes-core",
- "ihex",
- "num-traits",
  "parse_int",
- "path-slash",
- "ron 0.12.1",
- "srec",
- "tempfile",
 ]
 
 [[package]]
@@ -2281,11 +2273,7 @@ dependencies = [
  "humility-cli",
  "humility-core",
  "humility-cortex",
- "ihex",
  "log",
- "parse_int",
- "path-slash",
- "tempfile",
  "zip",
 ]
 
@@ -4717,12 +4705,6 @@ name = "splitty"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2db70a1e6827e4d71c655b606caf1346862c38ae52ab4f58c32635e7c7aedd67"
-
-[[package]]
-name = "srec"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17c3a0538ec242e3cd333cdcdc8b720faa2fa0a9d7f444cf1ff63e7d3303adfb"
 
 [[package]]
 name = "stable_deref_trait"

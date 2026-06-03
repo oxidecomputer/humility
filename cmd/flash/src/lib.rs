@@ -222,17 +222,13 @@ fn flashcmd(subargs: FlashArgs, context: &mut ExecutionContext) -> Result<()> {
         return Ok(());
     }
 
-    let ihex = tempfile::NamedTempFile::new()?;
-    std::fs::write(&ihex, generate_ihex_from_elf(&config.elf)?)?;
-    let ihex_path = ihex.path();
-
     //
     // Load the flash image.  If that fails, we're in a world of hurt:  we
     // really don't want to run the core for fear of masking the initial
     // error.  (It will hopefully be pretty clear to the user that a
     // half-flashed part is going to be in an ill-defined state!)
     //
-    core.load(ihex_path)?;
+    core.load(&config.elf)?;
 
     //
     // On Gimlet Rev B, the BOOT0 pin is unstrapped -- and during a flash,
@@ -347,72 +343,6 @@ fn program_auxflash(
             bail!("Could not check auxflash slot after programming: {:?}", e)
         }
     }
-}
-
-/// While it may sound like the impetus for an OSHA investigation at the North
-/// Pole, this function is _actually_ designed to generate small (32-byte)
-/// chunks describing the data in the PHDRs of an ELF file. Unless the file is
-/// missing PHDRs, because objcopy sometimes does that for whatever reason, in
-/// which case we do the section headers.
-///
-/// This is an implementation factor of both SREC and IHEX generation.
-fn elf_chunks(elf_data: &[u8]) -> Result<Vec<(u32, &[u8])>> {
-    let elf = goblin::elf::Elf::parse(elf_data)?;
-
-    let mut addr_slices = vec![];
-
-    if elf.program_headers.is_empty() {
-        for sh in &elf.section_headers {
-            if sh.sh_type != goblin::elf::section_header::SHT_PROGBITS {
-                continue;
-            }
-
-            let addr = u32::try_from(sh.sh_addr)?;
-            let offset = usize::try_from(sh.sh_offset)?;
-            let size = usize::try_from(sh.sh_size)?;
-
-            for (i, chunk) in
-                elf_data[offset..offset + size].chunks(32).enumerate()
-            {
-                addr_slices.push((addr + i as u32 * 32, chunk));
-            }
-        }
-    } else {
-        for ph in &elf.program_headers {
-            if ph.p_type != goblin::elf::program_header::PT_LOAD {
-                continue;
-            }
-
-            let addr = u32::try_from(ph.p_vaddr)?;
-            let offset = usize::try_from(ph.p_offset)?;
-            let size = usize::try_from(ph.p_filesz)?;
-
-            for (i, chunk) in
-                elf_data[offset..offset + size].chunks(32).enumerate()
-            {
-                addr_slices.push((addr + i as u32 * 32, chunk));
-            }
-        }
-    }
-
-    Ok(addr_slices)
-}
-
-fn generate_ihex_from_elf(data: &[u8]) -> Result<String> {
-    // Build up IHEX records from that information.
-    let mut records = vec![];
-
-    for (addr, slice) in elf_chunks(data)? {
-        records.push(ihex::Record::ExtendedLinearAddress((addr >> 16) as u16));
-        records.push(ihex::Record::Data {
-            offset: addr as u16,
-            value: slice.to_vec(),
-        });
-    }
-
-    records.push(ihex::Record::EndOfFile);
-
-    Ok(ihex::create_object_file_representation(&records)?)
 }
 
 humility_cmd!(FlashArgs, flashcmd);

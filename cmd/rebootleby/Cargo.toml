@@ -11,9 +11,5 @@ humility-cortex = { workspace = true }
 humility-cli = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
-parse_int = { workspace = true }
-tempfile = { workspace = true }
-path-slash = { workspace = true }
-ihex = { workspace = true }
 zip.workspace = true
 log.workspace = true
