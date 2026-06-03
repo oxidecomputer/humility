@@ -1681,8 +1681,11 @@ impl<'a, 'b> HiffyWrite<'a, 'b> {
                     Var::Text => ops.write_text,
                     Var::Data => ops.write_data,
                 };
-                // Chosen to be smaller than packet size
+                // Packets are sized based on the rx buffer size, then clamped
+                // to a conservative MTU to avoid packet fragmentation (which
+                // is not handled by the Hubris netstack).
                 let Some(chunk_size) = buf_size
+                    .min(&1024)
                     .checked_sub(std::mem::size_of::<hiffy::RpcHeader>())
                 else {
                     bail!("buffer size {buf_size} is smaller than `RpcHeader`");
