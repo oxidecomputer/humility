@@ -33,12 +33,7 @@ impl<'a> AuxFlashHandler<'a> {
 
     /// Returns the auxflash slot size
     pub fn slot_size_bytes(&self) -> Result<usize> {
-        self.hubris
-            .manifest
-            .auxflash
-            .as_ref()
-            .map(|i| i.slot_size_bytes())
-            .unwrap_or(Ok(DEFAULT_SLOT_SIZE_BYTES))
+        slot_size_bytes(self.hubris)
     }
 
     /// Returns the number of auxflash slots
@@ -68,15 +63,7 @@ impl<'a> AuxFlashHandler<'a> {
 
     /// Erases a single auxflash slot
     pub fn slot_erase(&mut self, slot: u32) -> Result<()> {
-        let op = self.hubris.get_idol_command("AuxFlash.erase_slot")?;
-        self.context.call::<()>(
-            self.core,
-            &op,
-            &[("slot", IdolArgument::Scalar(u64::from(slot)))],
-            None,
-            None,
-        )?;
-        Ok(())
+        slot_erase(slot, self.hubris, &mut self.context, self.core)
     }
 
     /// Returns the checksum of an auxflash slot
@@ -84,23 +71,7 @@ impl<'a> AuxFlashHandler<'a> {
     /// This is `None` if the checksum is not present (because the slot has been
     /// erased).
     pub fn slot_status(&mut self, slot: u32) -> Result<Option<[u8; 32]>> {
-        let op = self.hubris.get_idol_command("AuxFlash.read_slot_chck")?;
-        let value = self.context.call::<([u8; 32],)>(
-            self.core,
-            &op,
-            &[("slot", IdolArgument::Scalar(u64::from(slot)))],
-            None,
-            None,
-        );
-        match value {
-            Ok(v) => Ok(Some(v.0)),
-            Err(HiffyError::Hiffy(humility_idol::IdolError::Named(e)))
-                if e == "MissingChck" =>
-            {
-                Ok(None)
-            }
-            Err(e) => Err(e.into()),
-        }
+        slot_status(slot, self.hubris, &mut self.context, self.core)
     }
 
     /// Reads some number of bytes from a particular slot
@@ -141,6 +112,25 @@ impl<'a> AuxFlashHandler<'a> {
         bar.finish_and_clear();
 
         Ok(out)
+    }
+}
+
+/// Handle to write to auxiliary flash
+pub struct AuxFlashWriter<'a> {
+    hubris: &'a HubrisArchive,
+    core: &'a mut humility_probes_core::ProbeCore,
+    context: HiffyContext<'a>,
+}
+
+impl<'a> AuxFlashWriter<'a> {
+    /// Builds a new [`AuxFlashWriter`]
+    pub fn new(
+        hubris: &'a HubrisArchive,
+        core: &'a mut humility_probes_core::ProbeCore,
+        hiffy_timeout: Duration,
+    ) -> Result<Self> {
+        let context = HiffyContext::new(hubris, core, hiffy_timeout)?;
+        Ok(Self { hubris, core, context })
     }
 
     /// Writes some number of bytes to a particular slot
@@ -183,7 +173,8 @@ impl<'a> AuxFlashHandler<'a> {
             }
         }
         if let Some(chck_data) = chck_data
-            && let Ok(Some(chck_slot)) = self.slot_status(slot)
+            && let Ok(Some(chck_slot)) =
+                slot_status(slot, self.hubris, &mut self.context, self.core)
             && chck_data == chck_slot
         {
             humility::msg!("Slot {slot} is already programmed with our data",);
@@ -200,9 +191,9 @@ impl<'a> AuxFlashHandler<'a> {
         let data_size = self.context.data_size()?;
 
         humility::msg!("erasing slot {slot}");
-        self.slot_erase(slot)?;
+        slot_erase(slot, self.hubris, &mut self.context, self.core)?;
 
-        let slot_size = self.slot_size_bytes()?;
+        let slot_size = slot_size_bytes(self.hubris)?;
         if data.len() > slot_size {
             bail!(
                 "Data is too large ({} bytes, slot size is {} bytes)",
@@ -258,4 +249,55 @@ impl<'a> AuxFlashHandler<'a> {
         humility::msg!("Flashing auxiliary data from the Hubris archive");
         self.auxflash_write(slot, &data, force)
     }
+}
+
+fn slot_status(
+    slot: u32,
+    hubris: &HubrisArchive,
+    context: &mut HiffyContext,
+    core: &mut dyn Core,
+) -> Result<Option<[u8; 32]>> {
+    let op = hubris.get_idol_command("AuxFlash.read_slot_chck")?;
+    let value = context.call::<([u8; 32],)>(
+        core,
+        &op,
+        &[("slot", IdolArgument::Scalar(u64::from(slot)))],
+        None,
+        None,
+    );
+    match value {
+        Ok(v) => Ok(Some(v.0)),
+        Err(HiffyError::Hiffy(humility_idol::IdolError::Named(e)))
+            if e == "MissingChck" =>
+        {
+            Ok(None)
+        }
+        Err(e) => Err(e.into()),
+    }
+}
+
+pub fn slot_erase(
+    slot: u32,
+    hubris: &HubrisArchive,
+    context: &mut HiffyContext,
+    core: &mut dyn Core,
+) -> Result<()> {
+    let op = hubris.get_idol_command("AuxFlash.erase_slot")?;
+    context.call::<()>(
+        core,
+        &op,
+        &[("slot", IdolArgument::Scalar(u64::from(slot)))],
+        None,
+        None,
+    )?;
+    Ok(())
+}
+
+fn slot_size_bytes(hubris: &HubrisArchive) -> Result<usize> {
+    hubris
+        .manifest
+        .auxflash
+        .as_ref()
+        .map(|i| i.slot_size_bytes())
+        .unwrap_or(Ok(DEFAULT_SLOT_SIZE_BYTES))
 }

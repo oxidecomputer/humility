@@ -1594,6 +1594,7 @@ dependencies = [
  "humility-core",
  "humility-hiffy",
  "humility-idol",
+ "humility-probes-core",
  "indicatif",
  "tlvc",
 ]
@@ -1712,6 +1713,7 @@ dependencies = [
  "humility-auxflash",
  "humility-cli",
  "humility-core",
+ "humility-probes-core",
  "idol",
  "log",
  "parse_int",

@@ -12,3 +12,4 @@ tlvc.workspace = true
 humility.workspace = true
 humility-hiffy.workspace = true
 humility-idol.workspace = true
+humility-probes-core.workspace = true
