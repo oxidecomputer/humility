@@ -71,10 +71,6 @@ impl Core for UnattachedCore {
     fn step(&mut self) -> Result<()> {
         bail!("Core::step unimplemented when unattached!");
     }
-
-    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
-        bail!("Waiting and halting on an unattched chip isn't available!");
-    }
 }
 
 impl UnattachedCore {

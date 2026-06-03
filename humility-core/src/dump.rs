@@ -201,8 +201,4 @@ impl Core for DumpCore {
     fn is_dump(&self) -> bool {
         true
     }
-
-    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
-        bail!("Wait for halt is not supported on a dump");
-    }
 }

@@ -70,9 +70,6 @@ pub trait Core {
         Ok(())
     }
 
-    /// Wait `duration` seconds for the targe to halt.
-    fn wait_for_halt(&mut self, dur: std::time::Duration) -> Result<()>;
-
     /// Send over network, if applicable
     fn send(&self, _buf: &[u8], _agent: NetAgent) -> Result<usize> {
         bail!("cannot send over network");

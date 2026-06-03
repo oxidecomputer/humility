@@ -347,10 +347,6 @@ impl Core for DumpAgentCore {
     fn step(&mut self) -> Result<()> {
         bail!("can't step over dump agent");
     }
-
-    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
-        bail!("cannot wait for halt over dump agent");
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

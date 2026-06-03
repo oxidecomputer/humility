@@ -215,16 +215,6 @@ impl Core for ProbeCore {
 
         Ok(())
     }
-
-    fn wait_for_halt(&mut self, dur: std::time::Duration) -> Result<()> {
-        if !self.halted {
-            let mut core = self.session.core(0)?;
-            core.wait_for_core_halted(dur)?;
-            self.halted = true;
-        }
-
-        Ok(())
-    }
 }
 
 impl ProbeCore {

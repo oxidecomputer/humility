@@ -68,8 +68,4 @@ impl Core for ArchiveCore {
     fn step(&mut self) -> Result<()> {
         bail!("can't step an archive");
     }
-
-    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
-        bail!("cannot wait for halt of an archive");
-    }
 }

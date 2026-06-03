@@ -68,7 +68,6 @@ impl humility::core::Core for DryCore {
     unsupported!(read_reg(_reg: ARMRegister) -> Result<u32>);
     unsupported!(write_reg(_reg: ARMRegister, _value: u32));
     unsupported!(write_word_32(_addr: u32, _data: u32));
-    unsupported!(wait_for_halt(_dur: std::time::Duration));
 
     fn info(&self) -> (String, Option<String>) {
         ("DryCore".to_owned(), None)
