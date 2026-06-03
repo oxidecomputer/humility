@@ -535,7 +535,7 @@ dependencies = [
  "anstream 1.0.0",
  "anstyle",
  "clap_lex",
- "strsim 0.11.1",
+ "strsim",
  "terminal_size",
 ]
 
@@ -652,6 +652,15 @@ name = "convert_case"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "633458d4ef8c78b72454de2d54fd6ab2e60f9e02be22f3c6104cdc8a4e0fceb9"
+dependencies = [
+ "unicode-segmentation",
+]
+
+[[package]]
+name = "convert_case"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "affbf0190ed2caf063e3def54ff444b449371d55c58e513a95ab98eca50adb49"
 dependencies = [
  "unicode-segmentation",
 ]
@@ -941,36 +950,12 @@ dependencies = [
 
 [[package]]
 name = "darling"
-version = "0.13.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a01d95850c592940db9b8194bc39f4bc0e89dee5c4265e4b1807c34a9aba453c"
-dependencies = [
- "darling_core 0.13.4",
- "darling_macro 0.13.4",
-]
-
-[[package]]
-name = "darling"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25ae13da2f202d56bd7f91c25fba009e7717a1e4a1cc98a76d844b65ae912e9d"
 dependencies = [
- "darling_core 0.23.0",
- "darling_macro 0.23.0",
-]
-
-[[package]]
-name = "darling_core"
-version = "0.13.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "859d65a907b6852c9361e3185c862aae7fafd2887876799fa55f5f99dc40d610"
-dependencies = [
- "fnv",
- "ident_case",
- "proc-macro2",
- "quote",
- "strsim 0.10.0",
- "syn 1.0.109",
+ "darling_core",
+ "darling_macro",
 ]
 
 [[package]]
@@ -982,19 +967,8 @@ dependencies = [
  "ident_case",
  "proc-macro2",
  "quote",
- "strsim 0.11.1",
+ "strsim",
  "syn 2.0.117",
-]
-
-[[package]]
-name = "darling_macro"
-version = "0.13.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c972679f83bdf9c42bd905396b6c3588a843a17f0f16dfcfa3e2c5d57441835"
-dependencies = [
- "darling_core 0.13.4",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -1003,7 +977,7 @@ version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac3984ec7bd6cfa798e62b4a642426a5be0e68f9401cfc2a01e3fa9ea2fcdb8d"
 dependencies = [
- "darling_core 0.23.0",
+ "darling_core",
  "quote",
  "syn 2.0.117",
 ]
@@ -1608,7 +1582,7 @@ name = "humility-arch-arm"
 version = "0.1.0"
 dependencies = [
  "capstone",
- "num-derive 0.4.2",
+ "num-derive",
  "num-traits",
 ]
 
@@ -1700,7 +1674,7 @@ dependencies = [
  "jep106 0.3.0",
  "log",
  "multimap",
- "num-derive 0.4.2",
+ "num-derive",
  "num-traits",
  "parse_int",
  "pmbus",
@@ -2152,7 +2126,7 @@ dependencies = [
  "humility-idol",
  "humility-pmbus",
  "indicatif",
- "num-derive 0.4.2",
+ "num-derive",
  "num-traits",
  "parse_int",
  "pmbus",
@@ -2352,7 +2326,7 @@ dependencies = [
  "humility-pmbus",
  "humility-spd",
  "indicatif",
- "num-derive 0.4.2",
+ "num-derive",
  "num-traits",
  "parse_int",
  "pmbus",
@@ -2607,7 +2581,7 @@ dependencies = [
  "log",
  "measurement-token",
  "multimap",
- "num-derive 0.4.2",
+ "num-derive",
  "num-traits",
  "parse_int",
  "rayon",
@@ -2617,7 +2591,7 @@ dependencies = [
  "scroll 0.13.0",
  "serde",
  "serde_json",
- "strsim 0.11.1",
+ "strsim",
  "thiserror 2.0.18",
  "toml",
  "winapi",
@@ -2635,7 +2609,7 @@ dependencies = [
  "jep106 0.3.0",
  "log",
  "multimap",
- "num-derive 0.4.2",
+ "num-derive",
  "num-traits",
  "paste",
 ]
@@ -2758,7 +2732,7 @@ dependencies = [
  "humpty",
  "indicatif",
  "log",
- "num-derive 0.4.2",
+ "num-derive",
  "num-traits",
  "parse_int",
  "probe-rs",
@@ -2868,7 +2842,7 @@ dependencies = [
  "quote",
  "ron 0.8.1",
  "serde",
- "serde_with 3.18.0",
+ "serde_with",
  "syn 2.0.117",
 ]
 
@@ -2948,7 +2922,7 @@ version = "0.3.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5eb2d60ef19920a3a9193c3e371f726ec1dafc045dac788d0fb3704272458971"
 dependencies = [
- "darling 0.23.0",
+ "darling",
  "indoc",
  "proc-macro2",
  "quote",
@@ -3452,17 +3426,6 @@ checksum = "c6673768db2d862beb9b39a78fdcb1a69439615d5794a1be50caa9bc92c81967"
 
 [[package]]
 name = "num-derive"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "876a53fff98e03a936a674b29568b0e605f06b29372c2489ff4de23f1949743d"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "num-derive"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed3955f1a9c7c0c15e092f9c887db08b1fc683305fdf6eb6684f22555355e202"
@@ -3824,16 +3787,16 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 [[package]]
 name = "pmbus"
 version = "0.1.7"
-source = "git+https://github.com/oxidecomputer/pmbus#d381505fd957a648fc53c73f149e6ed970893239"
+source = "git+https://github.com/oxidecomputer/pmbus#a28e6603ccf2c42f9541107ee4c9fcf78f222266"
 dependencies = [
  "anyhow",
- "convert_case 0.4.0",
+ "convert_case 0.11.0",
  "libm",
- "num-derive 0.3.3",
+ "num-derive",
  "num-traits",
- "ron 0.8.1",
+ "ron 0.12.1",
  "serde",
- "serde_with 1.14.0",
+ "serde_with",
 ]
 
 [[package]]
@@ -4492,16 +4455,6 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "1.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "678b5a069e50bf00ecd22d0cd8ddf7c236f68581b03db652061ed5eb13a312ff"
-dependencies = [
- "serde",
- "serde_with_macros 1.5.2",
-]
-
-[[package]]
-name = "serde_with"
 version = "3.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd5414fad8e6907dbdd5bc441a50ae8d6e26151a03b1de04d89a5576de61d01f"
@@ -4515,20 +4468,8 @@ dependencies = [
  "schemars 1.2.1",
  "serde_core",
  "serde_json",
- "serde_with_macros 3.18.0",
+ "serde_with_macros",
  "time",
-]
-
-[[package]]
-name = "serde_with_macros"
-version = "1.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e182d6ec6f05393cc0e5ed1bf81ad6db3a8feedf8ee515ecdd369809bcce8082"
-dependencies = [
- "darling 0.13.4",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -4537,7 +4478,7 @@ version = "3.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3db8978e608f1fe7357e211969fd9abdcae80bac1ba7a3369bb7eb6b404eb65"
 dependencies = [
- "darling 0.23.0",
+ "darling",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
@@ -4762,12 +4703,6 @@ checksum = "f42444fea5b87a39db4218d9422087e66a85d0e7a0963a439b07bcdf91804006"
 
 [[package]]
 name = "strsim"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
-
-[[package]]
-name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
@@ -4946,7 +4881,7 @@ dependencies = [
  "log",
  "memmem",
  "nix",
- "num-derive 0.4.2",
+ "num-derive",
  "num-traits",
  "ordered-float",
  "pest",
@@ -5487,7 +5422,7 @@ checksum = "5f2ab60e120fd6eaa68d9567f3226e876684639d22a4219b313ff69ec0ccd5ac"
 dependencies = [
  "log",
  "ordered-float",
- "strsim 0.11.1",
+ "strsim",
  "thiserror 1.0.69",
  "wezterm-dynamic-derive",
 ]
