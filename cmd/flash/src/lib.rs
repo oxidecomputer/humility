@@ -26,8 +26,8 @@ use humility::{
     hubris::*,
     log::{Logger, info},
 };
-use humility_auxflash::{AuxFlashHandler, AuxFlashWriter};
 use humility_cli::{ExecutionContext, humility_cmd};
+use humility_flash::{get_image_state, program_auxflash};
 
 #[derive(Parser, Debug)]
 #[clap(name = "flash", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -85,13 +85,19 @@ fn validate(
     subargs: &FlashArgs,
     log: &Logger,
 ) -> Result<()> {
-    let r = get_image_state(
-        hubris,
-        core,
-        subargs.verify || subargs.check,
-        subargs.verbose,
-        log,
-    );
+    let check_type = if subargs.verify || subargs.check {
+        humility_flash::ImageCheckType::ImageIdAndFlash {
+            check_every_byte: subargs.verbose,
+        }
+    } else {
+        humility_flash::ImageCheckType::ImageId
+    };
+    // Collapse both Humility-level errors and mismatch errors into `Err(..)`
+    let r = match get_image_state(hubris, core, check_type, log) {
+        Ok(humility_flash::ImageStateResult::Matches) => Ok(()),
+        Ok(humility_flash::ImageStateResult::DoesNotMatch(e)) => Err(e.into()),
+        Err(e) => Err(e.into()),
+    };
     if subargs.check {
         core.run()?;
         return r;
@@ -121,82 +127,6 @@ fn validate(
             info!(log, "{e}; reflashing");
             Ok(())
         }
-    }
-}
-
-/// Checks the image and auxiliary flash
-///
-/// Returns `Ok(())` if the image matches; returns an error otherwise.
-///
-/// The core is halted when this function exits.
-fn get_image_state(
-    hubris: &HubrisArchive,
-    core: &mut dyn humility::core::Core,
-    full_check: bool,
-    verbose: bool,
-    log: &Logger,
-) -> Result<()> {
-    core.halt()?;
-
-    // First pass: check only the image ID
-    hubris
-        .validate(core, HubrisValidate::ArchiveMatch)
-        .context("flash/archive mismatch")?;
-
-    // More rigorous checks if requested
-    if full_check {
-        hubris.verify(core, verbose, log).with_context(|| {
-            let mut s = "image IDs match, but flash contents do not \
-                         match archive contents"
-                .to_owned();
-            if !verbose {
-                s += ".  Add `--verbose` to see all byte mismatches."
-            }
-            s
-        })?;
-    }
-
-    if hubris.read_auxflash_data()?.is_some() {
-        // The core must be running for us to check the auxflash slot.
-        //
-        // However, we want it halted before we exit this function, which
-        // requires careful handling of functions that could bail out.
-        core.run()?;
-
-        // Note that we only run this check if we pass the image ID check;
-        // otherwise, the Idol / hiffy memory maps are unknown.
-        let mut worker = match AuxFlashHandler::new(
-            hubris,
-            core,
-            std::time::Duration::from_millis(15_000),
-            log,
-        ) {
-            Ok(w) => w,
-            Err(e) => {
-                // Halt the core before returning!
-                core.halt()?;
-                return Err(e);
-            }
-        };
-        let r = match worker.active_slot() {
-            Ok(Some(s)) => {
-                info!(log, "verified auxflash in slot {s}");
-                Ok(())
-            }
-            Ok(None) => Err(anyhow!("no active auxflash slot")),
-            Err(e) => Err(anyhow!("failed to check auxflash slot: {e}")),
-        };
-
-        // Halt the core before returning results
-        core.halt()?;
-
-        r.context(if full_check {
-            "image ID and flash contents match, but auxflash is not loaded"
-        } else {
-            "image IDs match, but auxflash is not loaded"
-        })
-    } else {
-        Ok(())
     }
 }
 
@@ -277,88 +207,29 @@ fn try_program_auxflash(
     core: &mut humility_probes_core::ProbeCore,
     log: &Logger,
 ) -> Result<()> {
+    use humility_flash::ProgramAuxflashSuccess;
     match hubris.read_auxflash_data()? {
-        Some(auxflash) => {
-            match program_auxflash(hubris, core, &auxflash, log) {
-                Ok(_) => {
-                    info!(log, "done with auxiliary flash");
-                    Ok(())
+        Some(auxflash) => match program_auxflash(hubris, core, &auxflash, log) {
+            Ok(r) => {
+                match r {
+                    ProgramAuxflashSuccess::AlreadyProgrammed { slot } => {
+                        info!(
+                            log,
+                            "auxiliary flash data is already loaded in slot \
+                             {slot}; skipping programming",
+                        )
+                    }
+                    ProgramAuxflashSuccess::Success => {
+                        info!(log, "successfully programmed auxiliary flash")
+                    }
                 }
-                Err(e) => bail!(
-                    "failed to program auxflash: {e:?}; \
-                 your system may not be functional!",
-                ),
+                Ok(())
             }
-        }
+            Err(e) => Err(e).context(
+                "failed to program auxflash; your system may not be functional",
+            ),
+        },
         None => Ok(()),
-    }
-}
-
-fn program_auxflash(
-    hubris: &HubrisArchive,
-    core: &mut humility_probes_core::ProbeCore,
-    data: &[u8],
-    log: &Logger,
-) -> Result<()> {
-    let mut worker = AuxFlashWriter::new(
-        hubris,
-        core,
-        std::time::Duration::from_millis(15_000),
-        log,
-    )?;
-
-    // At this point, we've already rebooted into the new image.
-    //
-    // If the Hubris auxflash task has picked up an active slot, then we're all
-    // set: our target image was already loaded (or was unchanged).
-    match worker.active_slot() {
-        Ok(Some(i)) => {
-            info!(
-                log,
-                "auxiliary flash data is already loaded in slot {i}; \
-                 skipping programming",
-            );
-            return Ok(());
-        }
-        Ok(None) => (),
-        Err(e) => {
-            info!(log, "Got error while checking active slot: {e:?}");
-        }
-    };
-
-    // Otherwise, we need to pick a slot.  This is tricky, because we don't
-    // actually know whether there's an image on the B partition that's using
-    // auxiliary data.  We'll prioritize picking an empty (even) slot, and will
-    // otherwise pick slot 0 arbitrarily.
-    let slot_count = worker.slot_count()?;
-    let mut target_slot = 0;
-    for i in 0..slot_count {
-        if i % 2 == 0 && matches!(worker.slot_status(i), Ok(None)) {
-            target_slot = i;
-            break;
-        }
-    }
-
-    worker.auxflash_write(target_slot, data, false)?;
-
-    // After a reset, two things will happen:
-    // - The SP `auxflash` task will automatically mirror from the even slot to
-    //   the odd slot, since the even slot will have valid data and the odd slot
-    //   will not.
-    // - The SP will recognize the programmed slot as valid and choose it as the
-    //   active slot.
-    worker.reset()?;
-
-    // Give the SP plenty of time to do its mirroring operation
-    info!(log, "resetting the SP, please wait...");
-    std::thread::sleep(std::time::Duration::from_secs(5));
-
-    match worker.active_slot() {
-        Ok(Some(..)) => Ok(()),
-        Ok(None) => bail!("No active auxflash slot, even after programming"),
-        Err(e) => {
-            bail!("Could not check auxflash slot after programming: {:?}", e)
-        }
     }
 }
 

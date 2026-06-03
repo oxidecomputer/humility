@@ -2177,9 +2177,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "humility-auxflash",
  "humility-cli",
  "humility-core",
+ "humility-flash",
  "humility-probes-core",
  "parse_int",
 ]
@@ -2908,6 +2908,17 @@ dependencies = [
  "num-traits",
  "rand 0.10.1",
  "zerocopy",
+]
+
+[[package]]
+name = "humility-flash"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "humility-auxflash",
+ "humility-core",
+ "humility-probes-core",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

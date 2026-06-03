@@ -8,7 +8,8 @@ description = "flash archive onto attached device"
 humility = { workspace = true }
 humility-cli = { workspace = true }
 humility-probes-core = { workspace = true }
-humility-auxflash = { workspace = true }
+humility-flash = { workspace = true }
+
 anyhow = { workspace = true }
 clap = { workspace = true }
 parse_int = { workspace = true }
