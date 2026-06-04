@@ -18,19 +18,10 @@ export CARGO_INCREMENTAL=0
 
 banner deps
 need=(
-	'/library/libusb'
+	'/ooce/library/libusb-1'
 	'/library/libftdi1'
 )
-missing=()
-for (( i = 0; i < ${#need[@]}; i++ )); do
-	p=${need[$i]}
-	if ! pkg info -q "$p"; then
-		missing+=( "$p" )
-	fi
-done
-if (( ${#missing[@]} > 0 )); then
-	pfexec pkg install -v "${missing[@]}"
-fi
+PKG_SUCCESS_ON_NOP=1 pfexec pkg install -v "${need[@]}"
 pkg list -v "${need[@]}"
 
 cargo --version
