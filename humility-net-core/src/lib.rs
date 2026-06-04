@@ -27,7 +27,6 @@ use humility_dump_agent::{
 };
 use std::{
     net::{ToSocketAddrs, UdpSocket},
-    path::Path,
     time::Duration,
 };
 
@@ -369,10 +368,6 @@ impl Core for NetCore {
         bail!("can't step over network");
     }
 
-    fn load(&mut self, _path: &Path) -> Result<()> {
-        bail!("cannot load flash over network");
-    }
-
     fn reset(&mut self) -> Result<()> {
         bail!("cannot reset over network");
     }
@@ -390,8 +385,8 @@ pub fn attach_net(
     ip: ScopedV6Addr,
     hubris: &HubrisArchive,
     timeout: Duration,
-) -> Result<Box<dyn Core>> {
+) -> Result<NetCore> {
     let core = NetCore::new(ip, hubris, timeout)?;
     msg!("connecting to {ip}");
-    Ok(Box::new(core))
+    Ok(core)
 }

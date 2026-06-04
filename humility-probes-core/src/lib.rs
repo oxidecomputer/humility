@@ -6,13 +6,16 @@ use ::probe_rs::{
     DebugProbeError, DebugProbeInfo, DebugProbeSelector, Probe,
     ProbeCreationError,
 };
-use humility::core::{Core, ProbeError};
+use humility::core::ProbeError;
 
 use anyhow::{Result, anyhow, bail};
 use humility::msg;
 
 mod probe_rs;
 mod unattached;
+
+pub use probe_rs::ProbeCore;
+pub use unattached::UnattachedCore;
 
 fn parse_probe(probe: &str) -> (&str, Option<usize>) {
     if probe.contains('-') {
@@ -110,7 +113,7 @@ fn open_probe<T: Into<DebugProbeSelector> + Clone>(
 pub fn attach_to_probe(
     probe: &str,
     speed_khz: Option<u32>,
-) -> Result<Box<dyn Core>> {
+) -> Result<UnattachedCore> {
     let (probe, index) = parse_probe(probe);
 
     match probe {
@@ -120,13 +123,13 @@ pub fn attach_to_probe(
             let probe = open_probe(&probe_info, speed_khz)?;
 
             crate::msg!("Opened probe {}", probe_info.identifier);
-            Ok(Box::new(unattached::UnattachedCore::new(
+            Ok(UnattachedCore::new(
                 probe,
                 probe_info.identifier.clone(),
                 probe_info.vendor_id,
                 probe_info.product_id,
                 probe_info.serial_number,
-            )))
+            ))
         }
         "auto" => attach_to_probe("usb", speed_khz),
         _ => match TryInto::<DebugProbeSelector>::try_into(probe) {
@@ -139,9 +142,7 @@ pub fn attach_to_probe(
                 let name = probe.get_name();
 
                 crate::msg!("Opened {vidpid} via {name}");
-                Ok(Box::new(unattached::UnattachedCore::new(
-                    probe, name, vid, pid, serial,
-                )))
+                Ok(UnattachedCore::new(probe, name, vid, pid, serial))
             }
             Err(_) => Err(anyhow!("unrecognized probe: {}", probe)),
         },
@@ -153,7 +154,7 @@ pub fn attach_to_chip(
     probe: &str,
     chip: Option<&str>,
     speed_khz: Option<u32>,
-) -> Result<Box<dyn Core>> {
+) -> Result<probe_rs::ProbeCore> {
     let (probe, index) = parse_probe(probe);
 
     match probe {
@@ -178,14 +179,14 @@ pub fn attach_to_chip(
 
             crate::msg!("attached via {name}");
 
-            Ok(Box::new(probe_rs::ProbeCore::new(
+            Ok(probe_rs::ProbeCore::new(
                 session,
                 probe_info.identifier.clone(),
                 probe_info.vendor_id,
                 probe_info.product_id,
                 probe_info.serial_number,
                 can_flash,
-            )))
+            ))
         }
         "auto" => attach_to_chip("usb", chip, speed_khz),
 
@@ -211,9 +212,9 @@ pub fn attach_to_chip(
 
                 crate::msg!("attached to {vidpid} via {name}");
 
-                Ok(Box::new(probe_rs::ProbeCore::new(
+                Ok(probe_rs::ProbeCore::new(
                     session, name, vid, pid, serial, can_flash,
-                )))
+                ))
             }
             Err(_) => Err(anyhow!("unrecognized probe: {probe}")),
         },
@@ -224,7 +225,7 @@ pub fn attach_for_flashing(
     probe: &str,
     chip: &str,
     speed_khz: Option<u32>,
-) -> Result<Box<dyn Core>> {
+) -> Result<probe_rs::ProbeCore> {
     attach_to_chip(probe, Some(chip), speed_khz)
 }
 
@@ -237,15 +238,15 @@ pub trait HubrisAttach {
     /// hubris archive and that the archive matches the image
     /// id present on target. If no chip is is present in the archive
     /// this will still attach.
-    fn attach_probe(&self, probe: &str) -> Result<Box<dyn Core>>;
+    fn attach_probe(&self, probe: &str) -> Result<probe_rs::ProbeCore>;
 }
 
 impl HubrisAttach for humility::hubris::HubrisArchive {
-    fn attach_probe(&self, probe: &str) -> Result<Box<dyn Core>> {
+    fn attach_probe(&self, probe: &str) -> Result<probe_rs::ProbeCore> {
         let mut core = attach_to_chip(probe, self.chip().as_deref(), None)?;
 
         self.validate(
-            &mut *core,
+            &mut core,
             humility::hubris::HubrisValidate::ArchiveMatch,
         )?;
 

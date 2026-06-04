@@ -62,7 +62,6 @@ impl humility::core::Core for DryCore {
     unsupported!(run());
     unsupported!(halt());
     unsupported!(step());
-    unsupported!(load(_path: &std::path::Path));
     unsupported!(reset());
     unsupported!(write_8(_addr: u32, _data: &[u8]));
     unsupported!(op_done());

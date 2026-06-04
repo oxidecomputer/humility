@@ -5,7 +5,6 @@
 use anyhow::{Result, bail};
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
-use std::path::Path;
 
 pub struct UnattachedCore {
     pub probe: probe_rs::Probe,
@@ -71,10 +70,6 @@ impl Core for UnattachedCore {
 
     fn step(&mut self) -> Result<()> {
         bail!("Core::step unimplemented when unattached!");
-    }
-
-    fn load(&mut self, _path: &Path) -> Result<()> {
-        bail!("Core::load unimplemented when unattached!");
     }
 
     fn reset(&mut self) -> Result<()> {

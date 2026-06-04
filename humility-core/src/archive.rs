@@ -7,7 +7,6 @@ use crate::hubris::HubrisArchive;
 use crate::hubris::HubrisFlashMap;
 use anyhow::{Result, anyhow, bail};
 use humility_arch_arm::ARMRegister;
-use std::path::Path;
 
 pub struct ArchiveCore {
     flash: HubrisFlashMap,
@@ -68,10 +67,6 @@ impl Core for ArchiveCore {
 
     fn step(&mut self) -> Result<()> {
         bail!("can't step an archive");
-    }
-
-    fn load(&mut self, _path: &Path) -> Result<()> {
-        bail!("cannot load flash to an archive");
     }
 
     fn reset(&mut self) -> Result<()> {

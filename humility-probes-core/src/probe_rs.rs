@@ -204,7 +204,45 @@ impl Core for ProbeCore {
         Ok(())
     }
 
-    fn load(&mut self, path: &Path) -> Result<()> {
+    fn reset(&mut self) -> Result<()> {
+        let mut core = self.session.core(0)?;
+        core.reset()?;
+        self.halted = false;
+        Ok(())
+    }
+
+    fn reset_and_halt(&mut self, dur: std::time::Duration) -> Result<()> {
+        let mut core = self.session.core(0)?;
+        core.reset_and_halt(dur)?;
+        self.halted = true;
+        Ok(())
+    }
+
+    fn op_start(&mut self) -> Result<()> {
+        self.halt()?;
+
+        Ok(())
+    }
+
+    fn op_done(&mut self) -> Result<()> {
+        self.run()?;
+
+        Ok(())
+    }
+
+    fn wait_for_halt(&mut self, dur: std::time::Duration) -> Result<()> {
+        if !self.halted {
+            let mut core = self.session.core(0)?;
+            core.wait_for_core_halted(dur)?;
+            self.halted = true;
+        }
+
+        Ok(())
+    }
+}
+
+impl ProbeCore {
+    pub fn load(&mut self, path: &Path) -> Result<()> {
         #[derive(Debug, Default)]
         struct LoadProgress {
             /// total bytes that need to be erased
@@ -288,41 +326,6 @@ impl Core for ProbeCore {
         ) {
             bail!("Flash loading failed {:?}", e);
         };
-
-        Ok(())
-    }
-    fn reset(&mut self) -> Result<()> {
-        let mut core = self.session.core(0)?;
-        core.reset()?;
-        self.halted = false;
-        Ok(())
-    }
-
-    fn reset_and_halt(&mut self, dur: std::time::Duration) -> Result<()> {
-        let mut core = self.session.core(0)?;
-        core.reset_and_halt(dur)?;
-        self.halted = true;
-        Ok(())
-    }
-
-    fn op_start(&mut self) -> Result<()> {
-        self.halt()?;
-
-        Ok(())
-    }
-
-    fn op_done(&mut self) -> Result<()> {
-        self.run()?;
-
-        Ok(())
-    }
-
-    fn wait_for_halt(&mut self, dur: std::time::Duration) -> Result<()> {
-        if !self.halted {
-            let mut core = self.session.core(0)?;
-            core.wait_for_core_halted(dur)?;
-            self.halted = true;
-        }
 
         Ok(())
     }

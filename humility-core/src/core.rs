@@ -8,7 +8,6 @@ use crate::archive::ArchiveCore;
 use crate::dump::DumpCore;
 use crate::hubris::*;
 use humility_arch_arm::ARMRegister;
-use std::path::Path;
 use std::str;
 use std::time::Duration;
 use thiserror::Error;
@@ -56,11 +55,6 @@ pub trait Core {
         self.read_8(addr, &mut buf)?;
         Ok(u64::from_le_bytes(buf))
     }
-
-    ///
-    /// Called to load a flash image.
-    ///
-    fn load(&mut self, path: &Path) -> Result<()>;
 
     /// Reset the chip
     fn reset(&mut self) -> Result<()>;
@@ -129,16 +123,16 @@ pub enum NetAgent {
     Hiffy,
 }
 
-pub fn attach_dump(dump: &str) -> Result<Box<dyn Core>> {
+pub fn attach_dump(dump: &str) -> Result<DumpCore> {
     let core = DumpCore::new(dump)?;
     crate::msg!("attached to dump");
-    Ok(Box::new(core))
+    Ok(core)
 }
 
-pub fn attach_archive(hubris: &HubrisArchive) -> Result<Box<dyn Core>> {
+pub fn attach_archive(hubris: &HubrisArchive) -> Result<ArchiveCore> {
     let core = ArchiveCore::new(hubris)?;
     crate::msg!("attached to archive");
-    Ok(Box::new(core))
+    Ok(core)
 }
 
 pub const CORE_MAX_READSIZE: usize = 65536; // 64K ought to be enough for anyone

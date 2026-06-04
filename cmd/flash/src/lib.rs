@@ -77,7 +77,7 @@ pub struct FlashArgs {
 /// otherwise.
 fn validate(
     hubris: &HubrisArchive,
-    core: &mut dyn humility::core::Core,
+    core: &mut humility_probes_core::ProbeCore,
     subargs: &FlashArgs,
 ) -> Result<()> {
     let r = get_image_state(
@@ -211,12 +211,11 @@ fn flashcmd(subargs: FlashArgs, context: &mut ExecutionContext) -> Result<()> {
     };
 
     humility::msg!("attaching with chip set to {chip:x?}");
-    let mut c = humility_probes_core::attach_for_flashing(
+    let core = &mut humility_probes_core::attach_for_flashing(
         probe,
         &chip,
         context.cli.speed,
     )?;
-    let core = c.as_mut();
 
     validate(hubris, core, &subargs)?;
     if subargs.check {
