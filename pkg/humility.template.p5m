@@ -1,0 +1,9 @@
+set name=pkg.fmri \
+    value=pkg://%PUBLISHER%/developer/debug/humility@%PKG_VERSION%
+set name=pkg.summary value="Debugger for Hubris"
+set name=info.classification \
+    value=org.opensolaris.category.2008:Development/System
+set name=variant.arch value=i386
+dir  path=usr     owner=root group=sys mode=0755
+dir  path=usr/bin owner=root group=bin mode=0755
+file path=usr/bin/humility owner=root group=bin mode=0755

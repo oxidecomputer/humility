@@ -7,12 +7,21 @@ use clap::Parser;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Write;
+use std::process::Command;
 
 #[derive(Debug, Parser)]
 #[clap(max_term_width = 80, about = "extra tasks to help you work on Hubris")]
 enum Xtask {
     /// Compiles readme
     Readme,
+
+    /// Build the humility binary and produce a Helios (p5p) package.
+    Package {
+        /// Skip building the humility binary; package the existing
+        /// `target/release/humility`.
+        #[arg(long)]
+        skip_build: bool,
+    },
 }
 
 fn make_readme() -> Result<()> {
@@ -108,12 +117,59 @@ fn make_readme() -> Result<()> {
     Ok(())
 }
 
+fn make_package(skip_build: bool) -> Result<()> {
+    use cargo_metadata::MetadataCommand;
+
+    let metadata =
+        MetadataCommand::new().manifest_path("./Cargo.toml").exec().unwrap();
+    let root = metadata.workspace_root;
+
+    if !skip_build {
+        let status = Command::new("cargo")
+            .args(["build", "--release", "-p", "humility-bin"])
+            .current_dir(&root)
+            .status()
+            .context("failed to run `cargo build`")?;
+
+        if !status.success() {
+            bail!("`cargo build --release -p humility-bin` failed");
+        }
+    }
+
+    let pkg_dir = root.join("pkg");
+    let status = Command::new("ksh")
+        .arg("build.sh")
+        .current_dir(&pkg_dir)
+        .status()
+        .context("failed to run pkg/build.sh")?;
+
+    if !status.success() {
+        bail!("pkg/build.sh failed");
+    }
+
+    let repo = pkg_dir.join("packages/repo");
+    for entry in std::fs::read_dir(&repo)
+        .with_context(|| format!("failed to read {repo}"))?
+    {
+        let path = entry?.path();
+        if path.extension().and_then(|e| e.to_str()) == Some("p5p") {
+            println!("Successfully built package {}.", path.display());
+            return Ok(());
+        }
+    }
+
+    bail!("failed to find output package in {repo}");
+}
+
 fn main() -> Result<()> {
     let xtask = Xtask::parse();
 
     match xtask {
         Xtask::Readme => {
             make_readme()?;
+        }
+        Xtask::Package { skip_build } => {
+            make_package(skip_build)?;
         }
     }
 
