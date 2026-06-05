@@ -12,6 +12,7 @@ use std::str;
 use std::time::Duration;
 use thiserror::Error;
 
+#[auto_impl::auto_impl(&mut)] // adds `impl<C: Core> Core for &mut C`
 pub trait Core {
     fn info(&self) -> (String, Option<String>);
 

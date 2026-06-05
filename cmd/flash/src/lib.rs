@@ -22,7 +22,7 @@
 use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
 use humility::{core::Core, hubris::*};
-use humility_auxflash::{AuxFlashHandler, AuxFlashWorker, AuxFlashWriter};
+use humility_auxflash::{AuxFlashHandler, AuxFlashWriter};
 use humility_cli::{ExecutionContext, humility_cmd};
 
 #[derive(Parser, Debug)]
