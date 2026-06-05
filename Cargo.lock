@@ -1866,7 +1866,7 @@ dependencies = [
 
 [[package]]
 name = "humility-bin"
-version = "0.12.18"
+version = "0.13.0"
 dependencies = [
  "anyhow",
  "bitfield",
