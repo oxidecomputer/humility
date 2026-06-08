@@ -18,3 +18,4 @@ parse_int.workspace = true
 humility.workspace = true
 humility-auxflash.workspace = true
 humility-cli.workspace = true
+humility-probes-core.workspace = true

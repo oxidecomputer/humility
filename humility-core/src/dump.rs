@@ -201,16 +201,4 @@ impl Core for DumpCore {
     fn is_dump(&self) -> bool {
         true
     }
-
-    fn reset(&mut self) -> Result<()> {
-        bail!("Reset is not supported on a dump");
-    }
-
-    fn reset_and_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
-        bail!("Reset is not supported on a dump");
-    }
-
-    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
-        bail!("Wait for halt is not supported on a dump");
-    }
 }

@@ -204,20 +204,6 @@ impl Core for ProbeCore {
         Ok(())
     }
 
-    fn reset(&mut self) -> Result<()> {
-        let mut core = self.session.core(0)?;
-        core.reset()?;
-        self.halted = false;
-        Ok(())
-    }
-
-    fn reset_and_halt(&mut self, dur: std::time::Duration) -> Result<()> {
-        let mut core = self.session.core(0)?;
-        core.reset_and_halt(dur)?;
-        self.halted = true;
-        Ok(())
-    }
-
     fn op_start(&mut self) -> Result<()> {
         self.halt()?;
 
@@ -226,16 +212,6 @@ impl Core for ProbeCore {
 
     fn op_done(&mut self) -> Result<()> {
         self.run()?;
-
-        Ok(())
-    }
-
-    fn wait_for_halt(&mut self, dur: std::time::Duration) -> Result<()> {
-        if !self.halted {
-            let mut core = self.session.core(0)?;
-            core.wait_for_core_halted(dur)?;
-            self.halted = true;
-        }
 
         Ok(())
     }
@@ -327,6 +303,45 @@ impl ProbeCore {
             bail!("Flash loading failed {:?}", e);
         };
 
+        Ok(())
+    }
+
+    /// Reset the chip, with special handling for measurement handoff
+    ///
+    /// If this image uses handoff to send a measurement token between the RoT
+    /// and SP, this won't work with a debugger physically attached.  To prevent
+    /// the SP from resetting itself, we write a different token which skips
+    /// this reboot loop.  The memory address and token values are pulled from
+    /// the `measurement-token` crate in `lpc55_support`, which is also used in
+    /// the SP firmware.
+    pub fn reset_with_handoff(
+        &mut self,
+        hubris: &humility::hubris::HubrisArchive,
+    ) -> Result<()> {
+        if hubris.wants_reset_handoff_token() {
+            self.reset_and_halt(std::time::Duration::from_millis(25))?;
+            crate::msg!("skipping measurement token handoff");
+            self.write_word_32(
+                measurement_token::SP_ADDR as u32,
+                measurement_token::SKIP,
+            )?;
+            self.run()
+        } else {
+            self.reset()
+        }
+    }
+
+    pub fn reset(&mut self) -> Result<()> {
+        let mut core = self.session.core(0)?;
+        core.reset()?;
+        self.halted = false;
+        Ok(())
+    }
+
+    pub fn reset_and_halt(&mut self, dur: std::time::Duration) -> Result<()> {
+        let mut core = self.session.core(0)?;
+        core.reset_and_halt(dur)?;
+        self.halted = true;
         Ok(())
     }
 }

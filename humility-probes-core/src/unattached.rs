@@ -71,8 +71,10 @@ impl Core for UnattachedCore {
     fn step(&mut self) -> Result<()> {
         bail!("Core::step unimplemented when unattached!");
     }
+}
 
-    fn reset(&mut self) -> Result<()> {
+impl UnattachedCore {
+    pub fn reset(&mut self) -> Result<()> {
         self.probe.target_reset_assert()?;
 
         // The closest available documentation on hold time is
@@ -83,13 +85,5 @@ impl Core for UnattachedCore {
         self.probe.target_reset_deassert()?;
 
         Ok(())
-    }
-
-    fn reset_and_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
-        bail!("Can't reset and halt for an unattached chip");
-    }
-
-    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
-        bail!("Waiting and halting on an unattched chip isn't available!");
     }
 }

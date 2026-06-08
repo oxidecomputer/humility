@@ -367,18 +367,6 @@ impl Core for NetCore {
     fn step(&mut self) -> Result<()> {
         bail!("can't step over network");
     }
-
-    fn reset(&mut self) -> Result<()> {
-        bail!("cannot reset over network");
-    }
-
-    fn reset_and_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
-        bail!("cannot reset over network");
-    }
-
-    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
-        bail!("cannot wait for halt over network");
-    }
 }
 
 pub fn attach_net(

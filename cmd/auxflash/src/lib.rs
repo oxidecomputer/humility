@@ -13,8 +13,9 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use humility_cli::{ExecutionContext, humility_cmd};
+use humility_probes_core::HubrisAttach;
 
-use humility_auxflash::AuxFlashHandler;
+use humility_auxflash::{AuxFlashHandler, AuxFlashWriter};
 
 #[derive(Parser, Debug)]
 #[clap(name = "auxflash", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -101,33 +102,45 @@ fn auxflash(
     context: &mut ExecutionContext,
 ) -> Result<()> {
     let hubris = &context.cli.archive()?;
-    let core = &mut *context.cli.attach_live_booted(hubris)?;
     let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut worker = AuxFlashHandler::new(hubris, core, timeout)?;
 
     match subargs.cmd {
-        AuxFlashCommand::Status { verbose } => {
-            auxflash_status(worker, verbose)?;
-        }
-        AuxFlashCommand::Erase { slot } => {
-            worker.slot_erase(slot)?;
-            humility::msg!("done erasing slot {slot}");
-        }
-        AuxFlashCommand::Read { slot, output, count } => {
-            let data = worker.auxflash_read(slot, count)?;
-            std::fs::write(output, data)?;
-        }
-        AuxFlashCommand::Write { slot, input, force } => match input {
-            Some(input) => {
-                let data = std::fs::read(input)?;
-                worker.auxflash_write(slot, &data, force)?;
+        AuxFlashCommand::Status { .. }
+        | AuxFlashCommand::Erase { .. }
+        | AuxFlashCommand::Read { .. } => {
+            let core = &mut *context.cli.attach_live_booted(hubris)?;
+            let mut worker = AuxFlashHandler::new(hubris, &mut *core, timeout)?;
+            match subargs.cmd {
+                AuxFlashCommand::Status { verbose } => {
+                    auxflash_status(worker, verbose)?;
+                }
+                AuxFlashCommand::Erase { slot } => {
+                    worker.slot_erase(slot)?;
+                    humility::msg!("done erasing slot {slot}");
+                }
+                AuxFlashCommand::Read { slot, output, count } => {
+                    let data = worker.auxflash_read(slot, count)?;
+                    std::fs::write(output, data)?;
+                }
+                AuxFlashCommand::Write { .. } => unreachable!(),
             }
-            None => {
-                // If the user didn't specify an image to flash on the
-                // command line, then attempt to pull it from the image.
-                worker.auxflash_write_from_archive(slot, force)?;
+        }
+        AuxFlashCommand::Write { slot, input, force } => {
+            let core = &mut hubris
+                .attach_probe(context.cli.probe.as_deref().unwrap_or("auto"))?;
+            let mut writer = AuxFlashWriter::new(hubris, core, timeout)?;
+            match input {
+                Some(input) => {
+                    let data = std::fs::read(input)?;
+                    writer.auxflash_write(slot, &data, force)?;
+                }
+                None => {
+                    // If the user didn't specify an image to flash on the
+                    // command line, then attempt to pull it from the image.
+                    writer.auxflash_write_from_archive(slot, force)?;
+                }
             }
-        },
+        }
     }
     Ok(())
 }

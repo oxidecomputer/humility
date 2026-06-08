@@ -12,6 +12,7 @@ use std::str;
 use std::time::Duration;
 use thiserror::Error;
 
+#[auto_impl::auto_impl(&mut)] // adds `impl<C: Core> Core for &mut C`
 pub trait Core {
     fn info(&self) -> (String, Option<String>);
 
@@ -56,35 +57,6 @@ pub trait Core {
         Ok(u64::from_le_bytes(buf))
     }
 
-    /// Reset the chip
-    fn reset(&mut self) -> Result<()>;
-
-    /// Reset the chip and halt afterwards. Requires a timeout to wait for
-    /// halt
-    fn reset_and_halt(&mut self, dur: std::time::Duration) -> Result<()>;
-
-    /// Reset the chip, with special handling for measurement handoff
-    ///
-    /// If this image uses handoff to send a measurement token between the RoT
-    /// and SP, this won't work with a debugger physically attached.  To prevent
-    /// the SP from resetting itself, we write a different token which skips
-    /// this reboot loop.  The memory address and token values are pulled from
-    /// the `measurement-token` crate in `lpc55_support`, which is also used in
-    /// the SP firmware.
-    fn reset_with_handoff(&mut self, hubris: &HubrisArchive) -> Result<()> {
-        if hubris.wants_reset_handoff_token() {
-            self.reset_and_halt(std::time::Duration::from_millis(25))?;
-            crate::msg!("skipping measurement token handoff");
-            self.write_word_32(
-                measurement_token::SP_ADDR as u32,
-                measurement_token::SKIP,
-            )?;
-            self.run()
-        } else {
-            self.reset()
-        }
-    }
-
     /// Called before starting a series of operations.  May halt the target if
     /// the target does not allow operations while not halted.  Should not be
     /// intermixed with [`halt`]/[`run`].
@@ -98,9 +70,6 @@ pub trait Core {
     fn op_done(&mut self) -> Result<()> {
         Ok(())
     }
-
-    /// Wait `duration` seconds for the targe to halt.
-    fn wait_for_halt(&mut self, dur: std::time::Duration) -> Result<()>;
 
     /// Send over network, if applicable
     fn send(&self, _buf: &[u8], _agent: NetAgent) -> Result<usize> {

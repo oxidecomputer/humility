@@ -14,20 +14,24 @@ const DEFAULT_SLOT_SIZE_BYTES: usize = 2 * 1024 * 1024;
 const READ_CHUNK_SIZE: usize = 256; // limited by HIFFY_SCRATCH_SIZE
 
 /// Handle to interact with auxiliary flash
-pub struct AuxFlashHandler<'a> {
+pub struct GenericAuxFlashHandler<'a, C: Core> {
     hubris: &'a HubrisArchive,
-    core: &'a mut dyn Core,
+    core: C,
     context: HiffyContext<'a>,
 }
 
-impl<'a> AuxFlashHandler<'a> {
-    /// Builds a new [`AuxFlashHandler`]
+pub type AuxFlashHandler<'a> = GenericAuxFlashHandler<'a, &'a mut dyn Core>;
+pub type AuxFlashWriter<'a> =
+    GenericAuxFlashHandler<'a, &'a mut humility_probes_core::ProbeCore>;
+
+impl<'a, C: Core> GenericAuxFlashHandler<'a, C> {
+    /// Builds a new auxflash handler
     pub fn new(
         hubris: &'a HubrisArchive,
-        core: &'a mut dyn Core,
+        mut core: C,
         hiffy_timeout: Duration,
     ) -> Result<Self> {
-        let context = HiffyContext::new(hubris, core, hiffy_timeout)?;
+        let context = HiffyContext::new(hubris, &mut core, hiffy_timeout)?;
         Ok(Self { hubris, core, context })
     }
 
@@ -45,7 +49,7 @@ impl<'a> AuxFlashHandler<'a> {
     pub fn slot_count(&mut self) -> Result<u32> {
         let op = self.hubris.get_idol_command("AuxFlash.slot_count")?;
         let value =
-            self.context.call::<u32>(self.core, &op, &[], None, None)?;
+            self.context.call::<u32>(&mut self.core, &op, &[], None, None)?;
         Ok(value)
     }
 
@@ -54,7 +58,8 @@ impl<'a> AuxFlashHandler<'a> {
         let op = self
             .hubris
             .get_idol_command("AuxFlash.scan_and_get_active_slot")?;
-        let value = self.context.call::<u32>(self.core, &op, &[], None, None);
+        let value =
+            self.context.call::<u32>(&mut self.core, &op, &[], None, None);
         match value {
             Ok(v) => Ok(Some(v)),
             Err(HiffyError::Hiffy(humility_idol::IdolError::Named(e)))
@@ -70,7 +75,7 @@ impl<'a> AuxFlashHandler<'a> {
     pub fn slot_erase(&mut self, slot: u32) -> Result<()> {
         let op = self.hubris.get_idol_command("AuxFlash.erase_slot")?;
         self.context.call::<()>(
-            self.core,
+            &mut self.core,
             &op,
             &[("slot", IdolArgument::Scalar(u64::from(slot)))],
             None,
@@ -86,7 +91,7 @@ impl<'a> AuxFlashHandler<'a> {
     pub fn slot_status(&mut self, slot: u32) -> Result<Option<[u8; 32]>> {
         let op = self.hubris.get_idol_command("AuxFlash.read_slot_chck")?;
         let value = self.context.call::<([u8; 32],)>(
-            self.core,
+            &mut self.core,
             &op,
             &[("slot", IdolArgument::Scalar(u64::from(slot)))],
             None,
@@ -111,9 +116,9 @@ impl<'a> AuxFlashHandler<'a> {
         slot: u32,
         count: Option<usize>,
     ) -> Result<Vec<u8>> {
+        let slot_size = self.slot_size_bytes()?;
         let op =
             self.hubris.get_idol_command("AuxFlash.read_slot_with_offset")?;
-        let slot_size = self.slot_size_bytes()?;
 
         let mut out = vec![0u8; count.unwrap_or(slot_size)];
         let bar = ProgressBar::new(0);
@@ -126,7 +131,7 @@ impl<'a> AuxFlashHandler<'a> {
         for (i, chunk) in out.chunks_mut(READ_CHUNK_SIZE).enumerate() {
             let offset = i * READ_CHUNK_SIZE;
             self.context.call::<()>(
-                self.core,
+                &mut self.core,
                 &op,
                 &[
                     ("slot", IdolArgument::Scalar(slot as u64)),
@@ -142,7 +147,9 @@ impl<'a> AuxFlashHandler<'a> {
 
         Ok(out)
     }
+}
 
+impl<'a> AuxFlashWriter<'a> {
     /// Writes some number of bytes to a particular slot
     ///
     /// If the slot is already programmed with a matching `CHCK` field, then

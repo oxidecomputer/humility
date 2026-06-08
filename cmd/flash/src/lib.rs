@@ -22,7 +22,7 @@
 use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
 use humility::{core::Core, hubris::*};
-use humility_auxflash::AuxFlashHandler;
+use humility_auxflash::{AuxFlashHandler, AuxFlashWriter};
 use humility_cli::{ExecutionContext, humility_cmd};
 
 #[derive(Parser, Debug)]
@@ -267,7 +267,7 @@ fn flashcmd(subargs: FlashArgs, context: &mut ExecutionContext) -> Result<()> {
 
 fn try_program_auxflash(
     hubris: &HubrisArchive,
-    core: &mut dyn Core,
+    core: &mut humility_probes_core::ProbeCore,
 ) -> Result<()> {
     match hubris.read_auxflash_data()? {
         Some(auxflash) => match program_auxflash(hubris, core, &auxflash) {
@@ -286,10 +286,10 @@ fn try_program_auxflash(
 
 fn program_auxflash(
     hubris: &HubrisArchive,
-    core: &mut dyn Core,
+    core: &mut humility_probes_core::ProbeCore,
     data: &[u8],
 ) -> Result<()> {
-    let mut worker = AuxFlashHandler::new(
+    let mut worker = AuxFlashWriter::new(
         hubris,
         core,
         std::time::Duration::from_millis(15_000),
