@@ -6,5 +6,5 @@
 #
 fs.base = "../archives"
 bin.name = "humility"
-args = "-p archive -a build-sidecar-b-image-default.zip readvar HUBRIS_TASK_DESCS"
+args = "-a build-sidecar-b-image-default.zip readvar --archive HUBRIS_TASK_DESCS"
 
