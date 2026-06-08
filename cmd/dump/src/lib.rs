@@ -408,7 +408,8 @@ fn print_dump_breakdown(breakdown: &DumpBreakdown, log: &Logger) {
     print_val("data expansion", breakdown.inverted);
 }
 
-fn dump_via_agent(
+/// Simulation and testing features
+fn simulate_dump_via_agent(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     subargs: &DumpArgs,
@@ -552,135 +553,55 @@ fn dump_via_agent(
 
         core.run()?;
         info!(log, "core resumed");
-    } else {
+    } else if subargs.emulate_dumper {
         let segments = hubris.dump_segments(core, None, false)?;
         let mut agent = get_dump_agent(hubris, core, subargs, log)?;
         let header = agent.read_dump_header()?;
 
-        if !subargs.force_read && subargs.extract.is_none() {
-            if header.dumper != humpty::DUMPER_NONE
-                && !subargs.initialize_dump_agent
-                && !subargs.force_overwrite
-                && task.is_none()
-            {
-                bail!(
-                    "there appears to already be one or more dumps in situ; \
+        if header.dumper != humpty::DUMPER_NONE
+            && !subargs.force_overwrite
+            && task.is_none()
+        {
+            bail!(
+                "there appears to already be one or more dumps in situ; \
                     list them with --list and extract them with --extract_all"
-                )
-            }
-
-            if task.is_none() || subargs.initialize_dump_agent {
-                info!(log, "initializing dump agent state");
-                agent.initialize_dump()?;
-            }
-
-            if subargs.initialize_dump_agent {
-                return Ok(());
-            }
-
-            if task.is_none() {
-                info!(log, "initializing segments");
-                agent.initialize_segments(&segments)?;
-            }
+            )
         }
 
-        if subargs.emulate_dumper {
-            agent.core().halt()?;
-            info!(log, "core halted");
-
-            if let Some(ref stock) = subargs.stock_dumpfile {
-                hubris.dump(agent.core(), task, Some(stock), None, log)?;
-            }
-
-            let base = header.address;
-            let total = segments.iter().fold(0, |ttl, (_, size)| ttl + size);
-
-            let address = if task.is_some() {
-                match emulate_task_dump_prep(agent.core(), &segments, base) {
-                    Err(e) => {
-                        agent.core().run()?;
-                        info!(log, "core resumed after failure");
-                        return Err(e);
-                    }
-                    Ok(address) => {
-                        assert!(area.is_none());
-                        area = Some(DumpArea::ByAddress(address));
-                        address
-                    }
-                }
-            } else {
-                base
-            };
-
-            emulate_dump(agent.core(), task, address, total, log)?;
-            agent.core().run()?;
-            info!(log, "core resumed");
-        } else if !subargs.force_read && subargs.extract.is_none() {
-            if subargs.force_manual_initiation {
-                agent.core().halt()?;
-                info!(log, "leaving core halted");
-                let base = header.address;
-                info!(
-                    log,
-                    "unplug probe and manually \
-                    initiate dump from address {:#x}",
-                    base
-                );
-                info!(
-                    log,
-                    "e.g., \"humility hiffy --call \
-                    Dumper.dump -a address={:#x}\"",
-                    base
-                );
-                return Ok(());
-            }
-
-            //
-            // We are about to disappear for -- as the kids say -- a minute.
-            // Set our timeout to be a literal minute so we don't prematurely
-            // give up.
-            //
-            agent.core().set_timeout(std::time::Duration::new(60, 0))?;
-
-            //
-            // Tell the thing to take a dump.
-            //
-            if let Err(err) = agent.take_dump() {
-                //
-                // If that fails, it may be because we ran out of space.  Check
-                // our dump headers; if all of them are consumed, assume
-                // that we ran out of space -- and if any of them are consumed,
-                // process whatever we find (some dump is better than none!) and
-                // warn accordingly.
-                //
-                if let Ok(all) = agent.read_dump_headers(true) {
-                    let c = all
-                        .iter()
-                        .filter(|&&(h, _)| h.dumper != humpty::DUMPER_NONE)
-                        .count();
-
-                    if c == all.len() {
-                        warn!(
-                            log,
-                            "dump has indicated failure ({err:?}), but this is \
-                            likely due to space exhaustion; \
-                            dump will be extracted but may be incomplete!"
-                        );
-                    } else if c != 0 {
-                        warn!(
-                            log,
-                            "dump has indicated failure ({err:?}), but some dump \
-                            contents appear to have been written; \
-                            dump will be extracted but may be incomplete!"
-                        );
-                    } else {
-                        return Err(err);
-                    }
-                } else {
-                    return Err(err);
-                }
-            }
+        if task.is_none() {
+            info!(log, "initializing segments");
+            agent.initialize_segments(&segments)?;
         }
+        agent.core().halt()?;
+        info!(log, "core halted");
+
+        if let Some(ref stock) = subargs.stock_dumpfile {
+            hubris.dump(agent.core(), task, Some(stock), None, log)?;
+        }
+
+        let base = header.address;
+        let total = segments.iter().fold(0, |ttl, (_, size)| ttl + size);
+
+        let address = if task.is_some() {
+            match emulate_task_dump_prep(agent.core(), &segments, base) {
+                Err(e) => {
+                    agent.core().run()?;
+                    info!(log, "core resumed after failure");
+                    return Err(e);
+                }
+                Ok(address) => {
+                    assert!(area.is_none());
+                    area = Some(DumpArea::ByAddress(address));
+                    address
+                }
+            }
+        } else {
+            base
+        };
+
+        emulate_dump(agent.core(), task, address, total, log)?;
+        agent.core().run()?;
+        info!(log, "core resumed");
 
         //
         // If we're here, we have a dump in situ -- time to pull it.
@@ -699,6 +620,173 @@ fn dump_via_agent(
             } else {
                 info!(log, "retaining dump agent state");
             }
+        }
+
+        hubris.dump(
+            &mut out,
+            task,
+            subargs.dumpfile.as_deref(),
+            started,
+            log,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn extract_or_read_via_agent(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    subargs: &DumpArgs,
+    log: &Logger,
+) -> Result<()> {
+    let mut out = DumpAgentCore::new(HubrisFlashMap::new(hubris)?);
+    let started = Some(Instant::now());
+
+    let mut agent = get_dump_agent(hubris, core, subargs, log)?;
+    let area = subargs.extract.map(DumpArea::ByIndex);
+
+    let task = read_dump(&mut agent, area, &mut out, subargs, log)?;
+
+    //
+    // If this was a whole-system dump, we will leave our state initialized
+    // to assure that it will be ready to take subsequent task dumps (unless
+    // explicitly asked not to).
+    //
+    if task.is_none() {
+        if !subargs.retain_state {
+            info!(log, "resetting dump agent state");
+            agent.initialize_dump()?;
+        } else {
+            info!(log, "retaining dump agent state");
+        }
+    }
+
+    hubris.dump(&mut out, task, subargs.dumpfile.as_deref(), started, log)?;
+
+    Ok(())
+}
+
+fn init_dump_agent(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    subargs: &DumpArgs,
+    log: &Logger,
+) -> Result<()> {
+    let mut agent = get_dump_agent(hubris, core, subargs, log)?;
+
+    info!(log, "initializing dump agent state");
+    agent.initialize_dump()?;
+    Ok(())
+}
+
+fn dump_via_agent(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    subargs: &DumpArgs,
+    log: &Logger,
+) -> Result<()> {
+    let mut out = DumpAgentCore::new(HubrisFlashMap::new(hubris)?);
+    let started = Some(Instant::now());
+
+    let segments = hubris.dump_segments(core, None, false)?;
+    let mut agent = get_dump_agent(hubris, core, subargs, log)?;
+    let header = agent.read_dump_header()?;
+    let area = subargs.extract.map(DumpArea::ByIndex);
+
+    if header.dumper != humpty::DUMPER_NONE && !subargs.force_overwrite {
+        bail!(
+            "there appears to already be one or more dumps in situ; \
+                    list them with --list and extract them with --extract_all"
+        )
+    }
+
+    info!(log, "initializing dump agent state");
+    agent.initialize_dump()?;
+
+    info!(log, "initializing segments");
+    agent.initialize_segments(&segments)?;
+    if subargs.force_manual_initiation {
+        agent.core().halt()?;
+        info!(log, "leaving core halted");
+        let base = header.address;
+        info!(
+            log,
+            "unplug probe and manually \
+                    initiate dump from address {:#x}",
+            base
+        );
+        info!(
+            log,
+            "e.g., \"humility hiffy --call \
+                    Dumper.dump -a address={:#x}\"",
+            base
+        );
+        return Ok(());
+    }
+
+    //
+    // We are about to disappear for -- as the kids say -- a minute.
+    // Set our timeout to be a literal minute so we don't prematurely
+    // give up.
+    //
+    agent.core().set_timeout(std::time::Duration::new(60, 0))?;
+
+    //
+    // Tell the thing to take a dump.
+    //
+    if let Err(err) = agent.take_dump() {
+        //
+        // If that fails, it may be because we ran out of space.  Check
+        // our dump headers; if all of them are consumed, assume
+        // that we ran out of space -- and if any of them are consumed,
+        // process whatever we find (some dump is better than none!) and
+        // warn accordingly.
+        //
+        if let Ok(all) = agent.read_dump_headers(true) {
+            let c = all
+                .iter()
+                .filter(|&&(h, _)| h.dumper != humpty::DUMPER_NONE)
+                .count();
+
+            if c == all.len() {
+                warn!(
+                    log,
+                    "dump has indicated failure ({err:?}), but this is \
+                            likely due to space exhaustion; \
+                            dump will be extracted but may be incomplete!"
+                );
+            } else if c != 0 {
+                warn!(
+                    log,
+                    "dump has indicated failure ({err:?}), but some dump \
+                            contents appear to have been written; \
+                            dump will be extracted but may be incomplete!"
+                );
+            } else {
+                return Err(err);
+            }
+        } else {
+            return Err(err);
+        }
+    }
+
+    //
+    // If we're here, we have a dump in situ -- time to pull it.
+    //
+    let task = read_dump(&mut agent, area, &mut out, subargs, log)?;
+
+    //
+    // If this was a whole-system dump, we will leave our state initialized
+    // to assure that it will be ready to take subsequent task dumps (unless
+    // explicitly asked not to).
+    //
+    if task.is_none() {
+        if !subargs.retain_state {
+            info!(log, "resetting dump agent state");
+            agent.initialize_dump()?;
+        } else {
+            info!(log, "retaining dump agent state");
         }
     }
 
@@ -806,9 +894,7 @@ fn dump_all(
     if headers[0].1.is_none() {
         // Extract the full-system dump via the usual method
         drop(agent);
-        let mut subargs = subargs.clone();
-        subargs.force_read = true;
-        dump_via_agent(hubris, core, &subargs, log)
+        extract_or_read_via_agent(hubris, core, subargs, log)
     } else {
         let areas = task_areas(&headers);
         for (area, (task, headers)) in &areas {
@@ -888,17 +974,18 @@ fn dumpcmd(subargs: DumpArgs, context: &mut ExecutionContext) -> Result<()> {
             info!(log, "--force-dump-agent is implied by --task");
         }
         dump_task_via_agent(hubris, core, &subargs, log)
-    } else if core.is_net()
-        || subargs.force_dump_agent
-        || subargs.force_read
-        || subargs.extract.is_some()
+    } else if subargs.initialize_dump_agent {
+        init_dump_agent(hubris, core, &subargs, log)
+    } else if subargs.force_read || subargs.extract.is_some() {
+        extract_or_read_via_agent(hubris, core, &subargs, log)
+    } else if subargs.simulate_dumper
+        || subargs.emulate_dumper
+        || subargs.simulate_task_dump.is_some()
     {
+        simulate_dump_via_agent(hubris, core, &subargs, log)
+    } else if core.is_net() || subargs.force_dump_agent {
         dump_via_agent(hubris, core, &subargs, log)
     } else {
-        if subargs.initialize_dump_agent {
-            bail!("must also use --force-dump-agent to initialize dump agent");
-        }
-
         core.halt()?;
         info!(log, "core halted");
 
