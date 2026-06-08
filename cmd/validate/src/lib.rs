@@ -42,15 +42,13 @@
 //! ```
 //!
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
-use hif::*;
 use humility::hubris::*;
 use humility_cli::{ExecutionContext, humility_cmd};
-use humility_hiffy::HiffyContext;
 use humility_i2c::I2cArgs;
-use humility_idol::{self as idol, HubrisIdol, IdolDecodeError, IdolError};
+use humility_validate::{ValidateFailure, ValidateResult, ValidateSuccess};
 
 #[derive(Parser, Debug)]
 #[clap(name = "validate", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -145,7 +143,6 @@ fn validate(
     context: &mut ExecutionContext,
 ) -> Result<()> {
     let hubris = &context.cli.archive()?;
-    let core = &mut *context.cli.attach_live_booted(hubris)?;
     let refdes_len = hubris
         .manifest
         .fmt_meta
@@ -171,13 +168,7 @@ fn validate(
         return Ok(());
     }
 
-    let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
-    let op = hubris.get_idol_command("Validate.validate_i2c")?;
-    let mut ops = vec![];
-
     let mut devices = vec![];
-
     for (ndx, device) in hubris.manifest.i2c_devices.iter().enumerate() {
         if let Some(id) = subargs.id
             && ndx != id
@@ -195,51 +186,37 @@ fn validate(
             continue;
         }
 
-        devices.push((ndx, device));
-
-        let payload =
-            op.payload(&[("index", idol::IdolArgument::Scalar(ndx as u64))])?;
-        context.idol_call_ops(&op, &payload, &mut ops)?;
+        devices.push(ndx);
     }
-
-    ops.push(Op::Done);
-
-    let results = context.run(core, ops.as_slice(), None)?;
 
     println!(
         "{:2} {:refdes_len$} {:11} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
         "ID", REFDES_HDR, "VALIDATION", "C", "P", "MUX", "ADDR", "DEVICE"
     );
 
-    for (rndx, (ndx, device)) in devices.iter().enumerate() {
-        let result = match op.decode::<humility::reflect::Enum>(&results[rndx])
-        {
-            Ok(val) => match val.disc() {
-                "Present" => "present".yellow(),
-                "Validated" => "validated".green(),
-                n => format!("<{n}>").cyan(),
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
+    let results = humility_validate::validate_by_index(
+        hubris,
+        core,
+        &devices,
+        std::time::Duration::from_millis(subargs.timeout),
+    )?;
+
+    for (index, r) in devices.into_iter().zip(results) {
+        let device = &hubris.manifest.i2c_devices[index];
+        let result = match r {
+            ValidateResult::Success(s) => match s {
+                ValidateSuccess::Present => "present".yellow(),
+                ValidateSuccess::Validated => "validated".green(),
+                ValidateSuccess::Removed => "removed".blue(),
             },
-            Err(IdolDecodeError::DecodeFailed(e)) => return Err(e.into()),
-            Err(IdolDecodeError::Idol(e)) => match e {
-                IdolError::Named(n) => match n.as_str() {
-                    "NotPresent" => {
-                        if device.removable {
-                            "removed".blue()
-                        } else {
-                            "absent".red()
-                        }
-                    }
-                    "BadValidation" => "failed".red(),
-                    "DeviceTimeout" => "timeout".red(),
-                    "DeviceError" => "error".red(),
-                    "Unavailable" => "unavailable".yellow(),
-                    n => format!("<{n}>").red(),
-                },
-                IdolError::ServerDied(..) => "server died".red(),
-                IdolError::ComplexError(..)
-                | IdolError::UnknownErrorVariant(..) => {
-                    return Err(e).context("unexpected error type");
-                }
+            ValidateResult::Failure(f) => match f {
+                ValidateFailure::Absent => "absent".red(),
+                ValidateFailure::Unavailable => "unavailable".yellow(),
+                ValidateFailure::DeviceError => "error".red(),
+                ValidateFailure::BadValidation => "failed".red(),
+                ValidateFailure::DeviceTimeout => "timeout".red(),
+                ValidateFailure::ServerDied => "server died".red(),
             },
         };
 
@@ -251,7 +228,7 @@ fn validate(
 
         println!(
             "{:2} {:refdes_len$} {:11} {:2} {:2} {:3} 0x{:02x} {:13} {}",
-            ndx,
+            index,
             device.refdes.as_deref().unwrap_or(NO_REFDES),
             result,
             device.controller,

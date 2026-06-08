@@ -2525,12 +2525,10 @@ dependencies = [
  "anyhow",
  "clap",
  "colored",
- "hif",
  "humility-cli",
  "humility-core",
- "humility-hiffy",
  "humility-i2c",
- "humility-idol",
+ "humility-validate",
  "idol",
  "parse_int",
 ]
@@ -2774,6 +2772,19 @@ dependencies = [
  "humility-arch-arm",
  "humility-core",
  "regex",
+]
+
+[[package]]
+name = "humility-validate"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hif",
+ "humility-core",
+ "humility-hiffy",
+ "humility-idol",
+ "idol",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

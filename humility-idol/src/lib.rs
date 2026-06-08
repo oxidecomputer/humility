@@ -100,7 +100,7 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum IdolErrorType<'a> {
     CLike(&'a HubrisEnum),
     Complex(&'a HubrisEnum),
