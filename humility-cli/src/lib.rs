@@ -109,6 +109,10 @@ pub struct Cli {
         conflicts_with = "hubris"
     )]
     pub list_targets: bool,
+
+    /// Handle to a lazily-initialized Humility logger
+    #[clap(skip)]
+    log: std::cell::OnceCell<humility::log::Logger>,
 }
 
 impl Cli {
@@ -124,10 +128,10 @@ impl Cli {
         if let Some(archive) = &self.archive {
             let data = std::fs::read(archive)?;
             let raw_archive = hubtools::RawHubrisArchive::from_vec(data)?;
-            HubrisArchive::load(raw_archive, None).map(Some)
+            HubrisArchive::load(raw_archive, None, self.log()).map(Some)
         } else if let Some(dump) = &self.dump {
             let (raw_archive, dump_task) = HubrisArchive::load_dump(dump)?;
-            HubrisArchive::load(raw_archive, dump_task).map(Some)
+            HubrisArchive::load(raw_archive, dump_task, self.log()).map(Some)
         } else {
             Ok(None)
         }
@@ -170,8 +174,13 @@ impl Cli {
                 bail!("cannot attach over net without Hubris archive");
             };
             let timeout = Duration::from_millis(self.timeout as u64);
-            humility_net_core::attach_net(ip.0.clone()?, hubris, timeout)
-                .map(|b| Box::new(b) as Box<dyn Core>)
+            humility_net_core::attach_net(
+                ip.0.clone()?,
+                hubris,
+                timeout,
+                self.log(),
+            )
+            .map(|b| Box::new(b) as Box<dyn Core>)
         } else {
             self.attach_probe(hubris).map(|b| Box::new(b) as Box<dyn Core>)
         }?;
@@ -211,7 +220,12 @@ impl Cli {
     ) -> Result<humility_probes_core::ProbeCore> {
         let probe = self.probe.as_deref().unwrap_or("auto");
         let chip = hubris.and_then(|h| h.chip());
-        humility_probes_core::attach_to_chip(probe, chip.as_deref(), self.speed)
+        humility_probes_core::attach_to_chip(
+            probe,
+            chip.as_deref(),
+            self.speed,
+            self.log(),
+        )
     }
 
     // If the `probes` feature is disabled, then we don't have access to
@@ -238,15 +252,20 @@ impl Cli {
         validate: Option<HubrisValidate>,
     ) -> Result<Box<dyn Core>> {
         let mut core = if let Some(dump) = &self.dump {
-            humility::core::attach_dump(dump)
+            humility::core::attach_dump(dump, self.log())
                 .map(|b| Box::new(b) as Box<dyn Core>)
         } else if let Some(ip) = &self.ip {
             let Some(hubris) = hubris else {
                 bail!("cannot connect over the network without archive");
             };
             let timeout = Duration::from_millis(self.timeout as u64);
-            humility_net_core::attach_net(ip.0.clone()?, hubris, timeout)
-                .map(|b| Box::new(b) as Box<dyn Core>)
+            humility_net_core::attach_net(
+                ip.0.clone()?,
+                hubris,
+                timeout,
+                self.log(),
+            )
+            .map(|b| Box::new(b) as Box<dyn Core>)
         } else {
             self.attach_probe(hubris).map(|b| Box::new(b) as Box<dyn Core>)
         }?;
@@ -289,7 +308,7 @@ impl Cli {
     /// Reads from the `--dump` argument to pick a target file
     pub fn attach_dump(&self) -> Result<humility::dump::DumpCore> {
         let core = if let Some(dump) = &self.dump {
-            humility::core::attach_dump(dump)?
+            humility::core::attach_dump(dump, self.log())?
         } else {
             bail!("must be run against a dump");
         };
@@ -323,6 +342,10 @@ impl Cli {
             }
         })
     }
+
+    pub fn log(&self) -> &humility::log::Logger {
+        self.log.get_or_init(|| humility::log::init(self.verbose))
+    }
 }
 
 /// Promotes an argument type and run function into a Humility subcommand
@@ -348,4 +371,10 @@ macro_rules! humility_cmd {
 pub struct ExecutionContext {
     pub environment: Option<Environment>,
     pub cli: Cli,
+}
+
+impl ExecutionContext {
+    pub fn log(&self) -> &humility::log::Logger {
+        self.cli.log()
+    }
 }

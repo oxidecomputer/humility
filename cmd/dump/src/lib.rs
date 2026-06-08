@@ -69,6 +69,7 @@ use anyhow::{Result, bail};
 use clap::{ArgGroup, Parser};
 use humility::core::Core;
 use humility::hubris::*;
+use humility::log::{Logger, info, warn};
 use humility_arch_arm::ARMRegister;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_dump_agent::{
@@ -205,6 +206,7 @@ fn emulate_dump(
     task: Option<DumpTask>,
     base: u32,
     total: u32,
+    log: &Logger,
 ) -> Result<()> {
     let shared = RefCell::new(core);
     let started = Instant::now();
@@ -246,7 +248,8 @@ fn emulate_dump(
 
     bar.finish_and_clear();
 
-    humility::msg!(
+    info!(
+        log,
         "dumped {} in situ (compressed to {}) in {}",
         HumanBytes(total as u64),
         HumanBytes(nwritten as u64),
@@ -309,6 +312,7 @@ fn get_dump_agent<'a>(
     hubris: &'a HubrisArchive,
     core: &'a mut dyn Core,
     subargs: &DumpArgs,
+    log: &Logger,
 ) -> Result<Box<dyn DumpAgent + 'a>> {
     // Find the dump agent task name.  This is usually `dump_agent`, but that's
     // not guaranteed; what *is* guaranteed is that it implements the DumpAgent
@@ -322,15 +326,15 @@ fn get_dump_agent<'a>(
             .map(|t| hubris.does_task_have_feature(t, "net").unwrap())
             .unwrap_or(false)
     {
-        humility::msg!("using UDP dump agent");
+        info!(log, "using UDP dump agent");
 
         let imageid = hubris.image_id();
 
-        Ok(Box::new(UdpDumpAgent::new(core, imageid)?))
+        Ok(Box::new(UdpDumpAgent::new(core, imageid, log)?))
     } else {
-        humility::msg!("using hiffy dump agent");
+        info!(log, "using hiffy dump agent");
         let timeout = std::time::Duration::from_millis(subargs.timeout);
-        Ok(Box::new(HiffyDumpAgent::new(hubris, core, timeout)?))
+        Ok(Box::new(HiffyDumpAgent::new(hubris, core, timeout, log)?))
     }
 }
 
@@ -339,30 +343,31 @@ fn read_dump<'a>(
     area: Option<DumpArea>,
     out: &mut DumpAgentCore,
     subargs: &DumpArgs,
+    log: &Logger,
 ) -> Result<Option<DumpTask>> {
-    let (task, breakdown) = agent.read_dump(area, out, true)?;
+    let (task, breakdown) = agent.read_dump(area, out, true, log)?;
 
     if subargs.print_dump_breakdown {
-        print_dump_breakdown(&breakdown);
+        print_dump_breakdown(&breakdown, log);
     }
 
     Ok(task)
 }
 
-fn print_dump_breakdown(breakdown: &DumpBreakdown) {
+fn print_dump_breakdown(breakdown: &DumpBreakdown, log: &Logger) {
     let w = 30;
     let w2 = 10;
 
     let mut total = 0;
 
-    humility::msg!("Dump breakdown:");
+    info!(log, "Dump breakdown:");
 
     let print_val = |str, val| {
-        humility::msg!("  {str:<w$} => {val}");
+        info!(log, "  {str:<w$} => {val}");
     };
 
     let print_signed_val = |str, val| {
-        humility::msg!("  {str:<w$} => {val}");
+        info!(log, "  {str:<w$} => {val}");
     };
 
     let mut print_perc = |str, val, acct| {
@@ -373,7 +378,7 @@ fn print_dump_breakdown(breakdown: &DumpBreakdown) {
             ("total", (val as f32 / breakdown.total as f32) * 100.0)
         };
 
-        humility::msg!("  {str:<w$} => {val:<w2$} {perc:>6.2}% of {label}");
+        info!(log, "  {str:<w$} => {val:<w2$} {perc:>6.2}% of {label}");
     };
 
     print_val("total dump area", breakdown.total);
@@ -386,7 +391,8 @@ fn print_dump_breakdown(breakdown: &DumpBreakdown) {
     print_perc("data padding", breakdown.segment_padding, true);
     print_perc("orphaned", breakdown.orphaned, true);
 
-    humility::msg!(
+    info!(
+        log,
         "  -------------------------------------\
         --------------------------------"
     );
@@ -395,7 +401,7 @@ fn print_dump_breakdown(breakdown: &DumpBreakdown) {
     print_val("total accounted", total);
     print_signed_val("unaccounted dump area", unaccounted);
 
-    humility::msg!("");
+    info!(log, "");
 
     print_val("uncompressed size", breakdown.uncompressed);
     print_val("compressed size", breakdown.compressed);
@@ -406,6 +412,7 @@ fn dump_via_agent(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     subargs: &DumpArgs,
+    log: &Logger,
 ) -> Result<()> {
     let mut out = DumpAgentCore::new(HubrisFlashMap::new(hubris)?);
     let started = Some(Instant::now());
@@ -442,10 +449,10 @@ fn dump_via_agent(
         // our compression ratio would be along the way.
         //
         core.halt()?;
-        humility::msg!("core halted");
+        info!(log, "core halted");
 
         if let Some(ref stock) = subargs.stock_dumpfile {
-            hubris.dump(core, task, Some(stock), None)?;
+            hubris.dump(core, task, Some(stock), None, log)?;
         }
 
         match task {
@@ -535,7 +542,8 @@ fn dump_via_agent(
 
         bar.finish_and_clear();
 
-        humility::msg!(
+        info!(
+            log,
             "read {} (compressing to {}) in {}",
             HumanBytes(nread as u64),
             HumanBytes(ncompressed as u64),
@@ -543,10 +551,10 @@ fn dump_via_agent(
         );
 
         core.run()?;
-        humility::msg!("core resumed");
+        info!(log, "core resumed");
     } else {
         let segments = hubris.dump_segments(core, None, false)?;
-        let mut agent = get_dump_agent(hubris, core, subargs)?;
+        let mut agent = get_dump_agent(hubris, core, subargs, log)?;
         let header = agent.read_dump_header()?;
 
         if !subargs.force_read && subargs.extract.is_none() {
@@ -562,7 +570,7 @@ fn dump_via_agent(
             }
 
             if task.is_none() || subargs.initialize_dump_agent {
-                humility::msg!("initializing dump agent state");
+                info!(log, "initializing dump agent state");
                 agent.initialize_dump()?;
             }
 
@@ -571,17 +579,17 @@ fn dump_via_agent(
             }
 
             if task.is_none() {
-                humility::msg!("initializing segments");
+                info!(log, "initializing segments");
                 agent.initialize_segments(&segments)?;
             }
         }
 
         if subargs.emulate_dumper {
             agent.core().halt()?;
-            humility::msg!("core halted");
+            info!(log, "core halted");
 
             if let Some(ref stock) = subargs.stock_dumpfile {
-                hubris.dump(agent.core(), task, Some(stock), None)?;
+                hubris.dump(agent.core(), task, Some(stock), None, log)?;
             }
 
             let base = header.address;
@@ -591,7 +599,7 @@ fn dump_via_agent(
                 match emulate_task_dump_prep(agent.core(), &segments, base) {
                     Err(e) => {
                         agent.core().run()?;
-                        humility::msg!("core resumed after failure");
+                        info!(log, "core resumed after failure");
                         return Err(e);
                     }
                     Ok(address) => {
@@ -604,20 +612,22 @@ fn dump_via_agent(
                 base
             };
 
-            emulate_dump(agent.core(), task, address, total)?;
+            emulate_dump(agent.core(), task, address, total, log)?;
             agent.core().run()?;
-            humility::msg!("core resumed");
+            info!(log, "core resumed");
         } else if !subargs.force_read && subargs.extract.is_none() {
             if subargs.force_manual_initiation {
                 agent.core().halt()?;
-                humility::msg!("leaving core halted");
+                info!(log, "leaving core halted");
                 let base = header.address;
-                humility::msg!(
+                info!(
+                    log,
                     "unplug probe and manually \
                     initiate dump from address {:#x}",
                     base
                 );
-                humility::msg!(
+                info!(
+                    log,
                     "e.g., \"humility hiffy --call \
                     Dumper.dump -a address={:#x}\"",
                     base
@@ -650,13 +660,15 @@ fn dump_via_agent(
                         .count();
 
                     if c == all.len() {
-                        humility::warn!(
+                        warn!(
+                            log,
                             "dump has indicated failure ({err:?}), but this is \
                             likely due to space exhaustion; \
                             dump will be extracted but may be incomplete!"
                         );
                     } else if c != 0 {
-                        humility::warn!(
+                        warn!(
+                            log,
                             "dump has indicated failure ({err:?}), but some dump \
                             contents appear to have been written; \
                             dump will be extracted but may be incomplete!"
@@ -673,7 +685,7 @@ fn dump_via_agent(
         //
         // If we're here, we have a dump in situ -- time to pull it.
         //
-        task = read_dump(&mut agent, area, &mut out, subargs)?;
+        task = read_dump(&mut agent, area, &mut out, subargs, log)?;
 
         //
         // If this was a whole-system dump, we will leave our state initialized
@@ -682,15 +694,15 @@ fn dump_via_agent(
         //
         if task.is_none() {
             if !subargs.retain_state {
-                humility::msg!("resetting dump agent state");
+                info!(log, "resetting dump agent state");
                 agent.initialize_dump()?;
             } else {
-                humility::msg!("retaining dump agent state");
+                info!(log, "retaining dump agent state");
             }
         }
     }
 
-    hubris.dump(&mut out, task, subargs.dumpfile.as_deref(), started)?;
+    hubris.dump(&mut out, task, subargs.dumpfile.as_deref(), started, log)?;
 
     Ok(())
 }
@@ -699,11 +711,12 @@ fn dump_task_via_agent(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     subargs: &DumpArgs,
+    log: &Logger,
 ) -> Result<()> {
     let mut out = DumpAgentCore::new(HubrisFlashMap::new(hubris)?);
     let started = Some(Instant::now());
 
-    let mut agent = get_dump_agent(hubris, core, subargs)?;
+    let mut agent = get_dump_agent(hubris, core, subargs, log)?;
 
     let task = subargs.task.as_ref().unwrap();
     let ndx = match hubris.try_lookup_task(task)? {
@@ -721,9 +734,10 @@ fn dump_task_via_agent(
         Some(DumpArea::ByIndex(area as usize)),
         &mut out,
         subargs,
+        log,
     )?;
     assert!(task.is_some());
-    hubris.dump(&mut out, task, subargs.dumpfile.as_deref(), started)?;
+    hubris.dump(&mut out, task, subargs.dumpfile.as_deref(), started, log)?;
 
     Ok(())
 }
@@ -732,8 +746,9 @@ fn dump_list(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     subargs: &DumpArgs,
+    log: &Logger,
 ) -> Result<()> {
-    let mut agent = get_dump_agent(hubris, core, subargs)?;
+    let mut agent = get_dump_agent(hubris, core, subargs, log)?;
 
     println!("{:4} {:21} {:10} SIZE", "AREA", "TASK", "TIME");
     let headers = agent.read_dump_headers(false)?;
@@ -779,8 +794,9 @@ fn dump_all(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     subargs: &DumpArgs,
+    log: &Logger,
 ) -> Result<()> {
-    let mut agent = get_dump_agent(hubris, core, subargs)?;
+    let mut agent = get_dump_agent(hubris, core, subargs, log)?;
     let headers = agent.read_dump_headers(false)?;
     if headers.is_empty() || headers[0].0.dumper == humpty::DUMPER_NONE {
         return Ok(());
@@ -792,7 +808,7 @@ fn dump_all(
         drop(agent);
         let mut subargs = subargs.clone();
         subargs.force_read = true;
-        dump_via_agent(hubris, core, &subargs)
+        dump_via_agent(hubris, core, &subargs, log)
     } else {
         let areas = task_areas(&headers);
         for (area, (task, headers)) in &areas {
@@ -813,7 +829,7 @@ fn dump_all(
                 .map(|i| PathBuf::from(format!("hubris.core.{task_name}.{i}")))
                 .find(|f| !f.exists())
                 .unwrap();
-            humility::msg!("dumping {task_name} (area {area})");
+            info!(log, "dumping {task_name} (area {area})");
 
             let mut out = DumpAgentCore::new(HubrisFlashMap::new(hubris)?);
             let started = Some(Instant::now());
@@ -822,17 +838,18 @@ fn dump_all(
                 Some(DumpArea::ByIndex(*area)),
                 &mut out,
                 subargs,
+                log,
             )?;
 
             assert!(task.is_some());
-            hubris.dump(&mut out, task, Some(&dumpfile), started)?;
+            hubris.dump(&mut out, task, Some(&dumpfile), started, log)?;
         }
 
         if !subargs.retain_state {
-            humility::msg!("resetting dump agent state");
+            info!(log, "resetting dump agent state");
             agent.initialize_dump()?;
         } else {
-            humility::msg!("retaining dump agent state");
+            info!(log, "retaining dump agent state");
         }
         Ok(())
     }
@@ -842,8 +859,9 @@ fn dump_agent_status(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     subargs: &DumpArgs,
+    log: &Logger,
 ) -> Result<()> {
-    let mut agent = get_dump_agent(hubris, core, subargs)?;
+    let mut agent = get_dump_agent(hubris, core, subargs, log)?;
     let headers = agent.read_dump_headers(true)?;
     println!("{:#x?}", headers);
 
@@ -853,43 +871,45 @@ fn dump_agent_status(
 fn dumpcmd(subargs: DumpArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_match(hubris)?;
+    let log = context.log();
 
     if subargs.force_dump_agent && core.is_net() {
         bail!("can only force the dump agent when attached via debug probe");
     }
 
     if subargs.extract_all {
-        dump_all(hubris, core, &subargs)
+        dump_all(hubris, core, &subargs, log)
     } else if subargs.list {
-        dump_list(hubris, core, &subargs)
+        dump_list(hubris, core, &subargs, log)
     } else if subargs.dump_agent_status {
-        dump_agent_status(hubris, core, &subargs)
+        dump_agent_status(hubris, core, &subargs, log)
     } else if subargs.task.is_some() {
         if subargs.force_dump_agent {
-            humility::msg!("--force-dump-agent is implied by --task");
+            info!(log, "--force-dump-agent is implied by --task");
         }
-        dump_task_via_agent(hubris, core, &subargs)
+        dump_task_via_agent(hubris, core, &subargs, log)
     } else if core.is_net()
         || subargs.force_dump_agent
         || subargs.force_read
         || subargs.extract.is_some()
     {
-        dump_via_agent(hubris, core, &subargs)
+        dump_via_agent(hubris, core, &subargs, log)
     } else {
         if subargs.initialize_dump_agent {
             bail!("must also use --force-dump-agent to initialize dump agent");
         }
 
         core.halt()?;
-        humility::msg!("core halted");
+        info!(log, "core halted");
 
-        let rval = hubris.dump(core, None, subargs.dumpfile.as_deref(), None);
+        let rval =
+            hubris.dump(core, None, subargs.dumpfile.as_deref(), None, log);
 
         if !subargs.leave_halted {
             core.run()?;
-            humility::msg!("core resumed");
+            info!(log, "core resumed");
         } else {
-            humility::msg!("core left halted");
+            info!(log, "core left halted");
         }
 
         rval

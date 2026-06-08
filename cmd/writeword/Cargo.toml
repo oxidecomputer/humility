@@ -5,9 +5,11 @@ edition.workspace = true
 description = "writes one or more memory words"
 
 [dependencies]
-humility = { workspace = true }
-humility-cli = { workspace = true }
-clap = { workspace = true }
-anyhow = { workspace = true }
-parse_int = { workspace = true }
-parse-size = { workspace = true }
+humility.workspace = true
+humility-cli.workspace = true
+humility-log.workspace = true
+
+clap.workspace = true
+anyhow.workspace = true
+parse_int.workspace = true
+parse-size.workspace = true

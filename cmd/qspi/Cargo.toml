@@ -9,7 +9,6 @@ anyhow.workspace = true
 clap.workspace = true
 hif.workspace = true
 indicatif.workspace = true
-log.workspace = true
 parse_int.workspace = true
 sha2.workspace = true
 zerocopy.workspace = true

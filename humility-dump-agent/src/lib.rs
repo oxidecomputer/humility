@@ -17,7 +17,11 @@
 
 use anyhow::{Context, Result, anyhow, bail};
 use core::mem::size_of;
-use humility::{core::Core, hubris::HubrisFlashMap, msg};
+use humility::{
+    core::Core,
+    hubris::HubrisFlashMap,
+    log::{Logger, info},
+};
 use humility_arch_arm::ARMRegister;
 use humpty::{
     DumpAreaHeader, DumpRegister, DumpSegment, DumpSegmentData,
@@ -550,6 +554,7 @@ pub trait DumpAgentExt {
         area: Option<DumpArea>,
         out: &mut DumpAgentCore,
         verbose: bool,
+        log: &Logger,
     ) -> Result<(Option<DumpTask>, DumpBreakdown)> {
         let (total, base, headers, task) = {
             let all = self.read_dump_headers(true)?;
@@ -632,7 +637,8 @@ pub trait DumpAgentExt {
         }
 
         if verbose {
-            msg!(
+            info!(
+                log,
                 "pulled {} in {}",
                 HumanBytes(written as u64),
                 HumanDuration(started.elapsed())

@@ -1172,6 +1172,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
+name = "erased-serde"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c138974f9d5e7fe373eb04df7cae98833802ae4b11c24ac7039a21d5af4b26c"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1684,7 +1693,6 @@ dependencies = [
  "indexmap 2.14.0",
  "indicatif",
  "jep106 0.3.0",
- "log",
  "multimap",
  "num-derive",
  "num-traits",
@@ -1726,7 +1734,6 @@ dependencies = [
  "humility-core",
  "humility-probes-core",
  "idol",
- "log",
  "parse_int",
  "tlvc",
 ]
@@ -1845,7 +1852,6 @@ dependencies = [
  "humpty",
  "indexmap 2.14.0",
  "indicatif",
- "log",
  "lzss",
  "num-traits",
  "parse_int",
@@ -1980,7 +1986,6 @@ dependencies = [
  "humility-doppel",
  "humility-hiffy",
  "humility-idol",
- "humility-log",
  "ipcc-data",
  "turin-post-decoder",
 ]
@@ -1991,18 +1996,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "colored",
  "hubpack",
  "humility-arch-arm",
  "humility-cli",
  "humility-core",
- "humility-log",
  "humpty",
- "indexmap 2.14.0",
- "parse_int",
  "serde",
  "serde_json",
- "zerocopy",
  "zip",
 ]
 
@@ -2071,7 +2071,7 @@ dependencies = [
  "anyhow",
  "clap",
  "humility-cli",
- "humility-core",
+ "humility-log",
  "rusb",
 ]
 
@@ -2109,7 +2109,6 @@ dependencies = [
  "humility-hiffy",
  "humility-idol",
  "idol",
- "log",
  "parse_int",
  "regex",
  "vsc7448-info",
@@ -2185,7 +2184,6 @@ dependencies = [
  "humility-idol",
  "idol",
  "indexmap 2.14.0",
- "log",
  "parse_int",
 ]
 
@@ -2202,7 +2200,6 @@ dependencies = [
  "humility-idol",
  "idol",
  "indexmap 2.14.0",
- "log",
  "parse_int",
  "pmbus",
 ]
@@ -2233,7 +2230,6 @@ dependencies = [
  "humility-hiffy",
  "humility-idol",
  "indicatif",
- "log",
  "parse_int",
  "sha2 0.11.0",
  "zerocopy",
@@ -2248,7 +2244,6 @@ dependencies = [
  "humility-cli",
  "humility-core",
  "humility-hexdump",
- "humility-log",
  "parse-size",
  "parse_int",
 ]
@@ -2273,7 +2268,6 @@ dependencies = [
  "humility-cli",
  "humility-core",
  "humility-cortex",
- "log",
  "zip",
 ]
 
@@ -2417,7 +2411,6 @@ dependencies = [
  "humility-core",
  "humility-hiffy",
  "humility-i2c",
- "humility-log",
  "humility-spd",
  "jep106 0.3.0",
  "parse_int",
@@ -2471,7 +2464,6 @@ dependencies = [
  "humility-core",
  "humility-doppel",
  "humility-stack",
- "log",
  "num-traits",
  "parse_int",
 ]
@@ -2551,6 +2543,7 @@ dependencies = [
  "clap",
  "humility-cli",
  "humility-core",
+ "humility-log",
  "parse-size",
  "parse_int",
 ]
@@ -2577,7 +2570,7 @@ dependencies = [
  "indexmap 2.14.0",
  "indicatif",
  "libc",
- "log",
+ "measurement-token",
  "multimap",
  "num-derive",
  "num-traits",
@@ -2605,7 +2598,6 @@ dependencies = [
  "bitfield 0.19.4",
  "humility-core",
  "jep106 0.3.0",
- "log",
  "multimap",
  "num-derive",
  "num-traits",
@@ -2657,7 +2649,6 @@ dependencies = [
  "humility-doppel",
  "humility-idol",
  "idol",
- "log",
  "postcard",
  "thiserror 2.0.18",
  "zerocopy",
@@ -2698,7 +2689,7 @@ name = "humility-log"
 version = "0.1.0"
 dependencies = [
  "colored",
- "log",
+ "slog",
 ]
 
 [[package]]
@@ -2729,7 +2720,6 @@ dependencies = [
  "humility-core",
  "humpty",
  "indicatif",
- "log",
  "measurement-token",
  "num-derive",
  "num-traits",
@@ -2748,7 +2738,6 @@ dependencies = [
  "humility-doppel",
  "humility-hiffy",
  "humility-i2c",
- "humility-log",
  "spd",
 ]
 
@@ -4629,6 +4618,18 @@ name = "slab"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
+
+[[package]]
+name = "slog"
+version = "2.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b3b8565691b22d2bdfc066426ed48f837fc0c5f2c8cad8d9718f7f99d6995c1"
+dependencies = [
+ "anyhow",
+ "erased-serde",
+ "rustversion",
+ "serde_core",
+]
 
 [[package]]
 name = "smallvec"

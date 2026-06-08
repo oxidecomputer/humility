@@ -51,6 +51,7 @@ use anyhow::{Result, bail};
 use clap::Parser;
 use humility::core::Core;
 use humility_cli::{ExecutionContext, humility_cmd};
+use humility_log::info;
 
 #[derive(Parser, Debug)]
 #[clap(name = "writeword", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -70,13 +71,14 @@ fn writeword(
 ) -> Result<()> {
     let hubris = context.cli.try_archive()?;
     let core = &mut context.cli.attach_probe(hubris.as_ref())?;
+    let log = context.log();
     if subargs.address & 0b11 != 0 {
         bail!("address must be word aligned");
     }
 
     for (offs, v) in subargs.value.iter().enumerate() {
         let addr = subargs.address + (offs * 4) as u32;
-        humility::msg!("writing {v:#x} to {addr:#x}");
+        info!(log, "writing {v:#x} to {addr:#x}");
         core.write_word_32(addr, *v)?;
     }
 

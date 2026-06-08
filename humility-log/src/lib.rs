@@ -2,46 +2,57 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-/// Give messages to the user.
-///
-/// These macros are intended to be used whenever producing secondary output to the
-/// terminal for users to see. They are their own macros for two reasons:
-///
-/// 1. They will prepend "humility: " to the output
-/// 2. They use stderr rather than stdout
-///
-/// Additionally, [`warn!`] will generate an eye-grabbing warning.  These
-/// macros should be used in lieu of `log::error!`, `log::warn!` or direct
-/// `eprintln!` (`log::debug!` and `log::trace!` can be used for debugging
-/// output that is to be optionally enabled on the command line).
-#[macro_export]
-macro_rules! msg {
-    ($fmt:expr) => ({
-        let s = format!($fmt);
-        eprintln!("humility: {s}");
-    });
-    ($fmt:expr, $($arg:tt)*) => ({
-        let s = format!($fmt, $($arg)*);
-        eprintln!("humility: {}", s)
-    });
+// Re-export `slog` macros and types
+pub use slog::{Logger, debug, error, info, trace, warn};
+
+/// Drain for [`slog`]
+struct HumilityDrain {
+    verbose: bool,
 }
 
-#[macro_export]
-macro_rules! warn {
-    ($fmt:expr) => ({
-        use $crate::__private::Colorize;
-        eprint!("humility: {}: ", "WARNING".red());
-        eprintln!($fmt);
-    });
-    ($fmt:expr, $($arg:tt)*) => ({
-        use $crate::__private::Colorize;
-        eprint!("humility: {}: ", "WARNING".red());
-        eprintln!($fmt, $($arg)*);
-    });
+impl slog::Drain for HumilityDrain {
+    type Ok = ();
+    type Err = std::io::Error;
+
+    fn log(
+        &self,
+        record: &slog::Record,
+        _values: &slog::OwnedKVList,
+    ) -> Result<Self::Ok, Self::Err> {
+        use colored::Colorize;
+        use std::io::Write;
+
+        // Suppress debug and trace messages unless `verbose` is set.
+        if matches!(record.level(), slog::Level::Trace | slog::Level::Debug)
+            && !self.verbose
+        {
+            return Ok(());
+        }
+
+        let stderr = std::io::stderr();
+        let mut stderr = stderr.lock();
+
+        match record.level() {
+            slog::Level::Critical | slog::Level::Error => {
+                write!(stderr, "humility: {}: ", "ERROR".red())?;
+                writeln!(stderr, "{}", record.msg())?;
+            }
+            slog::Level::Warning => {
+                write!(stderr, "humility: {}: ", "WARNING".red())?;
+                writeln!(stderr, "{}", record.msg())?;
+            }
+            slog::Level::Info | slog::Level::Debug | slog::Level::Trace => {
+                writeln!(stderr, "humility: {}", record.msg())?;
+            }
+        }
+
+        Ok(())
+    }
 }
 
-// Not public API. Referenced by macro-generated code
-#[doc(hidden)]
-pub mod __private {
-    pub use colored::Colorize;
+/// Initializes a standard Humility logger
+pub fn init(verbose: bool) -> slog::Logger {
+    use slog::Drain;
+    let drain = std::sync::Mutex::new(HumilityDrain { verbose }).fuse();
+    slog::Logger::root(drain, slog::o!())
 }

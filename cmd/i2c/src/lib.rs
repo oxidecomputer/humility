@@ -96,7 +96,7 @@ use hif::*;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hexdump::Dumper;
 use humility_hiffy::*;
-use humility_log::msg;
+use humility_log::info;
 
 use std::collections::HashMap;
 use std::fs;
@@ -425,6 +425,7 @@ fn i2c_done(
 
 fn i2c(subargs: I2cArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
 
     if !subargs.scan
         && subargs.scanreg.is_none()
@@ -440,7 +441,7 @@ fn i2c(subargs: I2cArgs, context: &mut ExecutionContext) -> Result<()> {
 
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)?;
 
     let (fname, args) = if subargs.flash.is_some() {
         ("I2cBulkWrite", 8)
@@ -482,7 +483,7 @@ fn i2c(subargs: I2cArgs, context: &mut ExecutionContext) -> Result<()> {
             let len = fs::metadata(filename.clone())?.len() as u32;
 
             if len > u16::MAX.into() {
-                msg!("file will be clamped at {}", u16::MAX);
+                info!(log, "file will be clamped at {}", u16::MAX);
                 u16::MAX
             } else {
                 len as u16
@@ -604,7 +605,8 @@ fn i2c(subargs: I2cArgs, context: &mut ExecutionContext) -> Result<()> {
 
         bar.finish_and_clear();
 
-        msg!(
+        info!(
+            log,
             "flashed {} in {}",
             HumanBytes(filelen as u64),
             HumanDuration(started.elapsed())

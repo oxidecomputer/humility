@@ -24,7 +24,7 @@
 use anyhow::{Result, bail};
 use clap::Parser;
 use humility_cli::{ExecutionContext, humility_cmd};
-use humility_log::msg;
+use humility_log::info;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -72,6 +72,7 @@ fn load_cmds<'a>(
 
 fn exec(subargs: ExecArgs, context: &mut ExecutionContext) -> Result<()> {
     let env = context.environment.as_ref();
+    let log = context.log();
 
     let env = match env {
         None => {
@@ -119,13 +120,14 @@ fn exec(subargs: ExecArgs, context: &mut ExecutionContext) -> Result<()> {
                 .unwrap_quotes(true)
                 .collect::<Vec<_>>();
 
-            msg!("{target} {cmd}: executing: '{cmdline}' ...");
+            info!(log, "{target} {cmd}: executing: '{cmdline}' ...");
 
             let status = std::process::Command::new(args[0])
                 .args(&args[1..])
                 .status()?;
 
-            msg!(
+            info!(
+                log,
                 "{target} {cmd}: done ({})",
                 match status.code() {
                     Some(code) => format!("status code {code}"),

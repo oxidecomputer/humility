@@ -32,7 +32,7 @@
 //! ```
 //!
 
-use humility::hubris::*;
+use humility::{hubris::*, log::info};
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hexdump::Dumper;
 use humility_hiffy::*;
@@ -172,10 +172,11 @@ pub fn spi_task(
 
 fn spi(subargs: SpiArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)?;
 
     let spi_read = context.get_function("SpiRead", 4)?;
     let spi_write = context.get_function("SpiWrite", 3)?;
@@ -200,7 +201,7 @@ fn spi(subargs: SpiArgs, context: &mut ExecutionContext) -> Result<()> {
         ops.push(Op::Push(0));
     }
 
-    humility::msg!("SPI master is {}", hubris.lookup_module(task)?.name);
+    info!(log, "SPI master is {}", hubris.lookup_module(task)?.name);
 
     let mut addr = 0;
 

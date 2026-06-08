@@ -5,10 +5,10 @@ edition.workspace = true
 description = "execute command within context of an environment"
 
 [dependencies]
-clap.workspace = true
 anyhow.workspace = true
-splitty.workspace = true
+clap.workspace = true
 serde_json.workspace = true
+splitty.workspace = true
 
-humility-log.workspace = true
 humility-cli.workspace = true
+humility-log.workspace = true

@@ -3,7 +3,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use anyhow::{Context, Result, bail};
-use humility::core::Core;
+use humility::{
+    core::Core,
+    log::{Logger, info, trace},
+};
 use humility_arch_arm::ARMRegister;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -21,6 +24,7 @@ pub struct ProbeCore {
     halted: bool,
     unhalted_read: BTreeMap<u32, u32>,
     can_flash: bool,
+    log: Logger,
 }
 
 impl ProbeCore {
@@ -31,6 +35,7 @@ impl ProbeCore {
         product_id: u16,
         serial_number: Option<String>,
         can_flash: bool,
+        log: &Logger,
     ) -> Self {
         Self {
             session,
@@ -41,6 +46,7 @@ impl ProbeCore {
             halted: false,
             unhalted_read: humility_arch_arm::unhalted_read_regions(),
             can_flash,
+            log: log.clone(),
         }
     }
 
@@ -85,7 +91,7 @@ impl Core for ProbeCore {
     }
 
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
-        log::trace!("reading word at {:x}", addr);
+        trace!(self.log, "reading word at {:x}", addr);
         let mut rval = 0;
 
         if let Some(range) = self.unhalted_read.range(..=addr).next_back()
@@ -330,10 +336,11 @@ impl ProbeCore {
     pub fn reset_with_handoff(
         &mut self,
         hubris: &humility::hubris::HubrisArchive,
+        log: &Logger,
     ) -> Result<()> {
         if hubris.wants_reset_handoff_token() {
             self.reset_and_halt(std::time::Duration::from_millis(25))?;
-            crate::msg!("skipping measurement token handoff");
+            info!(log, "skipping measurement token handoff");
             self.write_word_32(
                 measurement_token::SP_ADDR as u32,
                 measurement_token::SKIP,

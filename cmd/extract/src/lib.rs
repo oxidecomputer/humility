@@ -132,7 +132,7 @@
 use anyhow::{Result, bail};
 use clap::Parser;
 use humility_cli::{ExecutionContext, humility_cmd};
-use humility_log::msg;
+use humility_log::info;
 use std::fs::File;
 use std::io::Cursor;
 use std::io::{self, Read, Write};
@@ -154,6 +154,7 @@ pub struct ExtractArgs {
 
 fn extract(subargs: ExtractArgs, context: &mut ExecutionContext) -> Result<()> {
     let archive = context.cli.raw_archive()?;
+    let log = context.log();
 
     if subargs.list {
         // We convert the archive data back into a `ZipArchive` instead of using
@@ -204,7 +205,7 @@ fn extract(subargs: ExtractArgs, context: &mut ExecutionContext) -> Result<()> {
             );
         }
 
-        msg!("extracting {} to stdout", found[0].1);
+        info!(log, "extracting {} to stdout", found[0].1);
 
         let mut file = archive.by_index(found[0].0)?;
 

@@ -8,6 +8,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use hif::*;
 use humility::core::{Core, NetAgent};
 use humility::hubris::*;
+use humility::log::{Logger, warn};
 use humility::reflect;
 use humility_doppel::{RpcHeader, SchedState, TaskState, hiffy};
 use humility_idol as idol;
@@ -39,6 +40,7 @@ pub struct HiffyContext<'a> {
     state: State,
     functions: HiffyFunctions,
     hiffy: HiffyImpl<'a>,
+    pub log: Logger,
 }
 
 // Constants when running with the `NetUdpRpc` impl, which runs the program on
@@ -253,6 +255,7 @@ impl<'a> HiffyContext<'a> {
         hubris: &'a HubrisArchive,
         core: &mut dyn Core,
         timeout: Duration,
+        log: &Logger,
     ) -> Result<HiffyContext<'a>> {
         let hiffy = if core.is_net() {
             core.set_timeout(timeout)?;
@@ -371,6 +374,7 @@ impl<'a> HiffyContext<'a> {
             timeout,
             state: State::Initialized,
             functions,
+            log: log.clone(),
         })
     }
 
@@ -1079,7 +1083,8 @@ impl<'a> HiffyContext<'a> {
                 // This really shouldn't happen, but it's permitted by the API
                 // types, sooooooo
                 HubrisTask::Kernel => {
-                    log::warn!(
+                    warn!(
+                        self.log,
                         "This application appears to have named its kernel \
                          'hiffy', which is very funny ha ha but will make \
                          IPC operations and other things using hiffy less \
@@ -1097,7 +1102,8 @@ impl<'a> HiffyContext<'a> {
 
         let mut syscall_observed = false;
         if hiffy_task.is_none() {
-            log::warn!(
+            warn!(
+                self.log,
                 "Can't find task named 'hiffy' in image. We'll still try to \
                  use it, but if this is just after a reboot, we may not be \
                  able to synchronize with its startup correctly, which may \

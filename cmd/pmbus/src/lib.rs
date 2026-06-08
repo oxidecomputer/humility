@@ -188,8 +188,9 @@
 //! what you want.
 
 use colored::Colorize;
+use humility::core::Core;
 use humility::hubris::*;
-use humility::{core::Core, warn};
+use humility::log::{Logger, info, warn};
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
@@ -1132,6 +1133,7 @@ fn writes(
     subargs: &PmbusArgs,
     hubris: &HubrisArchive,
     worker: &mut dyn PmbusWorker,
+    log: &Logger,
 ) -> Result<()> {
     let hargs = match (&subargs.rail, &subargs.device) {
         (Some(rails), None) => rails
@@ -1247,9 +1249,9 @@ fn writes(
 
     let success = |harg, rail: &Option<u8>, cmd| {
         if let Some(rnum) = *rail {
-            humility::msg!("{harg}, rail {rnum}: successfully wrote {cmd}",);
+            info!(log, "{harg}, rail {rnum}: successfully wrote {cmd}",);
         } else {
-            humility::msg!("{harg}: successfully wrote {cmd}");
+            info!(log, "{harg}: successfully wrote {cmd}");
         }
     };
 
@@ -1458,9 +1460,10 @@ impl<'a> I2cWorker<'a> {
         hubris: &'a HubrisArchive,
         core: &'a mut dyn Core,
         timeout: u64,
+        log: &Logger,
     ) -> Result<Self> {
         let timeout = std::time::Duration::from_millis(timeout);
-        let context = HiffyContext::new(hubris, core, timeout)?;
+        let context = HiffyContext::new(hubris, core, timeout, log)?;
         let read_func = context.get_function("I2cRead", 7)?;
         let write_func = context.get_function("I2cWrite", 8)?;
         Ok(Self { core, context, read_func, write_func, ops: vec![] })
@@ -1640,9 +1643,10 @@ impl<'a> IdolWorker<'a> {
         hubris: &'a HubrisArchive,
         core: &'a mut dyn Core,
         timeout: u64,
+        log: &Logger,
     ) -> Result<Self> {
         let timeout = std::time::Duration::from_millis(timeout);
-        let context = HiffyContext::new(hubris, core, timeout)?;
+        let context = HiffyContext::new(hubris, core, timeout, log)?;
         let write_set = hubris.get_idol_command("Power.raw_pmbus_set")?;
         let write_byte =
             hubris.get_idol_command("Power.raw_pmbus_write_byte")?;
@@ -1905,6 +1909,7 @@ impl PmbusWorker for IdolWorker<'_> {
 #[allow(clippy::print_literal)]
 fn pmbus(subargs: PmbusArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
 
     if subargs.list {
         println!(
@@ -1947,27 +1952,28 @@ fn pmbus(subargs: PmbusArgs, context: &mut ExecutionContext) -> Result<()> {
     let mut worker: Box<dyn PmbusWorker> = match subargs.agent {
         Agent::Auto => {
             if core.is_net() {
-                Box::new(IdolWorker::new(hubris, core, timeout)?)
+                Box::new(IdolWorker::new(hubris, core, timeout, log)?)
             } else {
-                Box::new(I2cWorker::new(hubris, core, timeout)?)
+                Box::new(I2cWorker::new(hubris, core, timeout, log)?)
             }
         }
         Agent::I2c => {
             if core.is_net() {
                 bail!("cannot use I2C agent over the network");
             } else {
-                Box::new(I2cWorker::new(hubris, core, timeout)?)
+                Box::new(I2cWorker::new(hubris, core, timeout, log)?)
             }
         }
         Agent::Idol => {
             if !core.is_net() {
                 warn!(
+                    log,
                     "idol interface may use too much program text when \
                      connected via debugger; \
                      consider using the i2c core instead"
                 );
             }
-            Box::new(IdolWorker::new(hubris, core, timeout)?)
+            Box::new(IdolWorker::new(hubris, core, timeout, log)?)
         }
     };
 
@@ -1977,7 +1983,7 @@ fn pmbus(subargs: PmbusArgs, context: &mut ExecutionContext) -> Result<()> {
     }
 
     if subargs.writes.is_some() {
-        writes(&subargs, hubris, worker.as_mut())?;
+        writes(&subargs, hubris, worker.as_mut(), log)?;
         return Ok(());
     }
 

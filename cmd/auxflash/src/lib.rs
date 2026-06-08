@@ -12,6 +12,7 @@
 use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
+use humility::log::info;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_probes_core::HubrisAttach;
 
@@ -103,20 +104,22 @@ fn auxflash(
 ) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let log = context.log();
 
     match subargs.cmd {
         AuxFlashCommand::Status { .. }
         | AuxFlashCommand::Erase { .. }
         | AuxFlashCommand::Read { .. } => {
             let core = &mut *context.cli.attach_live_booted(hubris)?;
-            let mut worker = AuxFlashHandler::new(hubris, &mut *core, timeout)?;
+            let mut worker =
+                AuxFlashHandler::new(hubris, &mut *core, timeout, log)?;
             match subargs.cmd {
                 AuxFlashCommand::Status { verbose } => {
                     auxflash_status(worker, verbose)?;
                 }
                 AuxFlashCommand::Erase { slot } => {
                     worker.slot_erase(slot)?;
-                    humility::msg!("done erasing slot {slot}");
+                    info!(log, "done erasing slot {slot}");
                 }
                 AuxFlashCommand::Read { slot, output, count } => {
                     let data = worker.auxflash_read(slot, count)?;
@@ -126,9 +129,11 @@ fn auxflash(
             }
         }
         AuxFlashCommand::Write { slot, input, force } => {
-            let core = &mut hubris
-                .attach_probe(context.cli.probe.as_deref().unwrap_or("auto"))?;
-            let mut writer = AuxFlashWriter::new(hubris, core, timeout)?;
+            let core = &mut hubris.attach_probe(
+                context.cli.probe.as_deref().unwrap_or("auto"),
+                log,
+            )?;
+            let mut writer = AuxFlashWriter::new(hubris, core, timeout, log)?;
             match input {
                 Some(input) => {
                     let data = std::fs::read(input)?;

@@ -328,7 +328,7 @@ fn diagnose(
 
     if !subargs.no_dump {
         section("Generating Coredump");
-        let rval = hubris.dump(core, None, None, None);
+        let rval = hubris.dump(core, None, None, None, context.log());
 
         if let Err(e) = rval {
             println!("Coredump failed: {}", e);

@@ -143,8 +143,8 @@
 //!
 
 use humility::hubris::*;
+use humility::log::{info, warn};
 use humility::reflect::{Base, Value};
-use humility::warn;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
@@ -1703,6 +1703,7 @@ fn rendmp_phase_check<'a>(
     //
     if subargs.force_phase_check {
         warn!(
+            context.log,
             "DIMM presence check disabled, if this check hangs, remove the \
             DIMMs and retry."
         );
@@ -2274,9 +2275,10 @@ fn restore_default_config<'a>(
 ) -> Result<()> {
     // Pick out the target device
     let (addr, _dev) = check_addr(subargs, hubris)?;
+    let log = context.log.clone();
     let mut worker = HifWorker::new(hubris, context, core, addr)?;
 
-    humility::msg!("restoring default configuration...");
+    info!(log, "restoring default configuration...");
     use pmbus::commands::raa229618::CommandCode::RESTORE_CFG;
     worker.write_byte(worker.rail_indexes[0], false, RESTORE_CFG as u8, 0)?;
     let r = worker.run(core)?;
@@ -2287,12 +2289,13 @@ fn restore_default_config<'a>(
         Ok(v) => v.expect_write_byte()?,
         Err(e) => bail!("{e}"),
     }
-    humility::msg!("done restoring default configuration...");
+    info!(log, "done restoring default configuration...");
     Ok(())
 }
 
 fn rendmp(subargs: RendmpArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     // Workaround for clap#4707
@@ -2311,7 +2314,7 @@ fn rendmp(subargs: RendmpArgs, context: &mut ExecutionContext) -> Result<()> {
     }
 
     let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)?;
     if subargs.blackbox {
         return rendmp_blackbox(subargs, hubris, core, &mut context);
     } else if subargs.open_pin {
@@ -2334,6 +2337,7 @@ fn rendmp(subargs: RendmpArgs, context: &mut ExecutionContext) -> Result<()> {
         {
             if out.is_err() {
                 warn!(
+                    context.log,
                     "error restoring default cfg when recovering from error: \
                      {e:?}"
                 );
@@ -2495,7 +2499,7 @@ fn rendmp(subargs: RendmpArgs, context: &mut ExecutionContext) -> Result<()> {
         let results = context.run(core, ops.as_slice(), None)?;
 
         let crc = word_result(&results[1], "CRC")?;
-        humility::msg!("{d} at {hargs} has CRC 0x{crc:<08x}");
+        info!(log, "{d} at {hargs} has CRC 0x{crc:<08x}");
 
         return Ok(());
     }
@@ -2511,7 +2515,7 @@ fn rendmp(subargs: RendmpArgs, context: &mut ExecutionContext) -> Result<()> {
         let results = context.run(core, ops.as_slice(), None)?;
 
         let nslots = word_result(&results[1], "available slots")?;
-        humility::msg!("{d} at {hargs} has {nslots} slots available");
+        info!(log, "{d} at {hargs} has {nslots} slots available");
 
         return Ok(());
     }
@@ -2584,7 +2588,7 @@ fn rendmp(subargs: RendmpArgs, context: &mut ExecutionContext) -> Result<()> {
         }
 
         let nslots = word_result(&results[3], "available slots")?;
-        humility::msg!("{nslots} NVM slots remain");
+        info!(log, "{nslots} NVM slots remain");
 
         //
         // Check that the number of available slots seems sane -- and (for
@@ -2608,14 +2612,14 @@ fn rendmp(subargs: RendmpArgs, context: &mut ExecutionContext) -> Result<()> {
             let msg = format!("image CRC (0x{crc:08x}) matches OTP CRC");
 
             if subargs.check {
-                humility::msg!("{msg}");
+                info!(log, "{msg}");
                 return Ok(());
             }
 
             if !subargs.force {
                 bail!("{msg}; use --force to force");
             } else {
-                humility::msg!("{msg}; flashing anyway");
+                info!(log, "{msg}; flashing anyway");
             }
         } else if subargs.check {
             bail!(
@@ -2628,11 +2632,11 @@ fn rendmp(subargs: RendmpArgs, context: &mut ExecutionContext) -> Result<()> {
         let nbytes = hex.data.iter().fold(0, |n, v| n + v.len());
 
         if subargs.dryrun {
-            humility::msg!("would flash {nbytes} bytes");
+            info!(log, "would flash {nbytes} bytes");
             return Ok(());
         }
 
-        humility::msg!("flashing {nbytes} bytes");
+        info!(log, "flashing {nbytes} bytes");
 
         let started = Instant::now();
         let bar = ProgressBar::new(nbytes as u64);
@@ -2696,7 +2700,8 @@ fn rendmp(subargs: RendmpArgs, context: &mut ExecutionContext) -> Result<()> {
 
         bar.finish_and_clear();
 
-        humility::msg!(
+        info!(
+            log,
             "flashed {} in {}",
             HumanBytes(nbytes as u64),
             HumanDuration(started.elapsed())
@@ -2755,7 +2760,7 @@ fn rendmp(subargs: RendmpArgs, context: &mut ExecutionContext) -> Result<()> {
                         bail!("banks {:x?}: bank {} invalid", banks, ndx);
                     }
                     Some(bank) if *bank != RendmpBankStatus::BankUnaffected => {
-                        humility::msg!("bank {ndx}: {bank}");
+                        info!(log, "bank {ndx}: {bank}");
                     }
                     _ => {}
                 }
@@ -2773,7 +2778,8 @@ fn rendmp(subargs: RendmpArgs, context: &mut ExecutionContext) -> Result<()> {
             thread::sleep(Duration::from_millis(100));
         }
 
-        humility::msg!(
+        info!(
+            log,
             "flashed successfully after {} ms; power cycle \
              to load new configuration",
             waiting.elapsed().as_millis(),
@@ -2808,7 +2814,7 @@ fn rendmp(subargs: RendmpArgs, context: &mut ExecutionContext) -> Result<()> {
         let mut file =
             OpenOptions::new().write(true).create_new(true).open(&filename)?;
 
-        humility::msg!("dumping device memory to {filename}");
+        info!(log, "dumping device memory to {filename}");
 
         bar.set_style(ProgressStyle::default_bar().template(
             "humility: dumping device memory [{bar:30}] {bytes}/{total_bytes}",

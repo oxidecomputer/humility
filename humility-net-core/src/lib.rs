@@ -18,7 +18,7 @@ use humility::{
     hubris::{
         HubrisArchive, HubrisFlashMap, HubrisRegion, HubrisSocket, HubrisTask,
     },
-    msg,
+    log::{Logger, info, warn},
     net::ScopedV6Addr,
 };
 use humility_arch_arm::ARMRegister;
@@ -46,6 +46,9 @@ pub struct NetCore {
 
     /// contents of image ID
     imageid: Vec<u8>,
+
+    /// Handle to a logger
+    log: Logger,
 }
 
 impl NetCore {
@@ -53,6 +56,7 @@ impl NetCore {
         addr: ScopedV6Addr,
         hubris: &HubrisArchive,
         timeout: Duration,
+        log: &Logger,
     ) -> Result<Self> {
         let open_socket = |socket: &HubrisSocket| -> Result<_> {
             let target = format!("[{addr}]:{}", socket.port);
@@ -96,6 +100,7 @@ impl NetCore {
             flash: HubrisFlashMap::new(hubris)?,
             ram: None, // filled in below
             imageid: hubris.image_id().to_owned(),
+            log: log.clone(),
         };
 
         // Check for the existence of the DumpAgent.dump_task_region API, which
@@ -188,7 +193,8 @@ impl NetCore {
         let mut agent_core = DumpAgentCore::new(self.flash.clone());
         let image_id = self.imageid.clone();
 
-        let mut udp_dump = UdpDumpAgent::new(self, &image_id)?;
+        let log = self.log.clone();
+        let mut udp_dump = UdpDumpAgent::new(self, &image_id, &log)?;
         let mut aligned_start = addr & !0b11;
 
         // Bytes remaining is signed, which is non-intuitive; because we can
@@ -254,6 +260,7 @@ impl NetCore {
                 Some(DumpArea::ByIndex(dump_index as usize)),
                 &mut agent_core,
                 false,
+                &log,
             );
 
             // Pop the most recent dump, since we were just using it to read
@@ -267,7 +274,8 @@ impl NetCore {
             match (a, b) {
                 (Err(a), Ok(..)) => return Err(a),
                 (Err(a), Err(b)) => {
-                    humility::warn!(
+                    warn!(
+                        self.log,
                         "error {b} while reinitializing dump \
                          after a previous error"
                     );
@@ -373,8 +381,9 @@ pub fn attach_net(
     ip: ScopedV6Addr,
     hubris: &HubrisArchive,
     timeout: Duration,
+    log: &Logger,
 ) -> Result<NetCore> {
-    let core = NetCore::new(ip, hubris, timeout)?;
-    msg!("connecting to {ip}");
+    let core = NetCore::new(ip, hubris, timeout, log)?;
+    info!(log, "connecting to {ip}");
     Ok(core)
 }

@@ -7,6 +7,7 @@ use anyhow::{Result, bail};
 use colored::{ColoredString, Colorize};
 use humility::core::Core;
 use humility::hubris::*;
+use humility::log::{Logger, info, warn};
 use humility_doppel::{CounterVariant, GenOrRestartCount};
 use indexmap::IndexMap;
 use std::collections::BTreeMap;
@@ -30,6 +31,7 @@ impl Args {
         &self,
         hubris: &HubrisArchive,
         core: &mut dyn Core,
+        log: &Logger,
     ) -> Result<()> {
         let Self { clients, opts } = self;
         // In order to display task generations accurately, we must find and load
@@ -50,11 +52,9 @@ impl Args {
             // task table. In that case, rather than bailing, we'll just not
             // display restart counts.
             .unwrap_or_else(|err| {
-                humility::warn!("failed to load task table: {err}");
-                humility::warn!(
-                    "no generations/restart counts will be displayed."
-                );
-                humility::msg!("note: this may be a single-task dump.");
+                warn!(log, "failed to load task table: {err}");
+                warn!(log, "no generations/restart counts will be displayed.");
+                info!(log, "note: this may be a single-task dump.");
                 Vec::new()
             });
 

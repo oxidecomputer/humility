@@ -32,8 +32,7 @@
 //! indicated, but the revision will not change across the update.
 //!
 
-use humility::hubris::*;
-use humility::msg;
+use humility::{hubris::*, log::info};
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
@@ -117,10 +116,11 @@ const MWOCP68_REBOOT_DELAY: u64 = 5;
 
 fn mwocp(subargs: MwocpArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)?;
 
     let i2c_read = context.get_function("I2cRead", 7)?;
     let i2c_write = context.get_function("I2cWrite", 8)?;
@@ -224,7 +224,11 @@ fn mwocp(subargs: MwocpArgs, context: &mut ExecutionContext) -> Result<()> {
     };
 
     let delay = |s| {
-        msg!("sleeping for {s} second{}...", if s != 1 { "s" } else { "" });
+        info!(
+            log,
+            "sleeping for {s} second{}...",
+            if s != 1 { "s" } else { "" }
+        );
         thread::sleep(std::time::Duration::from_secs(s));
     };
 
@@ -295,18 +299,18 @@ fn mwocp(subargs: MwocpArgs, context: &mut ExecutionContext) -> Result<()> {
     let bytes = if let Some(filename) = subargs.flash {
         fs::read(filename)?
     } else {
-        msg!("revision is currently {revision}");
-        msg!("to flash a new image, specify it via --flash");
+        info!(log, "revision is currently {revision}");
+        info!(log, "to flash a new image, specify it via --flash");
         return Ok(());
     };
 
-    msg!("starting update; revision is currently {revision}");
+    info!(log, "starting update; revision is currently {revision}");
 
     //
     // We're going to perform the process outlined by Murata, albeit in a very
     // straightline fashion.  First, write the boot loader key...
     //
-    msg!("writing boot loader key");
+    info!(log, "writing boot loader key");
 
     let key = MWOCP68_BOOT_LOADER_KEY;
     let mut ops = base.clone();
@@ -339,7 +343,7 @@ fn mwocp(subargs: MwocpArgs, context: &mut ExecutionContext) -> Result<()> {
     // Now write the product key.  Goofily, this is NOT a block write, but
     // rather a raw 16-byte write.
     //
-    msg!("writing product key");
+    info!(log, "writing product key");
 
     let key = MWOCP68_PRODUCT_KEY;
     let mut ops = base.clone();
@@ -366,7 +370,7 @@ fn mwocp(subargs: MwocpArgs, context: &mut ExecutionContext) -> Result<()> {
     //
     // And now we can boot into the primary bootloader (0x12).
     //
-    msg!("booting into primary boot loader");
+    info!(log, "booting into primary boot loader");
     let mut ops = base.clone();
     ops.push(Op::Push(CommandCode::BOOT_LOADER_STATUS as u8));
 
@@ -393,7 +397,7 @@ fn mwocp(subargs: MwocpArgs, context: &mut ExecutionContext) -> Result<()> {
     //
     // Now indicate that we want to start to write the firmware (0x1).
     //
-    msg!("indicating write start");
+    info!(log, "indicating write start");
     let mut ops = base.clone();
     ops.push(Op::Push(CommandCode::BOOT_LOADER_STATUS as u8));
     ops.push(Op::Push(1));
@@ -487,7 +491,8 @@ fn mwocp(subargs: MwocpArgs, context: &mut ExecutionContext) -> Result<()> {
 
     bar.finish_and_clear();
 
-    msg!(
+    info!(
+        log,
         "flashed {} in {}",
         HumanBytes(bytes.len() as u64),
         HumanDuration(started.elapsed())
@@ -496,7 +501,7 @@ fn mwocp(subargs: MwocpArgs, context: &mut ExecutionContext) -> Result<()> {
     //
     // Now send the checksum.
     //
-    msg!("sending checksum (0x{:08x})", cksum);
+    info!(log, "sending checksum (0x{:08x})", cksum);
     let mut ops = base.clone();
     ops.push(Op::Push(CommandCode::IMAGE_CHECKSUM as u8));
     ops.push(Op::Push(2));
@@ -526,7 +531,7 @@ fn mwocp(subargs: MwocpArgs, context: &mut ExecutionContext) -> Result<()> {
 
     match status.get_checksum_successful() {
         Some(BOOT_LOADER_STATUS::ChecksumSuccessful::Successful) => {
-            msg!("checksum successful!");
+            info!(log, "checksum successful!");
         }
         Some(BOOT_LOADER_STATUS::ChecksumSuccessful::NotSuccessful) => {
             bail!("checksum was not successful!");
@@ -534,7 +539,7 @@ fn mwocp(subargs: MwocpArgs, context: &mut ExecutionContext) -> Result<()> {
         None => panic!(),
     }
 
-    msg!("resetting PSU");
+    info!(log, "resetting PSU");
 
     let mut ops = base.clone();
     ops.push(Op::Push(CommandCode::BOOT_LOADER_STATUS as u8));
@@ -570,7 +575,7 @@ fn mwocp(subargs: MwocpArgs, context: &mut ExecutionContext) -> Result<()> {
     check_boot_loader(&results[0], BOOT_LOADER_STATUS::Mode::NotBootLoader)?;
     let revision = str_result(&results[1], "MFR_REVISION")?;
 
-    msg!("update complete; revision is now {revision}");
+    info!(log, "update complete; revision is now {revision}");
 
     Ok(())
 }

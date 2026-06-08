@@ -8,10 +8,11 @@ use humility_probes_core::HubrisAttach;
 fn main() {
     let hubris = std::env::var("HUMILITY_ARCHIVE").unwrap();
     let probe = std::env::var("HUMILITY_PROBE").unwrap();
+    let log = humility::log::init(false);
 
-    let hubris = HubrisArchive::load_from_path(&hubris).unwrap();
+    let hubris = HubrisArchive::load_from_path(&hubris, &log).unwrap();
 
-    let core = &mut hubris.attach_probe(&probe).unwrap();
+    let core = &mut hubris.attach_probe(&probe, &log).unwrap();
 
     // Read the first VPD
     let target = humility_vpd_lib::VpdTarget::Device(0);
@@ -21,6 +22,7 @@ fn main() {
         core,
         target,
         std::time::Duration::from_millis(10000),
+        &log,
     )
     .unwrap();
 

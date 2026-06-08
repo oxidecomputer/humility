@@ -97,6 +97,7 @@
 use anyhow::{Result, bail};
 use clap::Parser;
 use humility::hubris::*;
+use humility::log::info;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_jefe::{JefeRequest, send_request};
 use std::num::NonZeroU32;
@@ -132,6 +133,7 @@ pub struct JefeArgs {
 
 fn jefe(subargs: JefeArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     let request = if subargs.fault {
@@ -163,7 +165,7 @@ fn jefe(subargs: JefeArgs, context: &mut ExecutionContext) -> Result<()> {
 
     send_request(hubris, core, request, id, subargs.timeout)?;
 
-    humility::msg!("successfully changed disposition for {}", subargs.task);
+    info!(log, "successfully changed disposition for {}", subargs.task);
 
     Ok(())
 }

@@ -17,6 +17,7 @@ use termios::Termios;
 
 use humility::core::Core;
 use humility::hubris::HubrisArchive;
+use humility::log::Logger;
 use humility_cli::ExecutionContext;
 use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument};
@@ -39,8 +40,9 @@ impl<'a> UartConsoleHandler<'a> {
         core: &'a mut dyn Core,
         hiffy_timeout: Duration,
         poll_interval: Duration,
+        log: &Logger,
     ) -> Result<Self> {
-        let context = HiffyContext::new(hubris, core, hiffy_timeout)?;
+        let context = HiffyContext::new(hubris, core, hiffy_timeout, log)?;
         Ok(Self { hubris, core, context, poll_interval })
     }
 
@@ -268,8 +270,13 @@ pub(super) fn console_proxy(
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let hiffy_timeout = Duration::from_millis(subargs.hiffy_timeout);
     let poll_interval = Duration::from_millis(subargs.poll_interval);
-    let mut worker =
-        UartConsoleHandler::new(hubris, core, hiffy_timeout, poll_interval)?;
+    let mut worker = UartConsoleHandler::new(
+        hubris,
+        core,
+        hiffy_timeout,
+        poll_interval,
+        context.log(),
+    )?;
 
     match subargs.cmd {
         UartConsoleCommand::Attach { raw, imap, omap, log } => {

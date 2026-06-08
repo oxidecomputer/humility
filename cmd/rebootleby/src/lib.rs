@@ -12,7 +12,10 @@
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
-use humility::core::Core;
+use humility::{
+    core::Core,
+    log::{Logger, debug, info, warn},
+};
 use humility_arch_arm::ARMRegister;
 use humility_cli::{ExecutionContext, humility_cmd};
 use std::io::Read;
@@ -78,22 +81,23 @@ fn rebootleby(
         .try_into()
         .map_err(|_| anyhow!("CFPA file is wrong length!"))?;
 
-    humility::msg!("Loaded bundle {}", subargs.path.display());
+    let log = context.log();
+    info!(log, "Loaded bundle {}", subargs.path.display());
 
     if !subargs.yes_really {
-        humility::msg!("!!! This is a potentially dangerous operation");
-        humility::msg!("!!! Pass --yes-really to be extra cautious");
+        info!(log, "!!! This is a potentially dangerous operation");
+        info!(log, "!!! Pass --yes-really to be extra cautious");
         bail!("Re-run with appropriate flag");
     }
 
     let mut core = context.cli.attach_probe(None)?;
-    let mut flash = FlashHack { core: &mut core };
+    let mut flash = FlashHack { core: &mut core, log: log.clone() };
 
-    humility::msg!("Connected to core.");
+    info!(log, "Connected to core.");
 
     flash.prep()?;
 
-    humility::msg!("Beginning Bootleby image reprogramming.");
+    info!(log, "Beginning Bootleby image reprogramming.");
     for (i, chunk) in img_bootleby.chunks(512).enumerate() {
         let addr = i as u32 * 512;
         let mut buffer = chunk.to_vec();
@@ -107,22 +111,22 @@ fn rebootleby(
             .write_page(addr >> 4, &buffer.try_into().unwrap())
             .with_context(|| format!("failed to write page at {addr:#x}"))?;
     }
-    humility::msg!("Done.");
-    humility::msg!("Beginning CFPA sector reprogramming.");
+    info!(log, "Done.");
+    info!(log, "Beginning CFPA sector reprogramming.");
     for addr in [0x9de00, 0x9e000, 0x9e200] {
-        humility::msg!("beginning erase at {addr:#x}");
+        info!(log, "beginning erase at {addr:#x}");
         flash
             .erase_region(addr >> 4..=(addr + 511) >> 4)
             .with_context(|| format!("failed to erase page at {addr:#x}"))?;
-        humility::msg!("beginning write at {addr:#x}");
+        info!(log, "beginning write at {addr:#x}");
         flash
             .write_page(addr >> 4, img_cfpa)
             .with_context(|| format!("failed to write page at {addr:#x}"))?;
-        humility::msg!("done; sleeping");
+        info!(log, "done; sleeping");
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    humility::msg!("Done.");
-    humility::msg!("Beginning CMPA reprogramming.");
+    info!(log, "Done.");
+    info!(log, "Beginning CMPA reprogramming.");
     {
         let addr = 0x9e400;
         flash
@@ -132,8 +136,8 @@ fn rebootleby(
             .write_page(addr >> 4, img_cmpa)
             .with_context(|| format!("failed to write page at {addr:#x}"))?;
     }
-    humility::msg!("Done.");
-    humility::msg!("Good luck.");
+    info!(log, "Done.");
+    info!(log, "Good luck.");
 
     Ok(())
 }
@@ -148,6 +152,7 @@ const BANKENABLESETTINGS: u32 = 0xaa0;
 
 struct FlashHack<'a> {
     core: &'a mut dyn Core,
+    log: Logger,
 }
 
 impl FlashHack<'_> {
@@ -179,7 +184,7 @@ impl FlashHack<'_> {
     }
 
     fn erase_region(&mut self, range: RangeInclusive<u32>) -> Result<()> {
-        humility::msg!("erasing {range:#x?}");
+        info!(self.log, "erasing {range:#x?}");
         self.clear_status_flags()?;
         self.set_word_range(*range.start(), *range.end())?;
         self.cmd(CMD_ERASE_RANGE)?;
@@ -193,7 +198,7 @@ impl FlashHack<'_> {
         contents: &[u8; 512],
     ) -> Result<()> {
         for (i, chunk) in contents.chunks_exact(16).enumerate() {
-            log::debug!("writing {word_address:#x?} chunk {i}");
+            debug!(self.log, "writing {word_address:#x?} chunk {i}");
             self.clear_status_flags()?;
             self.set_word_range(i as u32, i as u32)?;
             for (j, word) in chunk.chunks_exact(4).enumerate() {
@@ -207,7 +212,7 @@ impl FlashHack<'_> {
             self.await_done(0b0101)?;
         }
 
-        humility::msg!("programming {word_address:#x?}");
+        info!(self.log, "programming {word_address:#x?}");
         self.clear_status_flags()?;
         self.set_word_range(word_address, word_address)?;
         self.cmd(CMD_PROGRAM)?;
@@ -216,7 +221,7 @@ impl FlashHack<'_> {
 
     fn await_done(&mut self, mask: u32) -> Result<()> {
         let mask = mask | 4;
-        log::debug!("awaiting done code");
+        debug!(self.log, "awaiting done code");
         for _retry in 0..100_000 {
             let v = self.peek(INT_STATUS)?;
             if v != 0 {
@@ -254,7 +259,8 @@ impl FlashHack<'_> {
             if read_back == value {
                 return Ok(());
             }
-            humility::warn!(
+            warn!(
+                self.log,
                 "warning: wrote {value:#x} to address {addr:#x} but read back {read_back:#x}, retrying"
             );
         }
@@ -268,7 +274,7 @@ impl FlashHack<'_> {
                 Err(e) => {
                     let text = format!("{e:?}");
                     if text.contains("WAIT") {
-                        humility::msg!("Got wait");
+                        info!(self.log, "Got wait");
                         std::thread::sleep(Duration::from_millis(10));
                         continue;
                     } else {
@@ -286,7 +292,7 @@ impl FlashHack<'_> {
                 Err(e) => {
                     let text = format!("{e:?}");
                     if text.contains("WAIT") {
-                        humility::msg!("Got wait");
+                        info!(self.log, "Got wait");
                         std::thread::sleep(Duration::from_millis(10));
                         continue;
                     } else {

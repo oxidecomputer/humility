@@ -12,6 +12,7 @@
 use hif::Op;
 use humility::core::Core;
 use humility::hubris::{HubrisArchive, HubrisI2cDevice};
+use humility::log::Logger;
 use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument, IdolDecodeError};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -128,10 +129,11 @@ pub fn vpd_list<'a>(
     core: &mut dyn Core,
     timeout: std::time::Duration,
     read_data: bool,
+    log: &Logger,
 ) -> Result<Vec<VpdEntry<'a>>, VpdError> {
     let devices = vpd_devices(hubris).collect::<Vec<_>>();
-    let mut context =
-        HiffyContext::new(hubris, core, timeout).map_err(VpdError::Hiffy)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)
+        .map_err(VpdError::Hiffy)?;
 
     let locked_op =
         hubris.get_idol_command("Vpd.is_locked").map_err(VpdError::Idol)?;
@@ -182,8 +184,9 @@ pub fn vpd_write(
     target: VpdTarget,
     timeout: std::time::Duration,
     write: &Path,
+    log: &Logger,
 ) -> Result<(), VpdError> {
-    vpd_erase_write(hubris, core, target, timeout, Some(write))
+    vpd_erase_write(hubris, core, target, timeout, Some(write), log)
 }
 
 /// Erase the entire VPD (write as `0xff`)
@@ -192,8 +195,9 @@ pub fn vpd_erase(
     core: &mut dyn Core,
     target: VpdTarget,
     timeout: std::time::Duration,
+    log: &Logger,
 ) -> Result<(), VpdError> {
-    vpd_erase_write(hubris, core, target, timeout, None)
+    vpd_erase_write(hubris, core, target, timeout, None, log)
 }
 
 /// Return value from `vpd_lock_all`
@@ -209,8 +213,9 @@ pub fn vpd_lock_all(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     timeout: std::time::Duration,
+    log: &Logger,
 ) -> Result<VpdLockStatus, VpdError> {
-    let devices = vpd_list(hubris, core, timeout, true)?;
+    let devices = vpd_list(hubris, core, timeout, true, log)?;
 
     let mut locking = vec![];
     for d in devices {
@@ -230,8 +235,8 @@ pub fn vpd_lock_all(
         }
     }
 
-    let mut context =
-        HiffyContext::new(hubris, core, timeout).map_err(VpdError::Idol)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)
+        .map_err(VpdError::Idol)?;
 
     let mut ops = vec![];
     let lock_op = hubris
@@ -272,9 +277,10 @@ pub fn vpd_lock(
     core: &mut dyn Core,
     target: VpdTarget,
     timeout: std::time::Duration,
+    log: &Logger,
 ) -> Result<(), VpdError> {
-    let mut context =
-        HiffyContext::new(hubris, core, timeout).map_err(VpdError::Hiffy)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)
+        .map_err(VpdError::Hiffy)?;
 
     let op = hubris
         .get_idol_command("Vpd.permanently_lock")
@@ -308,9 +314,10 @@ pub fn vpd_read(
     core: &mut dyn Core,
     target: VpdTarget,
     timeout: std::time::Duration,
+    log: &Logger,
 ) -> Result<Vec<u8>, VpdError> {
-    let mut context =
-        HiffyContext::new(hubris, core, timeout).map_err(VpdError::Hiffy)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)
+        .map_err(VpdError::Hiffy)?;
 
     vpd_slurp(core, &mut context, hubris, &target)
 }
@@ -322,9 +329,10 @@ fn vpd_erase_write(
     target: VpdTarget,
     timeout: std::time::Duration,
     write: Option<&Path>,
+    log: &Logger,
 ) -> Result<(), VpdError> {
-    let mut context =
-        HiffyContext::new(hubris, core, timeout).map_err(VpdError::Hiffy)?;
+    let mut context = HiffyContext::new(hubris, core, timeout, log)
+        .map_err(VpdError::Hiffy)?;
     let op = hubris.get_idol_command("Vpd.write").map_err(VpdError::Idol)?;
 
     let (bytes, erase) = if let Some(filename) = write {

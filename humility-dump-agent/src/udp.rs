@@ -3,16 +3,24 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 use crate::DumpAgent;
 use anyhow::{Context, Result, anyhow, bail};
-use humility::core::{Core, NetAgent};
+use humility::{
+    core::{Core, NetAgent},
+    log::{Logger, info, warn},
+};
 use rand::RngExt;
 
 pub struct UdpDumpAgent<'a> {
     core: &'a mut dyn Core,
+    log: Logger,
 }
 
 impl<'a> UdpDumpAgent<'a> {
-    pub fn new(core: &'a mut dyn Core, image_id: &[u8]) -> Result<Self> {
-        let mut udp_dump = Self { core };
+    pub fn new(
+        core: &'a mut dyn Core,
+        image_id: &[u8],
+        log: &Logger,
+    ) -> Result<Self> {
+        let mut udp_dump = Self { core, log: log.clone() };
 
         udp_dump.check_imageid(image_id)?;
         Ok(udp_dump)
@@ -116,7 +124,8 @@ impl<'a> UdpDumpAgent<'a> {
                     );
                 }
 
-                humility::warn!(
+                warn!(
+                    self.log,
                     "can't verify image ID in target; image mismatch possible!"
                 );
             }
@@ -184,7 +193,7 @@ impl DumpAgent for UdpDumpAgent<'_> {
     }
 
     fn take_dump(&mut self) -> Result<()> {
-        humility::msg!("taking dump; target will be stopped for ~20 seconds");
+        info!(self.log, "taking dump; target will be stopped for ~20 seconds");
         let r = self.dump_remote_action(humpty::udp::Request::TakeDump)?;
         match r {
             Ok(humpty::udp::Response::TakeDump) => Ok(()),

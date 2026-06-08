@@ -114,6 +114,7 @@ use hif::*;
 
 use humility::core::Core;
 use humility::hubris::*;
+use humility::log::Logger;
 use humility_hiffy::HiffyContext;
 
 #[derive(Parser, Debug)]
@@ -150,9 +151,10 @@ impl<'a> IbcHandler<'a> {
         hubris: &'a HubrisArchive,
         core: &'a mut dyn Core,
         hiffy_timeout: u64,
+        log: &Logger,
     ) -> Result<Self> {
         let hiffy_timeout = std::time::Duration::from_millis(hiffy_timeout);
-        let context = HiffyContext::new(hubris, core, hiffy_timeout)?;
+        let context = HiffyContext::new(hubris, core, hiffy_timeout, log)?;
         Ok(Self { hubris, core, context })
     }
 
@@ -515,8 +517,9 @@ struct IbcEvent {
 
 fn ibc(subargs: IbcArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_booted(hubris)?;
-    let mut worker = IbcHandler::new(hubris, core, subargs.timeout)?;
+    let mut worker = IbcHandler::new(hubris, core, subargs.timeout, log)?;
 
     match subargs.cmd {
         IbcSubcommand::BlackBox { verbose } => {

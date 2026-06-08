@@ -8,6 +8,7 @@ use crate::archive::ArchiveCore;
 use crate::dump::DumpCore;
 use crate::hubris::*;
 use humility_arch_arm::ARMRegister;
+use humility_log::{Logger, info};
 use std::str;
 use std::time::Duration;
 use thiserror::Error;
@@ -92,15 +93,18 @@ pub enum NetAgent {
     Hiffy,
 }
 
-pub fn attach_dump(dump: &str) -> Result<DumpCore> {
+pub fn attach_dump(dump: &str, log: &Logger) -> Result<DumpCore> {
     let core = DumpCore::new(dump)?;
-    crate::msg!("attached to dump");
+    info!(log, "attached to dump");
     Ok(core)
 }
 
-pub fn attach_archive(hubris: &HubrisArchive) -> Result<ArchiveCore> {
+pub fn attach_archive(
+    hubris: &HubrisArchive,
+    log: &Logger,
+) -> Result<ArchiveCore> {
     let core = ArchiveCore::new(hubris)?;
-    crate::msg!("attached to archive");
+    info!(log, "attached to archive");
     Ok(core)
 }
 

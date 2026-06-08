@@ -28,6 +28,7 @@ use crossterm::{
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
+use humility::log::Logger;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
@@ -397,9 +398,10 @@ impl<'a> Dashboard<'a> {
         hubris: &'a HubrisArchive,
         core: &mut dyn Core,
         subargs: &DashboardArgs,
+        log: &Logger,
     ) -> Result<Dashboard<'a>> {
         let timeout = Duration::from_millis(subargs.timeout);
-        let mut context = HiffyContext::new(hubris, core, timeout)?;
+        let mut context = HiffyContext::new(hubris, core, timeout, log)?;
         let mut ops = vec![];
 
         let mut status_ops = vec![];
@@ -742,7 +744,7 @@ fn dashboard(
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
-    let dashboard = Dashboard::new(hubris, core, &subargs)?;
+    let dashboard = Dashboard::new(hubris, core, &subargs, context.log())?;
 
     // setup terminal
     enable_raw_mode()?;

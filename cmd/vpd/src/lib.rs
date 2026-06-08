@@ -103,6 +103,7 @@ use anyhow::{Result, bail};
 use clap::{ArgGroup, Parser};
 use humility::core::Core;
 use humility::hubris::*;
+use humility::log::{Logger, info};
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hexdump::Dumper;
 use humility_vpd_lib::VpdTarget;
@@ -194,8 +195,9 @@ fn list(
     core: &mut dyn Core,
     timeout: Duration,
     read: bool,
+    log: &Logger,
 ) -> Result<()> {
-    let results = humility_vpd_lib::vpd_list(hubris, core, timeout, read)?;
+    let results = humility_vpd_lib::vpd_list(hubris, core, timeout, read, log)?;
 
     println!(
         "{:2} {:>2} {:2} {:3} {:4} {:13} {:25} LOCKED",
@@ -308,8 +310,9 @@ fn vpd_read(
     target: VpdTarget,
     timeout: Duration,
     output: OutputOption,
+    log: &Logger,
 ) -> Result<()> {
-    let vpd = humility_vpd_lib::vpd_read(hubris, core, target, timeout)?;
+    let vpd = humility_vpd_lib::vpd_read(hubris, core, target, timeout, log)?;
 
     //
     // Now we should have the whole thing!
@@ -342,23 +345,24 @@ fn vpd_read(
 
 fn vpd(subargs: VpdArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
+    let log = context.log();
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let timeout = Duration::from_millis(subargs.timeout);
 
     // These commands don't take a target so check them first
     if subargs.list {
-        list(hubris, core, timeout, subargs.read)?;
+        list(hubris, core, timeout, subargs.read, log)?;
         return Ok(());
     } else if subargs.lock_all {
         if subargs.allow_missing {
             bail!("--allow-missing is deprecated");
         }
-        match humility_vpd_lib::vpd_lock_all(hubris, core, timeout)? {
+        match humility_vpd_lib::vpd_lock_all(hubris, core, timeout, log)? {
             humility_vpd_lib::VpdLockStatus::AlreadyLocked => {
-                humility::msg!("all VPDs are already locked");
+                info!(log, "all VPDs are already locked");
             }
             humility_vpd_lib::VpdLockStatus::Count(count) => {
-                humility::msg!("successfully locked {count} VPDs");
+                info!(log, "successfully locked {count} VPDs");
             }
         }
         return Ok(());
@@ -367,11 +371,11 @@ fn vpd(subargs: VpdArgs, context: &mut ExecutionContext) -> Result<()> {
     let target = target(hubris, &subargs)?;
 
     if let Some(path) = subargs.write {
-        humility_vpd_lib::vpd_write(hubris, core, target, timeout, &path)?;
-        humility::msg!("successfully wrote VPD");
+        humility_vpd_lib::vpd_write(hubris, core, target, timeout, &path, log)?;
+        info!(log, "successfully wrote VPD");
     } else if subargs.erase {
-        humility_vpd_lib::vpd_erase(hubris, core, target, timeout)?;
-        humility::msg!("successfully erased VPD");
+        humility_vpd_lib::vpd_erase(hubris, core, target, timeout, log)?;
+        info!(log, "successfully erased VPD");
     } else if subargs.read {
         let options = if subargs.raw {
             OutputOption::Raw
@@ -380,10 +384,10 @@ fn vpd(subargs: VpdArgs, context: &mut ExecutionContext) -> Result<()> {
         } else {
             OutputOption::Tlvc
         };
-        vpd_read(hubris, core, target, timeout, options)?;
+        vpd_read(hubris, core, target, timeout, options, log)?;
     } else if subargs.lock {
-        humility_vpd_lib::vpd_lock(hubris, core, target, timeout)?;
-        humility::msg!("successfully locked VPD");
+        humility_vpd_lib::vpd_lock(hubris, core, target, timeout, log)?;
+        info!(log, "successfully locked VPD");
     } else {
         bail!("expected a command");
     }

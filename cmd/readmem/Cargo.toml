@@ -8,7 +8,6 @@ description = "read and display memory region"
 humility = { workspace = true }
 humility-cli = { workspace = true }
 humility-hexdump = { workspace = true }
-humility-log = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
 parse_int = { workspace = true }

@@ -7,7 +7,7 @@
 //! The main entry point is [`validate_all`].
 #![warn(missing_docs)]
 
-use humility::{core::Core, hubris::HubrisArchive};
+use humility::{core::Core, hubris::HubrisArchive, log::Logger};
 use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument, IdolDecodeError, IdolError};
 
@@ -133,8 +133,9 @@ pub fn validate_by_index(
     core: &mut dyn Core,
     devices: &[usize],
     timeout: std::time::Duration,
+    log: &Logger,
 ) -> Result<Vec<ValidateResult>, Error> {
-    let mut context = HiffyContext::new(hubris, core, timeout)
+    let mut context = HiffyContext::new(hubris, core, timeout, log)
         .map_err(Error::CouldNotBuildContext)?;
     let op = hubris
         .get_idol_command("Validate.validate_i2c")
@@ -241,7 +242,8 @@ pub fn validate_all(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     timeout: std::time::Duration,
+    log: &Logger,
 ) -> Result<Vec<ValidateResult>, Error> {
     let devices = (0..hubris.manifest.i2c_devices.len()).collect::<Vec<_>>();
-    validate_by_index(hubris, core, &devices, timeout)
+    validate_by_index(hubris, core, &devices, timeout, log)
 }
