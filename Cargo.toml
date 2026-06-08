@@ -8,6 +8,7 @@ members = [
     "humility-arch-cortex",
     "humility-auxflash",
     "humility-bin",
+    "humility-caboose",
     "humility-cli",
     "humility-core",
     "humility-doppel",
@@ -26,6 +27,7 @@ members = [
     "humility-validate",
     "humility-vpd-lib",
     "cmd/auxflash",
+    "cmd/caboose",
     "cmd/console-proxy",
     "cmd/counters",
     "cmd/dashboard",
@@ -116,6 +118,7 @@ humility = { path = "./humility-core", package = "humility-core" }
 humility-arch-arm = { path = "./humility-arch-arm" }
 humility-auxflash = { path = "./humility-auxflash" }
 humility-cortex = { path = "./humility-arch-cortex" }
+humility-caboose = { path = "./humility-caboose" }
 humility-cli = { path = "./humility-cli", default-features = false }
 humility-doppel = { path = "./humility-doppel" }
 humility-dump-agent = { path = "./humility-dump-agent" }
@@ -134,6 +137,7 @@ humility-stack = { path = "./humility-stack" }
 humility-validate = { path = "./humility-validate" }
 humility-vpd-lib = { path = "./humility-vpd-lib" }
 cmd-auxflash = { path = "./cmd/auxflash", package = "humility-cmd-auxflash" }
+cmd-caboose = { path = "./cmd/caboose", package = "humility-cmd-caboose" }
 cmd-console-proxy = { path = "./cmd/console-proxy", package = "humility-cmd-console-proxy" }
 cmd-counters = { path = "./cmd/counters", package = "humility-cmd-counters" }
 cmd-dashboard = { path = "./cmd/dashboard", package = "humility-cmd-dashboard" }

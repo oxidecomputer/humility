@@ -35,6 +35,7 @@ humility = { workspace = true }
 humility-cortex = { workspace = true }
 humility-cli = { workspace = true, default-features = false }
 cmd-auxflash = { workspace = true }
+cmd-caboose = { workspace = true }
 cmd-console-proxy = { workspace = true }
 cmd-counters = { workspace = true }
 cmd-dashboard = { workspace = true }

@@ -233,6 +233,7 @@ a specified target.  (In the above example, one could execute `humility
 ## Commands
 
 - [humility auxflash](#humility-auxflash): manipulate auxiliary flash
+- [humility caboose](#humility-caboose): read from the caboose
 - [humility console-proxy](#humility-console-proxy): SP/host console uart proxy
 - [humility counters](#humility-counters): display event counters
 - [humility dashboard](#humility-dashboard): dashboard for Hubris sensor data
@@ -293,6 +294,11 @@ Tools to interact with the auxiliary flash, described in RFD 311.
 
 This subcommand should be rarely used; `humility flash` will automatically
 program auxiliary flash when needed.
+
+
+### `humility caboose`
+
+Tools to read from the caboose (without an archive)
 
 
 ### `humility console-proxy`
