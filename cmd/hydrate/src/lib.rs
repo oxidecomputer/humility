@@ -175,18 +175,18 @@ fn run(subargs: HydrateArgs, context: &mut ExecutionContext) -> Result<()> {
     }
     let mut core = DryCore { mem, flash: HubrisFlashMap::new(archive)? };
 
-    archive.dump(
-        &mut core,
-        Some(humpty::DumpTask {
-            magic: humpty::DUMP_TASK_MAGIC,
-            id: info.task_index,
-            pad: 0u32,
-            time: info.crash_time,
-        }),
-        subargs.out.as_deref(),
-        Some(std::time::Instant::now()),
-        log,
-    )
+    let t = Some(humpty::DumpTask {
+        magic: humpty::DUMP_TASK_MAGIC,
+        id: info.task_index,
+        pad: 0u32,
+        time: info.crash_time,
+    });
+
+    let (filename, mut file) =
+        humility_dump::open_dump_file(archive, t, subargs.out.as_deref())?;
+
+    info!(log, "dumping to {filename:?}");
+    archive.dump(&mut core, t, &mut file, Some(std::time::Instant::now()), log)
 }
 
 humility_cmd!(HydrateArgs, run);

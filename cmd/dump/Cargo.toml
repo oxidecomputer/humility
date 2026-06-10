@@ -21,3 +21,4 @@ humility.workspace = true
 humility-cli.workspace = true
 humility-dump-agent.workspace = true
 humility-arch-arm.workspace = true
+humility-dump.workspace = true

@@ -1866,7 +1866,7 @@ dependencies = [
 
 [[package]]
 name = "humility-bin"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -2080,6 +2080,7 @@ dependencies = [
  "humility-cli",
  "humility-core",
  "humility-doppel",
+ "humility-dump",
  "humility-jefe",
  "parse_int",
 ]
@@ -2121,6 +2122,7 @@ dependencies = [
  "humility-arch-arm",
  "humility-cli",
  "humility-core",
+ "humility-dump",
  "humility-dump-agent",
  "humpty",
  "indexmap 2.14.0",
@@ -2271,6 +2273,7 @@ dependencies = [
  "humility-arch-arm",
  "humility-cli",
  "humility-core",
+ "humility-dump",
  "humpty",
  "serde",
  "serde_json",
@@ -2887,6 +2890,20 @@ dependencies = [
  "indexmap 2.14.0",
  "serde",
  "zerocopy",
+]
+
+[[package]]
+name = "humility-dump"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "humility-core",
+ "humility-dump-agent",
+ "humility-log",
+ "humility-net-core",
+ "humpty",
+ "slog",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

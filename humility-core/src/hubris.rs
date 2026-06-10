@@ -11,10 +11,10 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, btree_map};
 use std::convert::TryInto;
 use std::fmt::{self, Write};
-use std::fs::{self, OpenOptions};
+use std::fs::{self};
 use std::mem::size_of;
 use std::num::TryFromIntError;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::str::{self, FromStr};
 use std::time::Instant;
 
@@ -3240,13 +3240,12 @@ impl HubrisArchive {
         &self,
         core: &mut dyn crate::core::Core,
         task: Option<DumpTask>,
-        dumpfile: Option<&Path>,
+        mut file: impl std::io::Write,
         started: Option<Instant>,
         log: &Logger,
     ) -> Result<()> {
         use indicatif::{HumanBytes, HumanDuration};
         use indicatif::{ProgressBar, ProgressStyle};
-        use std::io::Write;
 
         let segments = self.dump_segments(core, task, true)?;
         let nsegs = segments.len();
@@ -3317,32 +3316,9 @@ impl HubrisArchive {
         let mut offset = header.e_phoff as u32
             + (header.e_phentsize * header.e_phnum) as u32;
 
-        let filename = match dumpfile {
-            Some(filename) => filename.to_owned(),
-            None => {
-                let prefix = match task {
-                    Some(task) => {
-                        let t = HubrisTask::Task(task.id as u32);
-                        format!("hubris.core.{}.", self.lookup_module(t)?.name)
-                    }
-                    None => "hubris.core.".to_string(),
-                };
-
-                (0..)
-                    .map(|i| PathBuf::from(format!("{prefix}{i}")))
-                    .find(|f| !f.exists())
-                    .unwrap()
-            }
-        };
-
         //
         // Write our ELF header
         //
-        let mut file =
-            OpenOptions::new().write(true).create_new(true).open(&filename)?;
-
-        info!(log, "dumping to {filename:?}");
-
         file.iowrite_with(header, ctx)?;
 
         let mut bytes = [0x0u8; goblin::elf32::program_header::SIZEOF_PHDR];
