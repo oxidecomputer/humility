@@ -229,7 +229,7 @@ impl Cli {
         hubris: Option<&HubrisArchive>,
     ) -> Result<humility_probes_core::ProbeCore> {
         let probe = self.probe.as_deref().unwrap_or("auto");
-        let chip = hubris.and_then(|h| h.chip());
+        let chip = hubris.map(|h| h.chip()).transpose()?.flatten();
         humility_probes_core::attach_to_chip(
             probe,
             chip.as_deref(),

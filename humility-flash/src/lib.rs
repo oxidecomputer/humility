@@ -31,11 +31,11 @@ pub enum ImageStateError {
 
     /// Could not call [`Core::run`]
     #[error("run failed")]
-    CouldNotRun(#[source] anyhow::Error),
+    RunFailed(#[source] anyhow::Error),
 
     /// Could not call [`Core::halt`]
     #[error("halt failed")]
-    CouldNotHalt(#[source] anyhow::Error),
+    HaltFailed(#[source] anyhow::Error),
 
     /// Could not build an [`AuxFlashHandler`]
     #[error("could not build auxflash handler")]
@@ -90,7 +90,7 @@ pub fn get_image_state(
     check_type: ImageCheckType,
     log: &Logger,
 ) -> Result<ImageStateResult, ImageStateError> {
-    core.halt().map_err(ImageStateError::CouldNotHalt)?;
+    core.halt().map_err(ImageStateError::HaltFailed)?;
 
     // First pass: check only the image ID
     if let Err(e) = hubris.validate(core, HubrisValidate::ArchiveMatch) {
@@ -117,7 +117,7 @@ pub fn get_image_state(
         //
         // However, we want it halted before we exit this function, which
         // requires careful handling of functions that could bail out.
-        core.run().map_err(ImageStateError::CouldNotRun)?;
+        core.run().map_err(ImageStateError::RunFailed)?;
 
         // Note that we only run this check if we pass the image ID check;
         // otherwise, the Idol / hiffy memory maps are unknown.
@@ -130,7 +130,7 @@ pub fn get_image_state(
             Ok(w) => w,
             Err(e) => {
                 // Halt the core before returning!
-                core.halt().map_err(ImageStateError::CouldNotHalt)?;
+                core.halt().map_err(ImageStateError::HaltFailed)?;
                 return Err(ImageStateError::CouldNotBuildHandler(e));
             }
         };
@@ -146,7 +146,7 @@ pub fn get_image_state(
         };
 
         // Halt the core before returning results
-        core.halt().map_err(ImageStateError::CouldNotHalt)?;
+        core.halt().map_err(ImageStateError::HaltFailed)?;
         r
     } else {
         Ok(ImageStateResult::Matches)
@@ -263,4 +263,94 @@ pub fn program_auxflash(
             before: false,
         }),
     }
+}
+
+/// Success type returned from [`program_image`]
+pub struct ProgramImageSuccess {
+    /// Result of programming the auxiliary flash (if relevant)
+    pub auxflash: Option<ProgramAuxflashSuccess>,
+}
+
+/// Error type returned from [`program_image`]
+#[derive(Debug, thiserror::Error)]
+pub enum ProgramImageError {
+    /// Could not call [`Core::halt`]
+    #[error("halt failed")]
+    HaltFailed(#[source] anyhow::Error),
+
+    /// Could not call [`ProbeCore::load`]
+    #[error("load failed")]
+    CouldNotLoad(#[source] humility_probes_core::LoadError),
+
+    /// Failed to call [`ProbeCore::reset`]
+    #[error("reset failed")]
+    ResetFailed(#[source] anyhow::Error),
+
+    /// Could not read auxflash data from archive
+    #[error("could not read auxflash data from archive")]
+    CouldNotReadAuxflashData(#[source] anyhow::Error),
+
+    /// Could not read ELF data using [`HubrisArchive::load_flash_elf`]
+    #[error("could not read image ELF data from archive")]
+    CouldNotReadElfData(#[source] anyhow::Error),
+
+    /// Error while programming auxflash
+    #[error("failed to program auxflash; your system may not be functional")]
+    Auxflash(#[from] ProgramAuxflashError),
+}
+
+/// Write an image (including auxflash) to a particular probe
+pub fn program_image(
+    hubris: &HubrisArchive,
+    core: &mut ProbeCore,
+    reset_delay: Option<std::time::Duration>,
+    log: &Logger,
+) -> Result<ProgramImageSuccess, ProgramImageError> {
+    // The core may already be halted, but this is idempotent
+    core.halt().map_err(ProgramImageError::HaltFailed)?;
+
+    //
+    // Load the flash image.  If that fails, we're in a world of hurt:  we
+    // really don't want to run the core for fear of masking the initial
+    // error.  (It will hopefully be pretty clear to the user that a
+    // half-flashed part is going to be in an ill-defined state!)
+    //
+    let elf = hubris
+        .load_flash_elf()
+        .map_err(ProgramImageError::CouldNotReadElfData)?;
+    core.load(&elf).map_err(ProgramImageError::CouldNotLoad)?;
+
+    //
+    // On Gimlet Rev B, the BOOT0 pin is unstrapped -- and during a flash,
+    // it seems to float high enough to bounce the part onto the wrong
+    // image (that is, the BOOT1 image -- which by default is the ST
+    // bootloader).  This seems to only be true when resetting immediately
+    // after flashing the part:  if there is a delay on the order of ~35
+    // milliseconds or more, the BOOT0 pin is seen as low when the part
+    // resets.  Because this delay is (more or less) harmless, we do it on
+    // all platforms, and further make it tunable.
+    //
+    if let Some(d) = reset_delay {
+        std::thread::sleep(d);
+    }
+
+    // Reset, using the handoff token if present in the archive
+    core.reset_with_handoff(hubris, log)
+        .map_err(ProgramImageError::ResetFailed)?;
+
+    // At this point, we can attempt to program the auxiliary flash.  This has
+    // to happen *after* the image is flashed and the core is reset, because it
+    // uses hiffy calls to the `auxflash` task to actually do the programming;
+    // because we have no knowledge of the archive previously flashed onto the
+    // chip, we couldn't do hiffy calls before flashing.
+    //
+    // This is called out in RFD 311 as a weakness of our approach!
+    let auxflash = hubris
+        .read_auxflash_data()
+        .map_err(ProgramImageError::CouldNotReadAuxflashData)?
+        .map(|auxflash| program_auxflash(hubris, core, &auxflash, log))
+        .transpose()
+        .map_err(ProgramImageError::Auxflash)?;
+
+    Ok(ProgramImageSuccess { auxflash })
 }

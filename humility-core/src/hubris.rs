@@ -1645,7 +1645,31 @@ impl HubrisArchive {
         })
     }
 
+    /// Returns a [`HubrisFlashConfig`] from data in the archive
     pub fn load_flash_config(&self) -> Result<HubrisFlashConfig> {
+        let metadata = self.load_flash_meta()?;
+
+        // This is incredibly ugly! It also gives us backwards compatibility!
+        let chip: Option<String> = match metadata.chip {
+            Some(ref chip) => Some(chip.to_string()),
+            None => bail!("must specify a chip in your config"),
+        };
+
+        Ok(HubrisFlashConfig {
+            metadata,
+            elf: self.hubris_archive.extract_file("img/final.elf")?,
+            chip,
+        })
+    }
+
+    /// Returns the ELF file data to be programmed
+    pub fn load_flash_elf(&self) -> Result<Vec<u8>> {
+        let data = self.hubris_archive.extract_file("img/final.elf")?;
+        Ok(data)
+    }
+
+    /// Returns [`HubrisFlashMeta`] from the archive
+    pub fn load_flash_meta(&self) -> Result<HubrisFlashMeta> {
         let flash_ron = self
             .hubris_archive
             .extract_file("img/flash.ron")
@@ -1659,30 +1683,12 @@ impl HubrisArchive {
         let config: HubrisFlashMeta = ron::options::Options::default()
             .with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
             .from_bytes(&flash_ron)?;
-
-        // This is incredibly ugly! It also gives us backwards compatibility!
-        let chip: Option<String> = match config.chip {
-            Some(ref chip) => Some(chip.to_string()),
-            None => bail!("must specify a chip in your config"),
-        };
-
-        Ok(HubrisFlashConfig {
-            metadata: config,
-            elf: self.hubris_archive.extract_file("img/final.elf")?,
-            chip,
-        })
+        Ok(config)
     }
 
-    pub fn chip(&self) -> Option<String> {
-        // It turns out the easiest way right now to get the chip is via the
-        // flash config. Long term we may want to fix this
-        //
-
-        let flash = match self.load_flash_config() {
-            Ok(f) => f,
-            Err(_) => return None,
-        };
-        flash.chip
+    /// Returns the chip name (to be used for flashing)
+    pub fn chip(&self) -> Result<Option<String>> {
+        self.load_flash_meta().map(|m| m.chip)
     }
 
     /// Helper function to load a dump into a [`RawHubrisArchive`]

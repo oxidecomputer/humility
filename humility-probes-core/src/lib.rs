@@ -18,7 +18,7 @@ use anyhow::{Result, anyhow, bail};
 
 mod probe_rs;
 
-pub use probe_rs::ProbeCore;
+pub use probe_rs::{LoadError, ProbeCore};
 
 fn parse_probe(probe: &str) -> (&str, Option<usize>) {
     if probe.contains('-') {
@@ -296,7 +296,7 @@ impl HubrisAttach for humility::hubris::HubrisArchive {
         log: &Logger,
     ) -> Result<probe_rs::ProbeCore> {
         let mut core =
-            attach_to_chip(probe, self.chip().as_deref(), None, log)?;
+            attach_to_chip(probe, self.chip()?.as_deref(), None, log)?;
 
         self.validate(
             &mut core,
