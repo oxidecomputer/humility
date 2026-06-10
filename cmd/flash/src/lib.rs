@@ -19,7 +19,7 @@
 //! will be programmed after the image is written.  See RFD 311 for more
 //! information about auxiliary flash management.
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result, bail};
 use clap::Parser;
 use humility::{
     core::Core,
@@ -35,19 +35,6 @@ pub struct FlashArgs {
     /// force re-flashing if archive matches
     #[clap(long, short = 'F')]
     force: bool,
-
-    /// if using OpenOCD, do not actually flash, but show commands and retain
-    /// any temporary files
-    #[clap(long = "dry-run", short = 'n')]
-    dryrun: bool,
-
-    /// retain any temporary files
-    #[clap(long = "retain-temporaries", short = 'R')]
-    retain: bool,
-
-    /// force usage of OpenOCD
-    #[clap(long = "force-openocd", short = 'O')]
-    force_openocd: bool,
 
     /// reset delay
     #[clap(
@@ -70,97 +57,60 @@ pub struct FlashArgs {
     verbose: bool,
 }
 
-/// Validates the image and auxiliary flash against our subcommand
-///
-/// If `subargs.check` is true, returns `Ok(())` on a clean check and `Err(..)`
-/// otherwise; the core is left running.
-///
-/// If `subargs.check` is false, returns `Ok(())` if the check _fails_ (meaning
-/// we should reflash), and `Err(..)` if all checks pass (meaning we should
-/// _not_ reflash).  The core is left halted if we should reflash and is running
-/// otherwise.
-fn validate(
+fn flash_check(
     hubris: &HubrisArchive,
     core: &mut humility_probes_core::ProbeCore,
+    verbose: bool,
+    log: &Logger,
+) -> Result<()> {
+    let check_type = humility_flash::ImageCheckType::ImageIdAndFlash {
+        check_every_byte: verbose,
+    };
+    let out = match get_image_state(hubris, core, check_type, log)? {
+        humility_flash::ImageStateResult::Matches => Ok(()),
+        humility_flash::ImageStateResult::DoesNotMatch(e) => Err(e.into()),
+    };
+    core.run()?;
+    out
+}
+
+fn flash_program(
+    hubris: &HubrisArchive,
+    core: &mut humility_probes_core::ProbeCore,
+    config: &HubrisFlashConfig,
     subargs: &FlashArgs,
     log: &Logger,
 ) -> Result<()> {
-    let check_type = if subargs.verify || subargs.check {
+    let check_type = if subargs.verify {
         humility_flash::ImageCheckType::ImageIdAndFlash {
             check_every_byte: subargs.verbose,
         }
     } else {
         humility_flash::ImageCheckType::ImageId
     };
-    // Collapse both Humility-level errors and mismatch errors into `Err(..)`
-    let r = match get_image_state(hubris, core, check_type, log) {
-        Ok(humility_flash::ImageStateResult::Matches) => Ok(()),
-        Ok(humility_flash::ImageStateResult::DoesNotMatch(e)) => Err(e.into()),
-        Err(e) => Err(e.into()),
-    };
-    if subargs.check {
-        core.run()?;
-        return r;
-    }
 
-    match r {
-        Ok(()) => {
+    match get_image_state(hubris, core, check_type, log)? {
+        humility_flash::ImageStateResult::Matches => {
             if subargs.force {
                 info!(
                     log,
                     "archive appears to be already flashed; forcing re-flash"
                 );
-                Ok(())
             } else {
                 core.run()?;
-                Err(anyhow!(if subargs.verify {
+                bail!(if subargs.verify {
                     "archive is already flashed on attached device; use -F \
                      (\"--force\") to force re-flash"
                 } else {
                     "archive appears to be already flashed on attached \
                      device; use -F (\"--force\") to force re-flash or -V \
                      (\"--verify\") to verify contents"
-                }))
+                })
             }
         }
-        Err(e) => {
+        humility_flash::ImageStateResult::DoesNotMatch(e) => {
             info!(log, "{e}; reflashing");
-            Ok(())
         }
-    }
-}
-
-fn flashcmd(subargs: FlashArgs, context: &mut ExecutionContext) -> Result<()> {
-    let hubris = &context.cli.archive()?;
-    let log = context.log();
-
-    let config = hubris.load_flash_config()?;
-
-    if subargs.force_openocd {
-        bail!("openocd no longer supported");
-    }
-
-    let probe = match &context.cli.probe {
-        Some(p) => p,
-        None => "auto",
-    };
-
-    let chip = match config.chip {
-        Some(c) => c,
-        None => bail!("Archive is very old and missing a chip"),
-    };
-
-    info!(log, "attaching with chip set to {chip:x?}");
-    let core = &mut humility_probes_core::attach_for_flashing(
-        probe,
-        &chip,
-        context.cli.speed,
-        log,
-    )?;
-
-    validate(hubris, core, &subargs, log)?;
-    if subargs.check {
-        return Ok(());
     }
 
     //
@@ -200,6 +150,35 @@ fn flashcmd(subargs: FlashArgs, context: &mut ExecutionContext) -> Result<()> {
     try_program_auxflash(hubris, core, log)?;
     info!(log, "flashing done");
     Ok(())
+}
+
+fn flashcmd(subargs: FlashArgs, context: &mut ExecutionContext) -> Result<()> {
+    let hubris = &context.cli.archive()?;
+    let log = context.log();
+
+    let config = hubris.load_flash_config()?;
+    let probe = match &context.cli.probe {
+        Some(p) => p,
+        None => "auto",
+    };
+
+    let Some(chip) = &config.chip else {
+        bail!("Archive is very old and missing a chip")
+    };
+
+    info!(log, "attaching with chip set to {chip:x?}");
+    let core = &mut humility_probes_core::attach_for_flashing(
+        probe,
+        chip,
+        context.cli.speed,
+        log,
+    )?;
+
+    if subargs.check {
+        flash_check(hubris, core, subargs.verbose, log)
+    } else {
+        flash_program(hubris, core, &config, &subargs, log)
+    }
 }
 
 fn try_program_auxflash(

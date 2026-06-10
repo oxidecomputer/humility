@@ -49,7 +49,7 @@ pub enum ImageStateError {
 /// Type indicating a mismatch when checking image state
 #[derive(Debug, thiserror::Error)]
 pub enum ImageStateMismatch {
-    /// Could not halt core
+    /// Failed at the archive ID check
     #[error("flash/archive mismatch")]
     FlashArchiveMismatch(#[source] anyhow::Error),
 
