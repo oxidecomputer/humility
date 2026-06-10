@@ -69,7 +69,7 @@ use anyhow::{Result, bail};
 use clap::{ArgGroup, Parser};
 use humility::core::Core;
 use humility::hubris::*;
-use humility::log::{Logger, info, warn};
+use humility::log::{Logger, info};
 use humility_arch_arm::ARMRegister;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_dump_agent::{
@@ -453,7 +453,12 @@ fn simulate_dump_via_agent(
         info!(log, "core halted");
 
         if let Some(ref stock) = subargs.stock_dumpfile {
-            hubris.dump(core, task, Some(stock), None, log)?;
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(stock)?;
+            info!(log, "dumping to {stock:?}");
+            hubris.dump(core, task, &mut file, None, log)?;
         }
 
         match task {
@@ -576,7 +581,12 @@ fn simulate_dump_via_agent(
         info!(log, "core halted");
 
         if let Some(ref stock) = subargs.stock_dumpfile {
-            hubris.dump(agent.core(), task, Some(stock), None, log)?;
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(stock)?;
+            info!(log, "dumping to {stock:?}");
+            hubris.dump(agent.core(), task, &mut file, None, log)?;
         }
 
         let base = header.address;
@@ -622,13 +632,13 @@ fn simulate_dump_via_agent(
             }
         }
 
-        hubris.dump(
-            &mut out,
+        let (filename, mut file) = humility_dump::open_dump_file(
+            hubris,
             task,
             subargs.dumpfile.as_deref(),
-            started,
-            log,
         )?;
+        info!(log, "dumping to {filename:?}");
+        hubris.dump(&mut out, task, &mut file, started, log)?;
     }
 
     Ok(())
@@ -662,7 +672,13 @@ fn extract_or_read_via_agent(
         }
     }
 
-    hubris.dump(&mut out, task, subargs.dumpfile.as_deref(), started, log)?;
+    let (filename, mut file) = humility_dump::open_dump_file(
+        hubris,
+        task,
+        subargs.dumpfile.as_deref(),
+    )?;
+    info!(log, "dumping to {filename:?}");
+    hubris.dump(&mut out, task, &mut file, started, log)?;
 
     Ok(())
 }
@@ -686,111 +702,20 @@ fn dump_via_agent(
     subargs: &DumpArgs,
     log: &Logger,
 ) -> Result<()> {
-    let mut out = DumpAgentCore::new(HubrisFlashMap::new(hubris)?);
-    let started = Some(Instant::now());
-
-    let segments = hubris.dump_segments(core, None, false)?;
-    let mut agent = get_dump_agent(hubris, core, subargs, log)?;
-    let header = agent.read_dump_header()?;
-    let area = subargs.extract.map(DumpArea::ByIndex);
-
-    if header.dumper != humpty::DUMPER_NONE && !subargs.force_overwrite {
-        bail!(
-            "there appears to already be one or more dumps in situ; \
-                    list them with --list and extract them with --extract_all"
-        )
-    }
-
-    info!(log, "initializing dump agent state");
-    agent.initialize_dump()?;
-
-    info!(log, "initializing segments");
-    agent.initialize_segments(&segments)?;
-    if subargs.force_manual_initiation {
-        agent.core().halt()?;
-        info!(log, "leaving core halted");
-        let base = header.address;
-        info!(
-            log,
-            "unplug probe and manually \
-                    initiate dump from address {:#x}",
-            base
-        );
-        info!(
-            log,
-            "e.g., \"humility hiffy --call \
-                    Dumper.dump -a address={:#x}\"",
-            base
-        );
-        return Ok(());
-    }
-
-    //
-    // We are about to disappear for -- as the kids say -- a minute.
-    // Set our timeout to be a literal minute so we don't prematurely
-    // give up.
-    //
-    agent.core().set_timeout(std::time::Duration::new(60, 0))?;
-
-    //
-    // Tell the thing to take a dump.
-    //
-    if let Err(err) = agent.take_dump() {
-        //
-        // If that fails, it may be because we ran out of space.  Check
-        // our dump headers; if all of them are consumed, assume
-        // that we ran out of space -- and if any of them are consumed,
-        // process whatever we find (some dump is better than none!) and
-        // warn accordingly.
-        //
-        if let Ok(all) = agent.read_dump_headers(true) {
-            let c = all
-                .iter()
-                .filter(|&&(h, _)| h.dumper != humpty::DUMPER_NONE)
-                .count();
-
-            if c == all.len() {
-                warn!(
-                    log,
-                    "dump has indicated failure ({err:?}), but this is \
-                            likely due to space exhaustion; \
-                            dump will be extracted but may be incomplete!"
-                );
-            } else if c != 0 {
-                warn!(
-                    log,
-                    "dump has indicated failure ({err:?}), but some dump \
-                            contents appear to have been written; \
-                            dump will be extracted but may be incomplete!"
-                );
-            } else {
-                return Err(err);
-            }
-        } else {
-            return Err(err);
-        }
-    }
-
-    //
-    // If we're here, we have a dump in situ -- time to pull it.
-    //
-    let task = read_dump(&mut agent, area, &mut out, subargs, log)?;
-
-    //
-    // If this was a whole-system dump, we will leave our state initialized
-    // to assure that it will be ready to take subsequent task dumps (unless
-    // explicitly asked not to).
-    //
-    if task.is_none() {
-        if !subargs.retain_state {
-            info!(log, "resetting dump agent state");
-            agent.initialize_dump()?;
-        } else {
-            info!(log, "retaining dump agent state");
-        }
-    }
-
-    hubris.dump(&mut out, task, subargs.dumpfile.as_deref(), started, log)?;
+    let (filename, mut file) = humility_dump::open_dump_file(
+        hubris,
+        None,
+        subargs.dumpfile.as_deref(),
+    )?;
+    info!(log, "dumping to {filename:?}");
+    humility_dump::take_system_dump(
+        hubris,
+        core,
+        &mut file,
+        subargs.force_hiffy_agent,
+        subargs.force_overwrite,
+        log,
+    )?;
 
     Ok(())
 }
@@ -825,7 +750,13 @@ fn dump_task_via_agent(
         log,
     )?;
     assert!(task.is_some());
-    hubris.dump(&mut out, task, subargs.dumpfile.as_deref(), started, log)?;
+    let (filename, mut file) = humility_dump::open_dump_file(
+        hubris,
+        task,
+        subargs.dumpfile.as_deref(),
+    )?;
+    info!(log, "dumping to {filename:?}");
+    hubris.dump(&mut out, task, &mut file, started, log)?;
 
     Ok(())
 }
@@ -836,43 +767,30 @@ fn dump_list(
     subargs: &DumpArgs,
     log: &Logger,
 ) -> Result<()> {
-    let mut agent = get_dump_agent(hubris, core, subargs, log)?;
+    use humility_dump::DumpType;
+
+    let dumps = humility_dump::list_dumps(
+        hubris,
+        subargs.force_hiffy_agent,
+        core,
+        log,
+    )?;
 
     println!("{:4} {:21} {:10} SIZE", "AREA", "TASK", "TIME");
-    let headers = agent.read_dump_headers(false)?;
-
-    if headers.is_empty() || headers[0].0.dumper == humpty::DUMPER_NONE {
-        return Ok(());
-    }
-
-    if headers[0].1.is_none() {
-        let size = headers
-            .iter()
-            .filter(|&(h, _)| h.dumper != humpty::DUMPER_NONE)
-            .fold(0, |ttl, (h, _)| ttl + h.written);
-
-        println!("{:>4} {:21} {:<10} {size}", 0, "<system>", "-");
-        return Ok(());
-    }
-
-    let areas = task_areas(&headers);
-
-    for (area, (task, headers)) in &areas {
-        let size = headers.iter().fold(0, |ttl, h| ttl + h.written);
-
-        println!(
-            "{area:>4} {:21} {:<10} {size}",
-            match hubris.lookup_module(HubrisTask::Task(task.id.into())) {
-                Ok(module) => match headers[0].contents {
-                    humpty::DUMP_CONTENTS_SINGLETASK => module.name.to_owned(),
-                    humpty::DUMP_CONTENTS_TASKREGION =>
-                        format!("{} [region]", module.name.to_owned()),
-                    c => bail!("unknown contents type: {c}"),
-                },
-                _ => "<unknown>".to_owned(),
-            },
-            task.time,
-        );
+    match dumps {
+        DumpType::None => return Ok(()),
+        DumpType::System { size } => {
+            println!("{:>4} {:21} {:<10} {size}", 0, "<system>", "-");
+            return Ok(());
+        }
+        DumpType::Tasks(tasks) => {
+            for t in tasks {
+                println!(
+                    "{:>4} {:21} {:<10} {}",
+                    t.area, t.task_name, t.time, t.size
+                );
+            }
+        }
     }
 
     Ok(())
@@ -928,7 +846,12 @@ fn dump_all(
             )?;
 
             assert!(task.is_some());
-            hubris.dump(&mut out, task, Some(&dumpfile), started, log)?;
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&dumpfile)?;
+            info!(log, "dumping to {dumpfile:?}");
+            hubris.dump(&mut out, task, &mut file, started, log)?;
         }
 
         if !subargs.retain_state {
@@ -989,8 +912,13 @@ fn dumpcmd(subargs: DumpArgs, context: &mut ExecutionContext) -> Result<()> {
         core.halt()?;
         info!(log, "core halted");
 
-        let rval =
-            hubris.dump(core, None, subargs.dumpfile.as_deref(), None, log);
+        let (filename, mut file) = humility_dump::open_dump_file(
+            hubris,
+            None,
+            subargs.dumpfile.as_deref(),
+        )?;
+        info!(log, "dumping to {filename:?}");
+        let rval = hubris.dump(core, None, &mut file, None, log);
 
         if !subargs.leave_halted {
             core.run()?;

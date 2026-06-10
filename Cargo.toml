@@ -13,6 +13,7 @@ members = [
     "humility-core",
     "humility-doppel",
     "humility-dump-agent",
+    "humility-dump",
     "humility-flash",
     "humility-hexdump",
     "humility-hiffy",
@@ -134,6 +135,7 @@ humility-caboose = { path = "./humility-caboose" }
 humility-cli = { path = "./humility-cli", default-features = false }
 humility-doppel = { path = "./humility-doppel" }
 humility-dump-agent = { path = "./humility-dump-agent" }
+humility-dump = { path = "./humility-dump" }
 humility-flash = { path = "./humility-flash" }
 humility-hexdump = { path = "./humility-hexdump" }
 humility-hiffy = { path = "./humility-hiffy" }

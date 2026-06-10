@@ -327,7 +327,12 @@ fn diagnose(
 
     if !subargs.no_dump {
         section("Generating Coredump");
-        let rval = hubris.dump(core, None, None, None, context.log());
+
+        let (filename, mut file) =
+            humility_dump::open_dump_file(hubris, None, None)?;
+        println!("dumping to {filename:?}");
+
+        let rval = hubris.dump(core, None, &mut file, None, context.log());
 
         if let Err(e) = rval {
             println!("Coredump failed: {}", e);

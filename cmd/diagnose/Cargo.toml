@@ -13,3 +13,4 @@ humility.workspace = true
 humility-cli.workspace = true
 humility-doppel.workspace = true
 humility-jefe.workspace = true
+humility-dump.workspace = true
