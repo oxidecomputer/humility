@@ -66,9 +66,10 @@ fn flash_check(
     let check_type = humility_flash::ImageCheckType::ImageIdAndFlash {
         check_every_byte: verbose,
     };
-    let out = match get_image_state(hubris, core, check_type, log)? {
-        humility_flash::ImageStateResult::Matches => Ok(()),
-        humility_flash::ImageStateResult::DoesNotMatch(e) => Err(e.into()),
+    let out = match get_image_state(hubris, core, check_type, log) {
+        Ok(humility_flash::ImageStateResult::Matches) => Ok(()),
+        Ok(humility_flash::ImageStateResult::DoesNotMatch(e)) => Err(e.into()),
+        Err(e) => Err(e.into()),
     };
     core.run()?;
     out

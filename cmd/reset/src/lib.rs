@@ -46,7 +46,6 @@ fn reset(subargs: ResetArgs, context: &mut ExecutionContext) -> Result<()> {
     } else {
         match subargs.use_token {
             None => {
-                // Detect bogus archives by looking at the chip member
                 if let Some(hubris) = &hubris
                     && hubris.wants_reset_handoff_token()
                 {
