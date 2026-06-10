@@ -77,7 +77,6 @@ fn flash_check(
 fn flash_program(
     hubris: &HubrisArchive,
     core: &mut humility_probes_core::ProbeCore,
-    config: &HubrisFlashConfig,
     subargs: &FlashArgs,
     log: &Logger,
 ) -> Result<()> {
@@ -149,14 +148,11 @@ fn flashcmd(subargs: FlashArgs, context: &mut ExecutionContext) -> Result<()> {
         None => "auto",
     };
 
-    let Some(chip) = &hubris.chip()? else {
-        bail!("Archive is very old and missing a chip")
-    };
-
+    let chip = hubris.chip()?;
     info!(log, "attaching with chip set to {chip:x?}");
     let core = &mut humility_probes_core::attach_for_flashing(
         probe,
-        chip,
+        &chip,
         context.cli.speed,
         log,
     )?;
@@ -164,7 +160,7 @@ fn flashcmd(subargs: FlashArgs, context: &mut ExecutionContext) -> Result<()> {
     if subargs.check {
         flash_check(hubris, core, subargs.verbose, log)
     } else {
-        flash_program(hubris, core, &config, &subargs, log)
+        flash_program(hubris, core, &subargs, log)
     }
 }
 

@@ -280,7 +280,7 @@ pub enum ProgramImageError {
 
     /// Could not call [`ProbeCore::load`]
     #[error("load failed")]
-    CouldNotLoad(#[source] humility_probes_core::LoadError),
+    LoadFailed(#[source] humility_probes_core::LoadError),
 
     /// Failed to call [`ProbeCore::reset`]
     #[error("reset failed")]
@@ -318,7 +318,7 @@ pub fn program_image(
     let elf = hubris
         .load_flash_elf()
         .map_err(ProgramImageError::CouldNotReadElfData)?;
-    core.load(&elf).map_err(ProgramImageError::CouldNotLoad)?;
+    core.load(&elf).map_err(ProgramImageError::LoadFailed)?;
 
     //
     // On Gimlet Rev B, the BOOT0 pin is unstrapped -- and during a flash,

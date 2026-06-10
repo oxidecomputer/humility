@@ -295,8 +295,7 @@ impl HubrisAttach for humility::hubris::HubrisArchive {
         probe: &str,
         log: &Logger,
     ) -> Result<probe_rs::ProbeCore> {
-        let mut core =
-            attach_to_chip(probe, self.chip()?.as_deref(), None, log)?;
+        let mut core = attach_to_chip(probe, Some(&self.chip()?), None, log)?;
 
         self.validate(
             &mut core,

@@ -1124,15 +1124,6 @@ pub struct HubrisFlashMeta {
     pub chip: Option<String>,
 }
 
-//
-// Flash information pulled from the archive
-//
-pub struct HubrisFlashConfig {
-    pub metadata: HubrisFlashMeta,
-    pub elf: Vec<u8>,
-    pub chip: Option<String>,
-}
-
 #[derive(Copy, Clone, Debug)]
 struct NamespaceId(usize);
 
@@ -1645,23 +1636,6 @@ impl HubrisArchive {
         })
     }
 
-    /// Returns a [`HubrisFlashConfig`] from data in the archive
-    pub fn load_flash_config(&self) -> Result<HubrisFlashConfig> {
-        let metadata = self.load_flash_meta()?;
-
-        // This is incredibly ugly! It also gives us backwards compatibility!
-        let chip: Option<String> = match metadata.chip {
-            Some(ref chip) => Some(chip.to_string()),
-            None => bail!("must specify a chip in your config"),
-        };
-
-        Ok(HubrisFlashConfig {
-            metadata,
-            elf: self.hubris_archive.extract_file("img/final.elf")?,
-            chip,
-        })
-    }
-
     /// Returns the ELF file data to be programmed
     pub fn load_flash_elf(&self) -> Result<Vec<u8>> {
         let data = self.hubris_archive.extract_file("img/final.elf")?;
@@ -1687,8 +1661,12 @@ impl HubrisArchive {
     }
 
     /// Returns the chip name (to be used for flashing)
-    pub fn chip(&self) -> Result<Option<String>> {
-        self.load_flash_meta().map(|m| m.chip)
+    pub fn chip(&self) -> Result<String> {
+        self.load_flash_meta().and_then(|m| {
+            m.chip.ok_or_else(|| {
+                anyhow!("archive is missing a chip in flash metadata")
+            })
+        })
     }
 
     /// Helper function to load a dump into a [`RawHubrisArchive`]
