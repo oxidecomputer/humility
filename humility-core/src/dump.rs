@@ -174,10 +174,6 @@ impl Core for DumpCore {
         }
     }
 
-    fn write_reg(&mut self, _reg: ARMRegister, _value: u32) -> Result<()> {
-        bail!("cannot write register on a dump");
-    }
-
     fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
         bail!("cannot write a word on a dump");
     }

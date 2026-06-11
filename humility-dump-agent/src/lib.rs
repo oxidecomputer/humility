@@ -328,10 +328,6 @@ impl Core for DumpAgentCore {
         }
     }
 
-    fn write_reg(&mut self, reg: ARMRegister, _value: u32) -> Result<()> {
-        bail!("cannot write register {} over dump agent", reg);
-    }
-
     fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
         bail!("cannot write a word over dump agent");
     }

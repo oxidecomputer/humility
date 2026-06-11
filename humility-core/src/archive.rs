@@ -45,10 +45,6 @@ impl Core for ArchiveCore {
         bail!("cannot read register {} from an archive", reg);
     }
 
-    fn write_reg(&mut self, reg: ARMRegister, _value: u32) -> Result<()> {
-        bail!("cannot write register {} to an archive", reg);
-    }
-
     fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
         bail!("cannot write a word to an archive");
     }

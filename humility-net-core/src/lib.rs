@@ -352,10 +352,6 @@ impl Core for NetCore {
         bail!("cannot read register {} over network", reg);
     }
 
-    fn write_reg(&mut self, reg: ARMRegister, _value: u32) -> Result<()> {
-        bail!("cannot write register {} over network", reg);
-    }
-
     fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
         bail!("cannot write a word over network");
     }

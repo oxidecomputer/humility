@@ -44,10 +44,6 @@ impl Core for UnattachedCore {
         bail!("Core::read_reg unimplemented when unattached!");
     }
 
-    fn write_reg(&mut self, _reg: ARMRegister, _value: u32) -> Result<()> {
-        bail!("Core::write_reg unimplemented when unattached!");
-    }
-
     fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
         bail!("Core::write_word_32 unimplemented when unattached!");
     }

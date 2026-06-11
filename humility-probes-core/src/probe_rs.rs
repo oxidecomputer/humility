@@ -305,20 +305,6 @@ impl Core for ProbeCore {
         ))?)
     }
 
-    fn write_reg(&mut self, reg: ARMRegister, value: u32) -> Result<()> {
-        let mut core = self.session.core(0)?;
-        use num_traits::ToPrimitive;
-
-        core.write_core_reg(
-            Into::<probe_rs::RegisterId>::into(
-                ARMRegister::to_u16(&reg).unwrap(),
-            ),
-            value,
-        )?;
-
-        Ok(())
-    }
-
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()> {
         let mut core = self.session.core(0)?;
         core.write_word_32(addr.into(), data)?;
@@ -482,6 +468,20 @@ impl ProbeCore {
     pub fn step(&mut self) -> Result<()> {
         let mut core = self.session.core(0)?;
         core.step()?;
+        Ok(())
+    }
+
+    pub fn write_reg(&mut self, reg: ARMRegister, value: u32) -> Result<()> {
+        let mut core = self.session.core(0)?;
+        use num_traits::ToPrimitive;
+
+        core.write_core_reg(
+            Into::<probe_rs::RegisterId>::into(
+                ARMRegister::to_u16(&reg).unwrap(),
+            ),
+            value,
+        )?;
+
         Ok(())
     }
 }
