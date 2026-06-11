@@ -64,8 +64,4 @@ impl Core for ArchiveCore {
     fn run(&mut self) -> Result<()> {
         Ok(())
     }
-
-    fn step(&mut self) -> Result<()> {
-        bail!("can't step an archive");
-    }
 }

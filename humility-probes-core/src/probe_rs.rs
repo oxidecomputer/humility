@@ -351,12 +351,6 @@ impl Core for ProbeCore {
         Ok(())
     }
 
-    fn step(&mut self) -> Result<()> {
-        let mut core = self.session.core(0)?;
-        core.step()?;
-        Ok(())
-    }
-
     fn op_start(&mut self) -> Result<()> {
         self.halt()?;
 
@@ -483,5 +477,11 @@ impl ProbeCore {
 
     pub fn vid_pid(&self) -> Option<(u16, u16)> {
         Some((self.vendor_id, self.product_id))
+    }
+
+    pub fn step(&mut self) -> Result<()> {
+        let mut core = self.session.core(0)?;
+        core.step()?;
+        Ok(())
     }
 }

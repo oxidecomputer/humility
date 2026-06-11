@@ -371,10 +371,6 @@ impl Core for NetCore {
     fn run(&mut self) -> Result<()> {
         Ok(())
     }
-
-    fn step(&mut self) -> Result<()> {
-        bail!("can't step over network");
-    }
 }
 
 pub fn attach_net(

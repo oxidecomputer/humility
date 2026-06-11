@@ -347,10 +347,6 @@ impl Core for DumpAgentCore {
     fn run(&mut self) -> Result<()> {
         bail!("unexpected call to run");
     }
-
-    fn step(&mut self) -> Result<()> {
-        bail!("can't step over dump agent");
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

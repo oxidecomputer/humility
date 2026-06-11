@@ -63,10 +63,6 @@ impl Core for UnattachedCore {
     fn run(&mut self) -> Result<()> {
         bail!("Core::run unimplemented when unattached!");
     }
-
-    fn step(&mut self) -> Result<()> {
-        bail!("Core::step unimplemented when unattached!");
-    }
 }
 
 impl UnattachedCore {

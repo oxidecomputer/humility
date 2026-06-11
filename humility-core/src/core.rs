@@ -25,7 +25,6 @@ pub trait Core {
 
     fn halt(&mut self) -> Result<()>;
     fn run(&mut self) -> Result<()>;
-    fn step(&mut self) -> Result<()>;
     fn is_dump(&self) -> bool {
         false
     }

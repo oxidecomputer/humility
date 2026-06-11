@@ -194,10 +194,6 @@ impl Core for DumpCore {
         Ok(())
     }
 
-    fn step(&mut self) -> Result<()> {
-        bail!("can't step a dump");
-    }
-
     fn is_dump(&self) -> bool {
         true
     }
