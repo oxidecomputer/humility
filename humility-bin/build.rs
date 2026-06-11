@@ -32,19 +32,42 @@ pub enum Subcommand {{
 "##
     )?;
 
-    //
-    let banned = if std::env::var_os("CARGO_FEATURE_PROBES").is_none() {
-        // These are everything that can potentially pull in libusb
-        ["probe-rs", "humility-probes-core", "rusb"].into_iter().collect()
-    } else {
-        BTreeSet::new()
-    };
+    let (banned_deps, disabled_cmds) =
+        if std::env::var_os("CARGO_FEATURE_PROBES").is_none() {
+            (
+                // These are everything that can potentially pull in libusb
+                ["probe-rs", "humility-probes-core", "rusb"]
+                    .into_iter()
+                    .collect(),
+                // We also look at which commands are enabled by the `probes`
+                // feature on the `humility-bin` crate, then remove them.
+                metadata
+                    .workspace_members
+                    .iter()
+                    .find(|p| metadata[p].name == "humility-bin")
+                    .map(|p| metadata[p].clone())
+                    .unwrap()
+                    .features["probes"]
+                    .iter()
+                    .flat_map(|p| {
+                        p.strip_prefix("cmd-")
+                            .map(|p| format!("humility-cmd-{p}"))
+                    })
+                    .collect::<BTreeSet<_>>(),
+            )
+        } else {
+            (BTreeSet::new(), BTreeSet::new())
+        };
+
     for id in &metadata.workspace_members {
-        let package =
-            metadata.packages.iter().find(|p| &p.id == id).unwrap().clone();
+        let package = metadata[id].clone();
 
         if let Some(cmd) = package.name.strip_prefix("humility-cmd-")
-            && !package.dependencies.iter().any(|d| banned.contains(&*d.name))
+            && !package
+                .dependencies
+                .iter()
+                .any(|d| banned_deps.contains(&*d.name))
+            && !disabled_cmds.contains(package.name.as_str())
         {
             cmds.insert(cmd.to_string());
         }
