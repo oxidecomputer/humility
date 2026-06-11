@@ -83,9 +83,6 @@ impl humility::core::Core for DryCore {
     fn is_net(&self) -> bool {
         false
     }
-    fn vid_pid(&self) -> Option<(u16, u16)> {
-        None
-    }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
         if self.flash.read(addr, data).is_some() {

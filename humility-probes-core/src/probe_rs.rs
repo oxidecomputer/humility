@@ -238,10 +238,6 @@ impl Core for ProbeCore {
         (ident, self.serial_number.clone())
     }
 
-    fn vid_pid(&self) -> Option<(u16, u16)> {
-        Some((self.vendor_id, self.product_id))
-    }
-
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         trace!(self.log, "reading word at {:x}", addr);
         let mut rval = 0;
@@ -483,5 +479,9 @@ impl ProbeCore {
         core.reset_and_halt(dur)?;
         self.halted = true;
         Ok(())
+    }
+
+    pub fn vid_pid(&self) -> Option<(u16, u16)> {
+        Some((self.vendor_id, self.product_id))
     }
 }

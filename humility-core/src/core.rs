@@ -17,10 +17,6 @@ use thiserror::Error;
 pub trait Core {
     fn info(&self) -> (String, Option<String>);
 
-    fn vid_pid(&self) -> Option<(u16, u16)> {
-        None
-    }
-
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()>;
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32>;
     fn write_reg(&mut self, reg: ARMRegister, value: u32) -> Result<()>;

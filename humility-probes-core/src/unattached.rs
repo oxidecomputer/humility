@@ -36,10 +36,6 @@ impl Core for UnattachedCore {
         (ident, self.serial_number.clone())
     }
 
-    fn vid_pid(&self) -> Option<(u16, u16)> {
-        Some((self.vendor_id, self.product_id))
-    }
-
     fn read_8(&mut self, _addr: u32, _data: &mut [u8]) -> Result<()> {
         bail!("Core::read_8 unimplemented when unattached!");
     }
