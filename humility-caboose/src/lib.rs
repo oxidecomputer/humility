@@ -87,15 +87,17 @@ pub fn read_tlvc_caboose(
     //
     // This assumes that we're executing from flash, which is true for all
     // systems that we care about.
-    let base = if (0x10000..0x50000).contains(&pc) {
-        0x10000
-    } else if (0x50000..0x90000).contains(&pc) {
-        0x50000
-    } else if (0x08000000..0x08100000).contains(&pc) {
-        0x08000000
-    } else {
-        return Err(CabooseError::UnknownPc(pc));
-    };
+    let known_pc_ranges = [
+        0x00000..0x10000,       // LPC55, bootleby
+        0x10000..0x50000,       // LPC55, image A
+        0x50000..0x90000,       // LPC55, image B,
+        0x08000000..0x08100000, // STM32H7
+    ];
+    let base = known_pc_ranges
+        .iter()
+        .find(|r| r.contains(&pc))
+        .ok_or(CabooseError::UnknownPc(pc))?
+        .start;
     info!(log, "found flash base at {base:#x} (pc at {pc:#x})");
 
     // Find the image header by looking for the appropriate magic word
