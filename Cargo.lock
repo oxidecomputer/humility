@@ -5031,10 +5031,11 @@ dependencies = [
 
 [[package]]
 name = "tlvc"
-version = "0.4.0"
-source = "git+https://github.com/oxidecomputer/tlvc#2f69360ddcb07ad6072cb720bb1fac9f58a2ddec"
+version = "0.4.1"
+source = "git+https://github.com/oxidecomputer/tlvc#7a96eab94c8aec9120412d8601ffd68853957da3"
 dependencies = [
  "crc",
+ "thiserror 2.0.18",
  "zerocopy",
  "zerocopy-derive",
 ]
@@ -5042,7 +5043,7 @@ dependencies = [
 [[package]]
 name = "tlvc-text"
 version = "0.4.0"
-source = "git+https://github.com/oxidecomputer/tlvc#2f69360ddcb07ad6072cb720bb1fac9f58a2ddec"
+source = "git+https://github.com/oxidecomputer/tlvc#7a96eab94c8aec9120412d8601ffd68853957da3"
 dependencies = [
  "ron 0.8.1",
  "serde",

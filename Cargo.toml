@@ -99,7 +99,7 @@ measurement-token = { git = "https://github.com/oxidecomputer/lpc55_support", de
 pmbus = { git = "https://github.com/oxidecomputer/pmbus" }
 serialport = { git = "https://github.com/jgallagher/serialport-rs", branch = "illumos-support" }
 spd = { git = "https://github.com/oxidecomputer/spd" }
-tlvc = { git = "https://github.com/oxidecomputer/tlvc", version = "0.4.0" }
+tlvc = { git = "https://github.com/oxidecomputer/tlvc", version = "0.4.1" }
 tlvc-text = { git = "https://github.com/oxidecomputer/tlvc", version = "0.4.0" }
 turin-post-decoder = { git = "https://github.com/oxidecomputer/turin-post-decoder" }
 vsc7448-info = { git = "https://github.com/oxidecomputer/vsc7448.git" }
