@@ -1095,6 +1095,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "datamap"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc78156ab8e5328a2172df6a8afea26a985e82a514b71af1efd773962257cae5"
+dependencies = [
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "deflate64"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2836,6 +2845,7 @@ dependencies = [
  "bitfield",
  "capstone",
  "clap",
+ "datamap",
  "gimli 0.33.0",
  "goblin",
  "hubpack",

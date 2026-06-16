@@ -302,7 +302,7 @@ impl Cli {
     /// Attaches to a dump
     ///
     /// Reads from the `--dump` argument to pick a target file
-    pub fn attach_dump(&self) -> Result<humility::dump::DumpCore> {
+    pub fn attach_dump(&self) -> Result<humility::mem::InMemoryCore> {
         let core = if let Some(dump) = &self.dump {
             humility::core::attach_dump(dump, self.log())?
         } else {

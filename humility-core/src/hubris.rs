@@ -1049,74 +1049,8 @@ impl From<&str> for HubrisSensorKind {
     }
 }
 
-#[derive(Clone)]
-pub struct HubrisFlashMap {
-    /// Linear map of all flash memory
-    pub contents: Vec<u8>,
-
-    /// Regions within that memory as offset + size tuples, indexed by address
-    pub regions: BTreeMap<u32, (u32, usize)>,
-}
-
-impl HubrisFlashMap {
-    /// # Errors
-    ///
-    /// (Non-exhaustive list added when surprising error conditions were
-    /// discovered:)
-    ///
-    /// This will fail if the `HubrisArchive` is fake, i.e. contains zero bytes.
-    pub fn new(hubris: &HubrisArchive) -> Result<Self> {
-        //
-        // We want to read in the "final.elf" from our archive and use that
-        // to determine the memory that constitutes flash.
-        //
-        let contents = hubris.hubris_archive.extract_file("img/final.elf")?;
-
-        let elf = Elf::parse(&contents).map_err(|e| {
-            anyhow!("failed to parse final.elf as an ELF file: {}", e)
-        })?;
-
-        let regions = elf
-            .section_headers
-            .iter()
-            .filter(|shdr| {
-                shdr.sh_type == goblin::elf::section_header::SHT_PROGBITS
-            })
-            .map(|shdr| {
-                (
-                    shdr.sh_addr as u32,
-                    (shdr.sh_size as u32, shdr.sh_offset as usize),
-                )
-            })
-            .collect();
-
-        Ok(Self { contents, regions })
-    }
-
-    pub fn read(&self, addr: u32, data: &mut [u8]) -> Option<()> {
-        if let Some((&base, &(size, offset))) =
-            self.regions.range(..=addr).next_back()
-            && base <= addr
-            && base + size > addr
-        {
-            let start = (addr - base) as usize;
-            let roffs = offset + start;
-
-            if start + data.len() <= size as usize {
-                data.copy_from_slice(&self.contents[roffs..roffs + data.len()]);
-
-                return Some(());
-            }
-
-            let len = (size as usize) - start;
-            data[..len].copy_from_slice(&self.contents[roffs..roffs + len]);
-
-            return self.read(addr + len as u32, &mut data[len..]);
-        }
-
-        None
-    }
-}
+// Re-export for convenience
+pub type HubrisDataMap = datamap::OwnedDataMap<u32>;
 
 #[derive(Debug, Deserialize)]
 pub struct HubrisFlashMeta {
@@ -3647,6 +3581,33 @@ impl HubrisArchive {
     /// Returns `true` if this archive should use a reset handoff token
     pub fn wants_reset_handoff_token(&self) -> bool {
         self.manifest.features.iter().any(|s| s == "measurement-handoff")
+    }
+
+    /// Builds a map from flash contents
+    pub fn flash_map(&self) -> Result<HubrisDataMap> {
+        //
+        // We want to read in the "final.elf" from our archive and use that
+        // to determine the memory that constitutes flash.
+        //
+        let contents = self.hubris_archive.extract_file("img/final.elf")?;
+
+        let elf = Elf::parse(&contents).map_err(|e| {
+            anyhow!("failed to parse final.elf as an ELF file: {}", e)
+        })?;
+
+        let mut map = HubrisDataMap::new();
+        for shdr in elf.section_headers.iter().filter(|shdr| {
+            shdr.sh_type == goblin::elf::section_header::SHT_PROGBITS
+        }) {
+            map.insert(
+                shdr.sh_addr as u32,
+                contents[shdr.sh_offset as usize..][..shdr.sh_size as usize]
+                    .to_vec(),
+            )?;
+        }
+        map.repack();
+
+        Ok(map)
     }
 }
 

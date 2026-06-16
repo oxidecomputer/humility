@@ -20,10 +20,9 @@
 use anyhow::{Context, Result, bail};
 use clap::{ArgGroup, Parser};
 use humility::{
-    hubris::HubrisFlashMap,
     log::{info, warn},
+    mem::InMemoryCore,
 };
-use humility_arch_arm::ARMRegister;
 use humility_cli::{ExecutionContext, humility_cmd};
 use std::{collections::BTreeMap, io::Read, path::PathBuf};
 
@@ -39,62 +38,6 @@ pub struct HydrateArgs {
 
     /// Path to the raw memory dump
     file: PathBuf,
-}
-
-struct DryCore {
-    flash: HubrisFlashMap,
-    mem: BTreeMap<u32, Vec<u8>>,
-}
-
-// Helper macro to stub out functions
-macro_rules! unsupported{
-    ($fn_name:ident($($arg_name:ident: $arg_type:ty),*)) => {
-        unsupported!($fn_name($($arg_name: $arg_type),*) -> Result<()>);
-    };
-    ($fn_name:ident($($arg_name:ident: $arg_type:ty),*) -> $out:ty) => {
-        fn $fn_name(&mut self, $($arg_name: $arg_type),*) -> $out {
-            bail!(concat!(
-                "DryCore does not support ",
-                stringify!($fn_name)))
-        }
-    };
-}
-
-impl humility::core::Core for DryCore {
-    unsupported!(run());
-    unsupported!(halt());
-    unsupported!(write_8(_addr: u32, _data: &[u8]));
-    unsupported!(op_done());
-    unsupported!(op_start());
-    unsupported!(read_reg(_reg: ARMRegister) -> Result<u32>);
-    unsupported!(write_word_32(_addr: u32, _data: u32));
-
-    fn is_archive(&self) -> bool {
-        false
-    }
-    fn is_dump(&self) -> bool {
-        true // I guess?
-    }
-    fn is_net(&self) -> bool {
-        false
-    }
-
-    fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
-        if self.flash.read(addr, data).is_some() {
-            return Ok(());
-        }
-
-        let Some((base, mem)) = self.mem.range(0..=addr).next_back() else {
-            bail!("addr {addr:#08x} is below memory range");
-        };
-        let offset = (addr - base) as usize;
-        let end = offset + data.len();
-        if end > mem.len() {
-            bail!("region is not large enough; {end:#x} > {:#x}", mem.len());
-        }
-        data.copy_from_slice(&mem[offset..end]);
-        Ok(())
-    }
 }
 
 fn run(subargs: HydrateArgs, context: &mut ExecutionContext) -> Result<()> {
@@ -173,7 +116,10 @@ fn run(subargs: HydrateArgs, context: &mut ExecutionContext) -> Result<()> {
              dump ID wants {archive_id:02x?}"
         );
     }
-    let mut core = DryCore { mem, flash: HubrisFlashMap::new(archive)? };
+    let mut core = InMemoryCore::from_archive(archive)?;
+    for (addr, data) in mem {
+        core.add_ram_region(addr, data)?;
+    }
 
     let t = Some(humpty::DumpTask {
         magic: humpty::DUMP_TASK_MAGIC,

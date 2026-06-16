@@ -8,14 +8,13 @@ use anyhow::{Context, Result, anyhow, bail};
 use humility::{
     core::{Core, NetAgent},
     hubris::{
-        HubrisArchive, HubrisFlashMap, HubrisRegion, HubrisSocket, HubrisTask,
+        HubrisArchive, HubrisDataMap, HubrisRegion, HubrisSocket, HubrisTask,
     },
     log::{Logger, info, warn},
+    mem::InMemoryCore,
 };
 use humility_arch_arm::ARMRegister;
-use humility_dump_agent::{
-    DumpAgent, DumpAgentCore, DumpAgentExt, DumpArea, UdpDumpAgent,
-};
+use humility_dump_agent::{DumpAgent, DumpAgentExt, DumpArea, UdpDumpAgent};
 use std::{
     fmt,
     net::{Ipv6Addr, ToSocketAddrs, UdpSocket},
@@ -40,7 +39,7 @@ use std::{
 pub struct NetCore {
     /// Socket to communicate with `udprpc`, or `None` if it's not present
     udprpc_socket: Option<UdpSocket>,
-    flash: HubrisFlashMap,
+    flash: HubrisDataMap,
 
     /// Socket to communicate with the dump agent, or `None` if it's not present
     dump_agent_socket: Option<UdpSocket>,
@@ -104,7 +103,7 @@ impl NetCore {
             udprpc_socket,
             dump_agent_socket,
             hiffy_socket,
-            flash: HubrisFlashMap::new(hubris)?,
+            flash: hubris.flash_map()?,
             ram: None, // filled in below
             imageid: hubris.image_id().to_owned(),
             log: log.clone(),
@@ -179,7 +178,7 @@ impl NetCore {
     }
 
     fn read(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
-        if self.flash.read(addr, data).is_some() {
+        if self.flash.read_into(addr, data).is_ok() {
             Ok(())
         } else {
             self.read_ram(addr, data).with_context(|| format!(
@@ -197,7 +196,7 @@ impl NetCore {
             bail!("dump agent cannot read RAM; is your Hubris archive too old?")
         };
 
-        let mut agent_core = DumpAgentCore::new(self.flash.clone());
+        let mut agent_core = InMemoryCore::from_flash_map(self.flash.clone());
         let image_id = self.imageid.clone();
 
         let log = self.log.clone();
