@@ -125,7 +125,7 @@ fn flash_program(
                     info!(
                         log,
                         "auxiliary flash data is already loaded in slot \
-                             {slot}; skipping programming",
+                         {slot}; skipping programming",
                     )
                 }
                 Some(ProgramAuxflashSuccess::Success) => {
