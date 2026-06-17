@@ -17,10 +17,8 @@ use humility::{
 use anyhow::{Result, anyhow, bail};
 
 mod probe_rs;
-mod unattached;
 
 pub use probe_rs::ProbeCore;
-pub use unattached::UnattachedCore;
 
 fn parse_probe(probe: &str) -> (&str, Option<usize>) {
     if probe.contains('-') {
@@ -136,7 +134,7 @@ pub fn attach_to_probe(
     probe: &str,
     speed_khz: Option<u32>,
     log: &Logger,
-) -> Result<UnattachedCore> {
+) -> Result<::probe_rs::probe::Probe> {
     let (probe, index) = parse_probe(probe);
 
     match probe {
@@ -149,26 +147,16 @@ pub fn attach_to_probe(
             }
 
             info!(log, "Opened probe {}", probe_info.identifier);
-            Ok(UnattachedCore::new(
-                probe,
-                probe_info.identifier.clone(),
-                probe_info.vendor_id,
-                probe_info.product_id,
-                probe_info.serial_number,
-            ))
+            Ok(probe)
         }
         "auto" => attach_to_probe("usb", speed_khz, log),
         _ => match probe.parse::<DebugProbeSelector>() {
             Ok(selector) => {
                 let vidpid = probe;
-                let vid = selector.vendor_id;
-                let pid = selector.product_id;
-                let serial = selector.serial_number.clone();
                 let probe = open_probe_from_selector(selector, speed_khz)?;
-                let name = probe.get_name();
 
                 info!(log, "Opened {vidpid}");
-                Ok(UnattachedCore::new(probe, name, vid, pid, serial))
+                Ok(probe)
             }
             Err(_) => Err(anyhow!("unrecognized probe: {}", probe)),
         },
