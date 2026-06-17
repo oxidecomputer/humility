@@ -1,0 +1,13 @@
+[package]
+name = "humility-flash"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+humility.workspace = true
+humility-probes-core.workspace = true
+humility-auxflash.workspace = true
+
+anyhow.workspace = true     # wrapping other errors
+thiserror.workspace = true  # error types defined in this crate

@@ -13,6 +13,7 @@ members = [
     "humility-core",
     "humility-doppel",
     "humility-dump-agent",
+    "humility-flash",
     "humility-hexdump",
     "humility-hiffy",
     "humility-i2c",
@@ -80,7 +81,7 @@ members = [
     "cmd/validate",
     "cmd/vpd",
     "cmd/writeword",
-    "xtask", "humility-log",
+    "xtask",
 ]
 resolver = "2"
 
@@ -133,6 +134,7 @@ humility-caboose = { path = "./humility-caboose" }
 humility-cli = { path = "./humility-cli", default-features = false }
 humility-doppel = { path = "./humility-doppel" }
 humility-dump-agent = { path = "./humility-dump-agent" }
+humility-flash = { path = "./humility-flash" }
 humility-hexdump = { path = "./humility-hexdump" }
 humility-hiffy = { path = "./humility-hiffy" }
 humility-i2c = { path = "./humility-i2c" }

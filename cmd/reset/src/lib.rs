@@ -46,9 +46,7 @@ fn reset(subargs: ResetArgs, context: &mut ExecutionContext) -> Result<()> {
     } else {
         match subargs.use_token {
             None => {
-                // Detect bogus archives by looking at the chip member
                 if let Some(hubris) = &hubris
-                    && hubris.chip().is_some()
                     && hubris.wants_reset_handoff_token()
                 {
                     Behavior::ResetWithHandoff(hubris)
@@ -58,9 +56,7 @@ fn reset(subargs: ResetArgs, context: &mut ExecutionContext) -> Result<()> {
             }
             Some(false) => Behavior::Reset,
             Some(true) => {
-                if let Some(hubris) = &hubris
-                    && hubris.chip().is_some()
-                {
+                if let Some(hubris) = &hubris {
                     if !hubris.wants_reset_handoff_token() {
                         anyhow::bail!(
                             "--use-token=true was specified, but the archive \
@@ -80,11 +76,14 @@ fn reset(subargs: ResetArgs, context: &mut ExecutionContext) -> Result<()> {
     let r = if subargs.soft_reset
         || matches!(behavior, Behavior::Halt | Behavior::ResetWithHandoff(..))
     {
-        let chip = hubris.as_ref().and_then(|h| h.chip()).ok_or_else(|| {
-            anyhow::anyhow!(
-                "Need a chip to do a soft reset, halt after reset, or handoff"
-            )
-        })?;
+        let chip = hubris.as_ref().map(|h| h.chip()).transpose()?.ok_or_else(
+            || {
+                anyhow::anyhow!(
+                    "Need an archive and chip to do a soft reset, \
+                     halt after reset, or handoff"
+                )
+            },
+        )?;
         let mut c = humility_probes_core::attach_to_chip(
             probe,
             Some(&chip),

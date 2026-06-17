@@ -19,15 +19,15 @@
 //! will be programmed after the image is written.  See RFD 311 for more
 //! information about auxiliary flash management.
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Result, bail};
 use clap::Parser;
 use humility::{
     core::Core,
     hubris::*,
     log::{Logger, info},
 };
-use humility_auxflash::{AuxFlashHandler, AuxFlashWriter};
 use humility_cli::{ExecutionContext, humility_cmd};
+use humility_flash::{ProgramAuxflashSuccess, get_image_state, program_image};
 
 #[derive(Parser, Debug)]
 #[clap(name = "flash", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -35,19 +35,6 @@ pub struct FlashArgs {
     /// force re-flashing if archive matches
     #[clap(long, short = 'F')]
     force: bool,
-
-    /// if using OpenOCD, do not actually flash, but show commands and retain
-    /// any temporary files
-    #[clap(long = "dry-run", short = 'n')]
-    dryrun: bool,
-
-    /// retain any temporary files
-    #[clap(long = "retain-temporaries", short = 'R')]
-    retain: bool,
-
-    /// force usage of OpenOCD
-    #[clap(long = "force-openocd", short = 'O')]
-    force_openocd: bool,
 
     /// reset delay
     #[clap(
@@ -70,133 +57,86 @@ pub struct FlashArgs {
     verbose: bool,
 }
 
-/// Validates the image and auxiliary flash against our subcommand
-///
-/// If `subargs.check` is true, returns `Ok(())` on a clean check and `Err(..)`
-/// otherwise; the core is left running.
-///
-/// If `subargs.check` is false, returns `Ok(())` if the check _fails_ (meaning
-/// we should reflash), and `Err(..)` if all checks pass (meaning we should
-/// _not_ reflash).  The core is left halted if we should reflash and is running
-/// otherwise.
-fn validate(
+fn flash_check(
+    hubris: &HubrisArchive,
+    core: &mut humility_probes_core::ProbeCore,
+    verbose: bool,
+    log: &Logger,
+) -> Result<()> {
+    let check_type = humility_flash::ImageCheckType::ImageIdAndFlash {
+        check_every_byte: verbose,
+    };
+    let out = match get_image_state(hubris, core, check_type, log) {
+        Ok(humility_flash::ImageStateResult::Matches) => Ok(()),
+        Ok(humility_flash::ImageStateResult::DoesNotMatch(e)) => Err(e.into()),
+        Err(e) => Err(e.into()),
+    };
+    core.run()?;
+    out
+}
+
+fn flash_program(
     hubris: &HubrisArchive,
     core: &mut humility_probes_core::ProbeCore,
     subargs: &FlashArgs,
     log: &Logger,
 ) -> Result<()> {
-    let r = get_image_state(
-        hubris,
-        core,
-        subargs.verify || subargs.check,
-        subargs.verbose,
-        log,
-    );
-    if subargs.check {
-        core.run()?;
-        return r;
-    }
+    let check_type = if subargs.verify {
+        humility_flash::ImageCheckType::ImageIdAndFlash {
+            check_every_byte: subargs.verbose,
+        }
+    } else {
+        humility_flash::ImageCheckType::ImageId
+    };
 
-    match r {
-        Ok(()) => {
+    match get_image_state(hubris, core, check_type, log)? {
+        humility_flash::ImageStateResult::Matches => {
             if subargs.force {
                 info!(
                     log,
                     "archive appears to be already flashed; forcing re-flash"
                 );
-                Ok(())
             } else {
                 core.run()?;
-                Err(anyhow!(if subargs.verify {
+                bail!(if subargs.verify {
                     "archive is already flashed on attached device; use -F \
                      (\"--force\") to force re-flash"
                 } else {
                     "archive appears to be already flashed on attached \
                      device; use -F (\"--force\") to force re-flash or -V \
                      (\"--verify\") to verify contents"
-                }))
+                })
             }
         }
-        Err(e) => {
+        humility_flash::ImageStateResult::DoesNotMatch(e) => {
             info!(log, "{e}; reflashing");
+        }
+    }
+
+    let reset_delay = if subargs.reset_delay == 0 {
+        None
+    } else {
+        Some(std::time::Duration::from_millis(subargs.reset_delay))
+    };
+    match program_image(hubris, core, reset_delay, log) {
+        Ok(s) => {
+            match s.auxflash {
+                Some(ProgramAuxflashSuccess::AlreadyProgrammed { slot }) => {
+                    info!(
+                        log,
+                        "auxiliary flash data is already loaded in slot \
+                         {slot}; skipping programming",
+                    )
+                }
+                Some(ProgramAuxflashSuccess::Success) => {
+                    info!(log, "successfully programmed auxiliary flash")
+                }
+                None => (),
+            }
+            info!(log, "flashing done");
             Ok(())
         }
-    }
-}
-
-/// Checks the image and auxiliary flash
-///
-/// Returns `Ok(())` if the image matches; returns an error otherwise.
-///
-/// The core is halted when this function exits.
-fn get_image_state(
-    hubris: &HubrisArchive,
-    core: &mut dyn humility::core::Core,
-    full_check: bool,
-    verbose: bool,
-    log: &Logger,
-) -> Result<()> {
-    core.halt()?;
-
-    // First pass: check only the image ID
-    hubris
-        .validate(core, HubrisValidate::ArchiveMatch)
-        .context("flash/archive mismatch")?;
-
-    // More rigorous checks if requested
-    if full_check {
-        hubris.verify(core, verbose, log).with_context(|| {
-            let mut s = "image IDs match, but flash contents do not \
-                         match archive contents"
-                .to_owned();
-            if !verbose {
-                s += ".  Add `--verbose` to see all byte mismatches."
-            }
-            s
-        })?;
-    }
-
-    if hubris.read_auxflash_data()?.is_some() {
-        // The core must be running for us to check the auxflash slot.
-        //
-        // However, we want it halted before we exit this function, which
-        // requires careful handling of functions that could bail out.
-        core.run()?;
-
-        // Note that we only run this check if we pass the image ID check;
-        // otherwise, the Idol / hiffy memory maps are unknown.
-        let mut worker = match AuxFlashHandler::new(
-            hubris,
-            core,
-            std::time::Duration::from_millis(15_000),
-            log,
-        ) {
-            Ok(w) => w,
-            Err(e) => {
-                // Halt the core before returning!
-                core.halt()?;
-                return Err(e);
-            }
-        };
-        let r = match worker.active_slot() {
-            Ok(Some(s)) => {
-                info!(log, "verified auxflash in slot {s}");
-                Ok(())
-            }
-            Ok(None) => Err(anyhow!("no active auxflash slot")),
-            Err(e) => Err(anyhow!("failed to check auxflash slot: {e}")),
-        };
-
-        // Halt the core before returning results
-        core.halt()?;
-
-        r.context(if full_check {
-            "image ID and flash contents match, but auxflash is not loaded"
-        } else {
-            "image IDs match, but auxflash is not loaded"
-        })
-    } else {
-        Ok(())
+        Err(e) => Err(e.into()),
     }
 }
 
@@ -204,22 +144,12 @@ fn flashcmd(subargs: FlashArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let log = context.log();
 
-    let config = hubris.load_flash_config()?;
-
-    if subargs.force_openocd {
-        bail!("openocd no longer supported");
-    }
-
     let probe = match &context.cli.probe {
         Some(p) => p,
         None => "auto",
     };
 
-    let chip = match config.chip {
-        Some(c) => c,
-        None => bail!("Archive is very old and missing a chip"),
-    };
-
+    let chip = hubris.chip()?;
     info!(log, "attaching with chip set to {chip:x?}");
     let core = &mut humility_probes_core::attach_for_flashing(
         probe,
@@ -228,137 +158,10 @@ fn flashcmd(subargs: FlashArgs, context: &mut ExecutionContext) -> Result<()> {
         log,
     )?;
 
-    validate(hubris, core, &subargs, log)?;
     if subargs.check {
-        return Ok(());
-    }
-
-    //
-    // Load the flash image.  If that fails, we're in a world of hurt:  we
-    // really don't want to run the core for fear of masking the initial
-    // error.  (It will hopefully be pretty clear to the user that a
-    // half-flashed part is going to be in an ill-defined state!)
-    //
-    core.load(&config.elf)?;
-
-    //
-    // On Gimlet Rev B, the BOOT0 pin is unstrapped -- and during a flash,
-    // it seems to float high enough to bounce the part onto the wrong
-    // image (that is, the BOOT1 image -- which by default is the ST
-    // bootloader).  This seems to only be true when resetting immediately
-    // after flashing the part:  if there is a delay on the order of ~35
-    // milliseconds or more, the BOOT0 pin is seen as low when the part
-    // resets.  Because this delay is (more or less) harmless, we do it on
-    // all platforms, and further make it tunable.
-    //
-    let delay = subargs.reset_delay;
-
-    if delay != 0 {
-        std::thread::sleep(std::time::Duration::from_millis(delay));
-    }
-
-    // Reset, using the handoff token if present in the archive
-    core.reset_with_handoff(hubris, log)?;
-
-    // At this point, we can attempt to program the auxiliary flash.  This has
-    // to happen *after* the image is flashed and the core is reset, because it
-    // uses hiffy calls to the `auxflash` task to actually do the programming;
-    // because we have no knowledge of the archive previously flashed onto the
-    // chip, we couldn't do hiffy calls before flashing.
-    //
-    // This is called out in RFD 311 as a weakness of our approach!
-    try_program_auxflash(hubris, core, log)?;
-    info!(log, "flashing done");
-    Ok(())
-}
-
-fn try_program_auxflash(
-    hubris: &HubrisArchive,
-    core: &mut humility_probes_core::ProbeCore,
-    log: &Logger,
-) -> Result<()> {
-    match hubris.read_auxflash_data()? {
-        Some(auxflash) => {
-            match program_auxflash(hubris, core, &auxflash, log) {
-                Ok(_) => {
-                    info!(log, "done with auxiliary flash");
-                    Ok(())
-                }
-                Err(e) => bail!(
-                    "failed to program auxflash: {e:?}; \
-                 your system may not be functional!",
-                ),
-            }
-        }
-        None => Ok(()),
-    }
-}
-
-fn program_auxflash(
-    hubris: &HubrisArchive,
-    core: &mut humility_probes_core::ProbeCore,
-    data: &[u8],
-    log: &Logger,
-) -> Result<()> {
-    let mut worker = AuxFlashWriter::new(
-        hubris,
-        core,
-        std::time::Duration::from_millis(15_000),
-        log,
-    )?;
-
-    // At this point, we've already rebooted into the new image.
-    //
-    // If the Hubris auxflash task has picked up an active slot, then we're all
-    // set: our target image was already loaded (or was unchanged).
-    match worker.active_slot() {
-        Ok(Some(i)) => {
-            info!(
-                log,
-                "auxiliary flash data is already loaded in slot {i}; \
-                 skipping programming",
-            );
-            return Ok(());
-        }
-        Ok(None) => (),
-        Err(e) => {
-            info!(log, "Got error while checking active slot: {e:?}");
-        }
-    };
-
-    // Otherwise, we need to pick a slot.  This is tricky, because we don't
-    // actually know whether there's an image on the B partition that's using
-    // auxiliary data.  We'll prioritize picking an empty (even) slot, and will
-    // otherwise pick slot 0 arbitrarily.
-    let slot_count = worker.slot_count()?;
-    let mut target_slot = 0;
-    for i in 0..slot_count {
-        if i % 2 == 0 && matches!(worker.slot_status(i), Ok(None)) {
-            target_slot = i;
-            break;
-        }
-    }
-
-    worker.auxflash_write(target_slot, data, false)?;
-
-    // After a reset, two things will happen:
-    // - The SP `auxflash` task will automatically mirror from the even slot to
-    //   the odd slot, since the even slot will have valid data and the odd slot
-    //   will not.
-    // - The SP will recognize the programmed slot as valid and choose it as the
-    //   active slot.
-    worker.reset()?;
-
-    // Give the SP plenty of time to do its mirroring operation
-    info!(log, "resetting the SP, please wait...");
-    std::thread::sleep(std::time::Duration::from_secs(5));
-
-    match worker.active_slot() {
-        Ok(Some(..)) => Ok(()),
-        Ok(None) => bail!("No active auxflash slot, even after programming"),
-        Err(e) => {
-            bail!("Could not check auxflash slot after programming: {:?}", e)
-        }
+        flash_check(hubris, core, subargs.verbose, log)
+    } else {
+        flash_program(hubris, core, &subargs, log)
     }
 }
 
