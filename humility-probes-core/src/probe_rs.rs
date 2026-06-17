@@ -229,15 +229,6 @@ pub const CORE_MAX_READSIZE: usize = 65536; // 64K ought to be enough for anyone
 
 #[rustfmt::skip::macros(anyhow, bail)]
 impl Core for ProbeCore {
-    fn info(&self) -> (String, Option<String>) {
-        let ident = format!(
-            "{}, VID {:04x}, PID {:04x}",
-            self.identifier, self.vendor_id, self.product_id
-        );
-
-        (ident, self.serial_number.clone())
-    }
-
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         trace!(self.log, "reading word at {:x}", addr);
         let mut rval = 0;
@@ -366,6 +357,18 @@ pub enum LoadError {
     FlashError(#[from] probe_rs::flashing::FlashError),
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct VidPid {
+    pub vid: u16,
+    pub pid: u16,
+}
+
+impl std::fmt::Display for VidPid {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:04x}:{:04x}", self.vid, self.pid)
+    }
+}
+
 impl ProbeCore {
     pub fn load(&mut self, elf_data: &[u8]) -> Result<(), LoadError> {
         if !self.can_flash {
@@ -461,8 +464,8 @@ impl ProbeCore {
         Ok(())
     }
 
-    pub fn vid_pid(&self) -> Option<(u16, u16)> {
-        Some((self.vendor_id, self.product_id))
+    pub fn vid_pid(&self) -> VidPid {
+        VidPid { vid: self.vendor_id, pid: self.product_id }
     }
 
     pub fn step(&mut self) -> Result<()> {
@@ -483,5 +486,15 @@ impl ProbeCore {
         )?;
 
         Ok(())
+    }
+
+    /// Returns a tuple of `(formatted probe info, serial number)`
+    pub fn info(&self) -> (String, Option<String>) {
+        let ident = format!(
+            "{}, VID {:04x}, PID {:04x}",
+            self.identifier, self.vendor_id, self.product_id
+        );
+
+        (ident, self.serial_number.clone())
     }
 }

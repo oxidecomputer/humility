@@ -117,10 +117,6 @@ fn load_registers(r: &[u8]) -> Result<HashMap<ARMRegister, u32>> {
 
 #[rustfmt::skip::macros(bail)]
 impl Core for DumpCore {
-    fn info(&self) -> (String, Option<String>) {
-        ("core dump".to_string(), None)
-    }
-
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
         let rsize = data.len();
 

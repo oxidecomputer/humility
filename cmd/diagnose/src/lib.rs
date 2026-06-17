@@ -152,8 +152,7 @@ fn diagnose(
         }
     }
 
-    // This is a bit of a hack, but, we can detect core dumps by going...
-    if core.info().0 == "core dump" {
+    if core.is_dump() {
         section("This Is A Core Dump");
         println!("You're running this on a dump; that's all we can do.");
         println!("Connect to a live system for more output.");

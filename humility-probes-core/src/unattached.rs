@@ -27,15 +27,6 @@ impl UnattachedCore {
 }
 
 impl Core for UnattachedCore {
-    fn info(&self) -> (String, Option<String>) {
-        let ident = format!(
-            "{}, VID {:04x}, PID {:04x}",
-            self.identifier, self.vendor_id, self.product_id
-        );
-
-        (ident, self.serial_number.clone())
-    }
-
     fn read_8(&mut self, _addr: u32, _data: &mut [u8]) -> Result<()> {
         bail!("Core::read_8 unimplemented when unattached!");
     }

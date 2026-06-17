@@ -315,10 +315,6 @@ impl NetCore {
 
 #[rustfmt::skip::macros(bail)]
 impl Core for NetCore {
-    fn info(&self) -> (String, Option<String>) {
-        ("connected remotely".to_string(), None)
-    }
-
     fn is_net(&self) -> bool {
         true
     }

@@ -313,10 +313,6 @@ impl DumpAgentCore {
 }
 
 impl Core for DumpAgentCore {
-    fn info(&self) -> (String, Option<String>) {
-        panic!("unexpected call to DumpAgentCore info");
-    }
-
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
         self.read(addr, data)
     }

@@ -69,9 +69,6 @@ impl humility::core::Core for DryCore {
     unsupported!(read_reg(_reg: ARMRegister) -> Result<u32>);
     unsupported!(write_word_32(_addr: u32, _data: u32));
 
-    fn info(&self) -> (String, Option<String>) {
-        ("DryCore".to_owned(), None)
-    }
     fn is_archive(&self) -> bool {
         false
     }

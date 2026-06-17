@@ -189,7 +189,8 @@ impl Cli {
             #[cfg(not(feature = "probes"))]
             {
                 Err(anyhow!(
-                    "probes feature is missing; ip address is required"
+                    "humility was compiled without the \"probes\" feature; \
+                     an IP address or dump is required"
                 ))
             }
         }?;
@@ -269,7 +270,8 @@ impl Cli {
             #[cfg(not(feature = "probes"))]
             {
                 Err(anyhow!(
-                    "probes feature is missing; ip address or dump is required"
+                    "humility was compiled without the \"probes\" feature; \
+                     an IP address or dump is required"
                 ))
             }
         }?;

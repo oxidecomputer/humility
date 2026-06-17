@@ -135,8 +135,8 @@ fn probecmd(subargs: ProbeArgs, context: &mut ExecutionContext) -> Result<()> {
 
     if subargs.environment {
         match (info.1, core.vid_pid()) {
-            (Some(ref serial), Some((vid, pid))) => {
-                println!("HUMILITY_PROBE={vid:04x}:{pid:04x}:{serial}");
+            (Some(ref serial), vidpid) => {
+                println!("HUMILITY_PROBE={vidpid}:{serial}");
                 return Ok(());
             }
             _ => {

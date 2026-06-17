@@ -33,10 +33,6 @@ impl Core for ArchiveCore {
         true
     }
 
-    fn info(&self) -> (String, Option<String>) {
-        ("archive".to_string(), None)
-    }
-
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
         self.read(addr, data)
     }
