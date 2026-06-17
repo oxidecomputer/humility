@@ -37,8 +37,8 @@ pub enum VpdError {
         err: std::io::Error,
     },
     /// TLV reading issue
-    #[error("tlvc: {0:?}")]
-    Tlvc(TlvcReadError<core::convert::Infallible>),
+    #[error("tlvc read error")]
+    Tlvc(#[from] TlvcReadError<core::convert::Infallible>),
     /// VPD region was never programmed
     #[error("VPD region is unprogrammed")]
     Unprogrammed,
@@ -452,7 +452,7 @@ fn vpd_slurp(
     // First, read in enough to read just the header.
     let mut vpd = vpd_read_at(core, context, &op, target, 0)?;
 
-    let reader = tlvc::TlvcReader::begin(&vpd[..]).map_err(VpdError::Tlvc)?;
+    let reader = tlvc::TlvcReader::begin(&vpd[..])?;
 
     // If this isn't a header, see if it's all 0xff -- in which case we
     // will suggest that the part is unprogrammed.
