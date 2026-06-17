@@ -2129,7 +2129,6 @@ dependencies = [
  "num-traits",
  "parse_int",
  "zerocopy",
- "zip",
 ]
 
 [[package]]
@@ -2168,7 +2167,6 @@ dependencies = [
  "clap",
  "humility-cli",
  "humility-log",
- "zip",
 ]
 
 [[package]]
