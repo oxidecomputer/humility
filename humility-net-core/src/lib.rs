@@ -315,10 +315,6 @@ impl NetCore {
 
 #[rustfmt::skip::macros(bail)]
 impl Core for NetCore {
-    fn info(&self) -> (String, Option<String>) {
-        ("connected remotely".to_string(), None)
-    }
-
     fn is_net(&self) -> bool {
         true
     }
@@ -352,10 +348,6 @@ impl Core for NetCore {
         bail!("cannot read register {} over network", reg);
     }
 
-    fn write_reg(&mut self, reg: ARMRegister, _value: u32) -> Result<()> {
-        bail!("cannot write register {} over network", reg);
-    }
-
     fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
         bail!("cannot write a word over network");
     }
@@ -370,10 +362,6 @@ impl Core for NetCore {
 
     fn run(&mut self) -> Result<()> {
         Ok(())
-    }
-
-    fn step(&mut self) -> Result<()> {
-        bail!("can't step over network");
     }
 }
 

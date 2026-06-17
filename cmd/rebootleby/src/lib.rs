@@ -18,6 +18,7 @@ use humility::{
 };
 use humility_arch_arm::ARMRegister;
 use humility_cli::{ExecutionContext, humility_cmd};
+use humility_probes_core::ProbeCore;
 use std::io::Read;
 use std::ops::RangeInclusive;
 use std::path::PathBuf;
@@ -151,7 +152,7 @@ const LOCKOUTSETTINGS: u32 = 0x0;
 const BANKENABLESETTINGS: u32 = 0xaa0;
 
 struct FlashHack<'a> {
-    core: &'a mut dyn Core,
+    core: &'a mut ProbeCore,
     log: Logger,
 }
 

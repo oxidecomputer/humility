@@ -33,20 +33,12 @@ impl Core for ArchiveCore {
         true
     }
 
-    fn info(&self) -> (String, Option<String>) {
-        ("archive".to_string(), None)
-    }
-
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
         self.read(addr, data)
     }
 
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
         bail!("cannot read register {} from an archive", reg);
-    }
-
-    fn write_reg(&mut self, reg: ARMRegister, _value: u32) -> Result<()> {
-        bail!("cannot write register {} to an archive", reg);
     }
 
     fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
@@ -63,9 +55,5 @@ impl Core for ArchiveCore {
 
     fn run(&mut self) -> Result<()> {
         Ok(())
-    }
-
-    fn step(&mut self) -> Result<()> {
-        bail!("can't step an archive");
     }
 }

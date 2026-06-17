@@ -63,17 +63,12 @@ macro_rules! unsupported{
 impl humility::core::Core for DryCore {
     unsupported!(run());
     unsupported!(halt());
-    unsupported!(step());
     unsupported!(write_8(_addr: u32, _data: &[u8]));
     unsupported!(op_done());
     unsupported!(op_start());
     unsupported!(read_reg(_reg: ARMRegister) -> Result<u32>);
-    unsupported!(write_reg(_reg: ARMRegister, _value: u32));
     unsupported!(write_word_32(_addr: u32, _data: u32));
 
-    fn info(&self) -> (String, Option<String>) {
-        ("DryCore".to_owned(), None)
-    }
     fn is_archive(&self) -> bool {
         false
     }
@@ -82,9 +77,6 @@ impl humility::core::Core for DryCore {
     }
     fn is_net(&self) -> bool {
         false
-    }
-    fn vid_pid(&self) -> Option<(u16, u16)> {
-        None
     }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {

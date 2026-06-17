@@ -40,7 +40,6 @@ cmd-console-proxy = { workspace = true }
 cmd-counters = { workspace = true }
 cmd-dashboard = { workspace = true }
 cmd-diagnose = { workspace = true }
-cmd-debugmailbox = { workspace = true, optional = true }
 cmd-discover = { workspace = true }
 cmd-doc = { workspace = true }
 cmd-dump = { workspace = true }
@@ -48,7 +47,6 @@ cmd-tofino-eeprom = { workspace = true }
 cmd-ereport = { workspace = true }
 cmd-exec = { workspace = true }
 cmd-extract = { workspace = true }
-cmd-flash = { workspace = true, optional = true }
 cmd-gimlet = { workspace = true }
 cmd-gpio = { workspace = true }
 cmd-hash = { workspace = true }
@@ -59,7 +57,6 @@ cmd-i2c = { workspace = true }
 cmd-ibc = { workspace = true }
 cmd-jefe = { workspace = true }
 cmd-lpc55gpio = { workspace = true }
-cmd-lsusb = { workspace = true, optional = true }
 cmd-manifest = { workspace = true }
 cmd-map = { workspace = true }
 cmd-monorail = { workspace = true }
@@ -68,13 +65,10 @@ cmd-net = { workspace = true }
 cmd-pmbus = { workspace = true }
 cmd-power = { workspace = true }
 cmd-powershelf = { workspace = true }
-cmd-probe = { workspace = true }
 cmd-qspi = { workspace = true }
 cmd-readmem = { workspace = true }
 cmd-readvar = { workspace = true }
-cmd-rebootleby.workspace = true
 cmd-registers = { workspace = true }
-cmd-reset = { workspace = true, optional = true }
 cmd-rencm = { workspace = true }
 cmd-rendmp = { workspace = true }
 cmd-ringbuf = { workspace = true }
@@ -84,12 +78,20 @@ cmd-spctrl = { workspace = true }
 cmd-spd = { workspace = true }
 cmd-spi = { workspace = true }
 cmd-stackmargin = { workspace = true }
-cmd-stmsecure = { workspace = true }
 cmd-tasks = { workspace = true }
 cmd-test = { workspace = true }
 cmd-validate = { workspace = true }
 cmd-vpd = { workspace = true }
-cmd-writeword = { workspace = true }
+
+# Subcommand which require the `probes` feature
+cmd-debugmailbox = { workspace = true, optional = true }
+cmd-flash = { workspace = true, optional = true }
+cmd-lsusb = { workspace = true, optional = true }
+cmd-probe = { workspace = true, optional = true }
+cmd-rebootleby = { workspace = true, optional = true }
+cmd-reset = { workspace = true, optional = true }
+cmd-stmsecure = { workspace = true, optional = true }
+cmd-writeword = { workspace = true, optional = true }
 
 anyhow = { workspace = true }
 bitfield = { workspace = true }
@@ -114,7 +116,17 @@ trycmd = { workspace = true }
 
 [features]
 default = ["probes"]
-probes = ["humility-cli/probes", "cmd-reset", "cmd-lsusb", "cmd-flash", "cmd-debugmailbox"]
+probes = [
+    "humility-cli/probes",
+    "cmd-debugmailbox",
+    "cmd-flash",
+    "cmd-lsusb",
+    "cmd-probe",
+    "cmd-rebootleby",
+    "cmd-reset",
+    "cmd-stmsecure",
+    "cmd-writeword",
+]
 
 [[bin]]
 name = "humility"

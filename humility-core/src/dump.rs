@@ -117,10 +117,6 @@ fn load_registers(r: &[u8]) -> Result<HashMap<ARMRegister, u32>> {
 
 #[rustfmt::skip::macros(bail)]
 impl Core for DumpCore {
-    fn info(&self) -> (String, Option<String>) {
-        ("core dump".to_string(), None)
-    }
-
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
         let rsize = data.len();
 
@@ -174,10 +170,6 @@ impl Core for DumpCore {
         }
     }
 
-    fn write_reg(&mut self, _reg: ARMRegister, _value: u32) -> Result<()> {
-        bail!("cannot write register on a dump");
-    }
-
     fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
         bail!("cannot write a word on a dump");
     }
@@ -192,10 +184,6 @@ impl Core for DumpCore {
 
     fn run(&mut self) -> Result<()> {
         Ok(())
-    }
-
-    fn step(&mut self) -> Result<()> {
-        bail!("can't step a dump");
     }
 
     fn is_dump(&self) -> bool {

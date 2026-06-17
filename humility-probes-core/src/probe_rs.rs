@@ -229,19 +229,6 @@ pub const CORE_MAX_READSIZE: usize = 65536; // 64K ought to be enough for anyone
 
 #[rustfmt::skip::macros(anyhow, bail)]
 impl Core for ProbeCore {
-    fn info(&self) -> (String, Option<String>) {
-        let ident = format!(
-            "{}, VID {:04x}, PID {:04x}",
-            self.identifier, self.vendor_id, self.product_id
-        );
-
-        (ident, self.serial_number.clone())
-    }
-
-    fn vid_pid(&self) -> Option<(u16, u16)> {
-        Some((self.vendor_id, self.product_id))
-    }
-
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         trace!(self.log, "reading word at {:x}", addr);
         let mut rval = 0;
@@ -309,20 +296,6 @@ impl Core for ProbeCore {
         ))?)
     }
 
-    fn write_reg(&mut self, reg: ARMRegister, value: u32) -> Result<()> {
-        let mut core = self.session.core(0)?;
-        use num_traits::ToPrimitive;
-
-        core.write_core_reg(
-            Into::<probe_rs::RegisterId>::into(
-                ARMRegister::to_u16(&reg).unwrap(),
-            ),
-            value,
-        )?;
-
-        Ok(())
-    }
-
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()> {
         let mut core = self.session.core(0)?;
         core.write_word_32(addr.into(), data)?;
@@ -355,12 +328,6 @@ impl Core for ProbeCore {
         Ok(())
     }
 
-    fn step(&mut self) -> Result<()> {
-        let mut core = self.session.core(0)?;
-        core.step()?;
-        Ok(())
-    }
-
     fn op_start(&mut self) -> Result<()> {
         self.halt()?;
 
@@ -388,6 +355,18 @@ pub enum LoadError {
     /// `probe_rs` internal error when writing to flash
     #[error("could not program flash")]
     FlashError(#[from] probe_rs::flashing::FlashError),
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct VidPid {
+    pub vid: u16,
+    pub pid: u16,
+}
+
+impl std::fmt::Display for VidPid {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:04x}:{:04x}", self.vid, self.pid)
+    }
 }
 
 impl ProbeCore {
@@ -483,5 +462,39 @@ impl ProbeCore {
         core.reset_and_halt(dur)?;
         self.halted = true;
         Ok(())
+    }
+
+    pub fn vid_pid(&self) -> VidPid {
+        VidPid { vid: self.vendor_id, pid: self.product_id }
+    }
+
+    pub fn step(&mut self) -> Result<()> {
+        let mut core = self.session.core(0)?;
+        core.step()?;
+        Ok(())
+    }
+
+    pub fn write_reg(&mut self, reg: ARMRegister, value: u32) -> Result<()> {
+        let mut core = self.session.core(0)?;
+        use num_traits::ToPrimitive;
+
+        core.write_core_reg(
+            Into::<probe_rs::RegisterId>::into(
+                ARMRegister::to_u16(&reg).unwrap(),
+            ),
+            value,
+        )?;
+
+        Ok(())
+    }
+
+    /// Returns a tuple of `(formatted probe info, serial number)`
+    pub fn info(&self) -> (String, Option<String>) {
+        let ident = format!(
+            "{}, VID {:04x}, PID {:04x}",
+            self.identifier, self.vendor_id, self.product_id
+        );
+
+        (ident, self.serial_number.clone())
     }
 }

@@ -182,7 +182,17 @@ impl Cli {
             )
             .map(|b| Box::new(b) as Box<dyn Core>)
         } else {
-            self.attach_probe(hubris).map(|b| Box::new(b) as Box<dyn Core>)
+            #[cfg(feature = "probes")]
+            {
+                self.attach_probe(hubris).map(|b| Box::new(b) as Box<dyn Core>)
+            }
+            #[cfg(not(feature = "probes"))]
+            {
+                Err(anyhow!(
+                    "humility was compiled without the \"probes\" feature; \
+                     an IP address or dump is required"
+                ))
+            }
         }?;
         if let Some(validate) = validate {
             let Some(hubris) = hubris else {
@@ -228,20 +238,6 @@ impl Cli {
         )
     }
 
-    // If the `probes` feature is disabled, then we don't have access to
-    // `ProbeCore`, but we still need to return a concrete type that implements
-    // `Core` (for everything else to typecheck).
-    //
-    // We'll have the signature return an `ArchiveCore` instead, with the
-    // knowledge that it will never actually be used.
-    #[cfg(not(feature = "probes"))]
-    pub fn attach_probe(
-        &self,
-        _hubris: Option<&HubrisArchive>,
-    ) -> Result<humility::archive::ArchiveCore> {
-        bail!("Did not build with probes!");
-    }
-
     /// Attaches to a either a dump or a live system, depending on CLI arguments
     ///
     /// The `hubris` archive is mandatory if `validate` is `Some(..)` or if we
@@ -267,7 +263,17 @@ impl Cli {
             )
             .map(|b| Box::new(b) as Box<dyn Core>)
         } else {
-            self.attach_probe(hubris).map(|b| Box::new(b) as Box<dyn Core>)
+            #[cfg(feature = "probes")]
+            {
+                self.attach_probe(hubris).map(|b| Box::new(b) as Box<dyn Core>)
+            }
+            #[cfg(not(feature = "probes"))]
+            {
+                Err(anyhow!(
+                    "humility was compiled without the \"probes\" feature; \
+                     an IP address or dump is required"
+                ))
+            }
         }?;
         if let Some(validate) = validate {
             let Some(hubris) = hubris else {

@@ -2541,6 +2541,7 @@ dependencies = [
  "humility-cli",
  "humility-core",
  "humility-cortex",
+ "humility-probes-core",
  "zip",
 ]
 
@@ -2723,6 +2724,7 @@ dependencies = [
  "humility-arch-arm",
  "humility-cli",
  "humility-core",
+ "humility-probes-core",
  "parse_int",
 ]
 

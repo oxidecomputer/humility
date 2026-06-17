@@ -101,7 +101,7 @@ fn reset(subargs: ResetArgs, context: &mut ExecutionContext) -> Result<()> {
             Behavior::Reset => c.reset(),
         }
     } else {
-        let mut c = humility_probes_core::attach_to_probe(
+        let mut probe = humility_probes_core::attach_to_probe(
             probe,
             context.cli.speed,
             log,
@@ -110,7 +110,22 @@ fn reset(subargs: ResetArgs, context: &mut ExecutionContext) -> Result<()> {
             Behavior::Halt | Behavior::ResetWithHandoff(..) => {
                 unreachable!()
             }
-            Behavior::Reset => c.reset(),
+            Behavior::Reset => {
+                probe
+                    .target_reset_assert()
+                    .map_err(anyhow::Error::from)
+                    .and_then(|()| {
+                        // The closest available documentation on hold time is
+                        // a comment giving a timeout
+                        // https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/debug_description.html#resetHardwareDeassert
+                        std::thread::sleep(std::time::Duration::from_millis(
+                            1000,
+                        ));
+
+                        probe.target_reset_deassert()?;
+                        Ok(())
+                    })
+            }
         }
     };
 

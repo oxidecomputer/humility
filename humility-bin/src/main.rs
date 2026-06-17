@@ -10,12 +10,11 @@ use humility::log::{info, warn};
 use humility_cli::{Cli, ExecutionContext, env::Environment};
 use tracing_subscriber::{EnvFilter, filter::LevelFilter};
 
-/// Main CLI entry point
-///
-/// The distinction between [`Cli`] and [`OuterCli`] is necessary to break a
-/// dependency loop: the `Cli` is stored in the [`ExecutionContext`]; commands
-/// need to take the `ExecutionContext`; and the `OuterCli` needs to depend on
-/// commands.
+#[cfg_attr(feature = "probes", doc = "Debugger for Hubris")]
+#[cfg_attr(
+    not(feature = "probes"),
+    doc = "Debugger for Hubris (probeless build)"
+)]
 #[derive(Parser, Debug)]
 #[clap(
     name = "humility", max_term_width = 80,
@@ -23,6 +22,12 @@ use tracing_subscriber::{EnvFilter, filter::LevelFilter};
     disable_version_flag = true,
 )]
 struct OuterCli {
+    /// Inner [`Cli`] object
+    ///
+    /// The distinction between [`Cli`] and [`OuterCli`] is necessary to break a
+    /// dependency loop: the `Cli` is stored in the [`ExecutionContext`]; commands
+    /// need to take the `ExecutionContext`; and the `OuterCli` needs to depend on
+    /// commands.
     #[clap(flatten)]
     cli: Cli,
 

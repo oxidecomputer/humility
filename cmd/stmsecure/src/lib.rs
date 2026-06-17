@@ -32,6 +32,7 @@ use clap::Parser;
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
 use humility_cli::{ExecutionContext, humility_cmd};
+use humility_probes_core::ProbeCore;
 
 const FLASH_OPT_KEY1: u32 = 0x0819_2A3B;
 const FLASH_OPT_KEY2: u32 = 0x4C5D_6E7F;
@@ -90,19 +91,19 @@ pub enum StmSecureCmd {
     SwapBanks,
 }
 
-fn stmsecure_unlock_flash(core: &mut dyn Core) -> Result<()> {
+fn stmsecure_unlock_flash(core: &mut ProbeCore) -> Result<()> {
     core.write_word_32(FLASH_KEYR1, FLASH_KEY1)?;
     core.write_word_32(FLASH_KEYR1, FLASH_KEY2)?;
     Ok(())
 }
 
-fn stmsecure_unlock_option(core: &mut dyn Core) -> Result<()> {
+fn stmsecure_unlock_option(core: &mut ProbeCore) -> Result<()> {
     core.write_word_32(FLASH_OPT_KEYR, FLASH_OPT_KEY1)?;
     core.write_word_32(FLASH_OPT_KEYR, FLASH_OPT_KEY2)?;
     Ok(())
 }
 
-fn stmsecure_commit_option(core: &mut dyn Core) -> Result<()> {
+fn stmsecure_commit_option(core: &mut ProbeCore) -> Result<()> {
     // set start bit
     core.write_word_32(FLASH_OPT_CR, 0x2)?;
 
@@ -115,7 +116,7 @@ fn stmsecure_commit_option(core: &mut dyn Core) -> Result<()> {
     Ok(())
 }
 
-fn stmsecure_rdpset(core: &mut dyn Core) -> Result<()> {
+fn stmsecure_rdpset(core: &mut ProbeCore) -> Result<()> {
     println!("setting rdp to level 1 (You will not be able to read the flash)");
     stmsecure_unlock_option(core)?;
     let optsr = core.read_word_32(FLASH_OPTSR_CUR)?;
@@ -125,13 +126,13 @@ fn stmsecure_rdpset(core: &mut dyn Core) -> Result<()> {
     Ok(())
 }
 
-fn stmsecure_rdpunset_nocommit(core: &mut dyn Core) -> Result<()> {
+fn stmsecure_rdpunset_nocommit(core: &mut ProbeCore) -> Result<()> {
     let optsr = core.read_word_32(FLASH_OPTSR_CUR)?;
     core.write_word_32(FLASH_OPTSR_PRG, (optsr & !0x0000_ff00) | 0x0000_aa00)?;
     Ok(())
 }
 
-fn stmsecure_rdpunset(core: &mut dyn Core) -> Result<()> {
+fn stmsecure_rdpunset(core: &mut ProbeCore) -> Result<()> {
     println!(
         "setting rdp level to 0. This may also erase the flash depending
     on your system settings!"
@@ -143,7 +144,7 @@ fn stmsecure_rdpunset(core: &mut dyn Core) -> Result<()> {
     Ok(())
 }
 
-fn stmsecure_lockbit_set(core: &mut dyn Core) -> Result<()> {
+fn stmsecure_lockbit_set(core: &mut ProbeCore) -> Result<()> {
     println!("Setting the secure option bit");
     stmsecure_unlock_option(core)?;
     let optsr = core.read_word_32(FLASH_OPTSR_CUR)?;
@@ -153,7 +154,7 @@ fn stmsecure_lockbit_set(core: &mut dyn Core) -> Result<()> {
     Ok(())
 }
 
-fn stmsecure_lockbit_unset(core: &mut dyn Core) -> Result<()> {
+fn stmsecure_lockbit_unset(core: &mut ProbeCore) -> Result<()> {
     println!("Unsetting the secure option bit");
     stmsecure_unlock_option(core)?;
     let optsr = core.read_word_32(FLASH_OPTSR_CUR)?;
@@ -163,7 +164,7 @@ fn stmsecure_lockbit_unset(core: &mut dyn Core) -> Result<()> {
     Ok(())
 }
 
-fn stmsecure_status(core: &mut dyn Core) -> Result<()> {
+fn stmsecure_status(core: &mut ProbeCore) -> Result<()> {
     let optsr = core.read_word_32(FLASH_OPTSR_CUR)?;
     let rdp = (optsr & 0x0000_ff00) >> 8;
     let sec_en = (optsr & 0x20_0000) == 0x20_0000;
@@ -182,7 +183,7 @@ fn stmsecure_status(core: &mut dyn Core) -> Result<()> {
 }
 
 fn stmsecure_setsecureregion(
-    core: &mut dyn Core,
+    core: &mut ProbeCore,
     address: u32,
     size: u32,
     commit: bool,
@@ -253,7 +254,7 @@ fn stmsecure_setsecureregion(
     Ok(())
 }
 
-fn stmsecure_unsetsecureregion(core: &mut dyn Core) -> Result<()> {
+fn stmsecure_unsetsecureregion(core: &mut ProbeCore) -> Result<()> {
     println!("Unsetting the secure region. This will erase the bank!");
 
     // This sequence is from the manual section 4.3.10
@@ -283,7 +284,7 @@ fn stmsecure_unsetsecureregion(core: &mut dyn Core) -> Result<()> {
     Ok(())
 }
 
-fn stmsecure_swapbanks(core: &mut dyn Core) -> Result<()> {
+fn stmsecure_swapbanks(core: &mut ProbeCore) -> Result<()> {
     println!("Swapping banks");
     stmsecure_unlock_option(core)?;
     let optsr = core.read_word_32(FLASH_OPTSR_CUR)?;
