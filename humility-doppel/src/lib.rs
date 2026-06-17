@@ -42,6 +42,23 @@ use zerocopy::{
     Immutable, IntoBytes, KnownLayout, LittleEndian, U16, U32, U64,
 };
 
+/// Magic value when reading the caboose
+pub const CABOOSE_MAGIC: u32 = 0xCAB0_005E;
+
+/// Value for [`ImageHeader::magic`]
+///
+/// There are two generations of value, but they have the same header layout.
+pub const POSSIBLE_HEADER_MAGIC: [u32; 2] = [0x15356637, 0x64_CE_D6_CA];
+
+/// Possible offsets for the image header relative to the beginning of flash
+///
+/// The exact offset depends on MCU and versions of the PAC crates.
+///
+/// - 0xbc and 0xc0 are possible values for the STM32G0
+/// - 0x298 is for the STM32H7
+/// - 0x130 is for the LPC55
+pub const POSSIBLE_IMAGE_HEADER_OFFSETS: [u32; 4] = [0xbc, 0xc0, 0x130, 0x298];
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Load)]
 pub struct TaskDesc {
     pub entry_point: u32,

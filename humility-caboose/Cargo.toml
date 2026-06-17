@@ -1,0 +1,16 @@
+[package]
+name = "humility-caboose"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true
+tlvc.workspace = true
+tlvc-text.workspace = true
+
+humility.workspace = true
+humility-arch-arm.workspace = true
+humility-doppel.workspace = true
+humility-probes-core.workspace = true
