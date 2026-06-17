@@ -1,5 +1,5 @@
 [package]
-name = "humility-net-core"
+name = "humility-net"
 version = "0.1.0"
 edition.workspace = true
 
@@ -8,7 +8,15 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 humpty.workspace = true
+thiserror.workspace = true
 
 humility.workspace = true
 humility-dump-agent.workspace = true
 humility-arch-arm.workspace = true
+
+# No one is happy about this.
+[target.'cfg(not(windows))'.dependencies]
+libc.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+winapi = { workspace = true, features = ["netioapi"] }

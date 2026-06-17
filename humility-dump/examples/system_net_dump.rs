@@ -5,8 +5,7 @@
 //! "Hey can you grab a hubris dump"
 
 use humility::hubris::HubrisArchive;
-use humility::net::ScopedV6Addr;
-use humility_net_core::attach_net;
+use humility_net::{ScopedV6Addr, attach_net};
 
 fn main() {
     let log = humility_log::init(false);

@@ -14,5 +14,5 @@ slog.workspace = true
 
 [dev-dependencies]
 humility.workspace = true
-humility-net-core.workspace = true
+humility-net.workspace = true
 humility-log.workspace = true

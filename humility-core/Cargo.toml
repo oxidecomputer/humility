@@ -9,6 +9,7 @@ addr2line.workspace = true
 anyhow.workspace = true
 auto_impl.workspace = true
 bitfield.workspace = true
+capstone.workspace = true
 clap.workspace = true
 gimli.workspace = true
 goblin.workspace = true
@@ -33,23 +34,8 @@ rustc-demangle.workspace = true
 scroll.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-strsim = { workspace = true }
+strsim.workspace = true
 thiserror.workspace = true
 toml.workspace = true
 zerocopy.workspace = true
 zip.workspace = true
-
-#
-# We need the fix for https://github.com/capstone-rust/capstone-rs/issues/84,
-# which upstream seems uninterested in fixing.
-#
-capstone.workspace = true
-
-#
-# No one is happy about this.
-#
-[target.'cfg(not(windows))'.dependencies]
-libc.workspace = true
-
-[target.'cfg(windows)'.dependencies]
-winapi = { workspace = true, features = ["netioapi"] }

@@ -43,9 +43,9 @@ use anyhow::{Result, bail};
 use clap::{ArgGroup, Parser};
 use colored::Colorize;
 use hubpack::SerializedSize;
-use humility::log::{Logger, info, warn};
-use humility::net::decode_iface;
 use humility_cli::{ExecutionContext, humility_cmd};
+use humility_log::{Logger, info, warn};
+use humility_net::decode_iface;
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug)]

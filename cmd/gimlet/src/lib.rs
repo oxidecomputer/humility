@@ -18,9 +18,9 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use clap::{ArgGroup, Parser};
-use humility::net::ScopedV6Addr;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hexdump::Dumper;
+use humility_net::ScopedV6Addr;
 
 /// This is defined in the gimlet TOML.
 const HARDCODED_PORT: u16 = 23547;
