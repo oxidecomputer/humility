@@ -66,8 +66,8 @@ pub enum CabooseError {
     },
 
     /// Forwarded error from the TLVC library
-    #[error("tlvc error: {0}")]
-    TlvcError(String), // tlvc::Error does not implement the `Error` trait
+    #[error("tlvc error")]
+    TlvcError(#[from] tlvc::TlvcReadError<std::convert::Infallible>),
 }
 
 /// Reads a TLVC-encoded caboose from an attached system
@@ -166,7 +166,6 @@ pub fn read_tlvc_caboose(
     core.read_8(caboose_data_range.start, &mut caboose_data)
         .map_err(CabooseError::FlashReadFailed)?;
 
-    let reader = tlvc::TlvcReader::begin(caboose_data.as_slice())
-        .map_err(|e| CabooseError::TlvcError(format!("{e:?}")))?;
+    let reader = tlvc::TlvcReader::begin(caboose_data.as_slice())?;
     Ok(tlvc_text::dump(reader))
 }
