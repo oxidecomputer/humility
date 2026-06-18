@@ -134,8 +134,7 @@ use clap::Parser;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_log::info;
 use std::fs::File;
-use std::io::Cursor;
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 
 #[derive(Parser, Debug)]
 #[clap(name = "extract", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -157,32 +156,24 @@ fn extract(subargs: ExtractArgs, context: &mut ExecutionContext) -> Result<()> {
     let log = context.log();
 
     if subargs.list {
-        // We convert the archive data back into a `ZipArchive` instead of using
-        // `RawHubrisArchive` functions for speed; the `ZipArchive` can report
-        // file size without uncompressing.
-        let cursor = Cursor::new(archive.zip);
-        let mut archive = zip::ZipArchive::new(cursor)?;
-
         println!("{:>12} NAME", "SIZE");
 
-        for i in 0..archive.len() {
-            let file = archive.by_index(i)?;
-            println!("{:12} {}", file.size(), file.name());
+        for i in 0..archive.file_count()? {
+            let file = archive.file_metadata_by_index(i)?;
+            println!("{:12} {}", file.size, file.name);
         }
 
         return Ok(());
     }
 
     let buffer = if let Some(ref filename) = subargs.file {
-        let cursor = Cursor::new(archive.zip);
-        let mut archive = zip::ZipArchive::new(cursor)?;
         let mut found = vec![];
 
-        for i in 0..archive.len() {
-            let file = archive.by_index(i)?;
+        for i in 0..archive.file_count()? {
+            let file = archive.file_metadata_by_index(i)?;
 
-            if file.name().contains(filename) {
-                found.push((i, file.name().to_string()));
+            if file.name.contains(filename) {
+                found.push((i, file.name));
             }
         }
 
@@ -207,10 +198,7 @@ fn extract(subargs: ExtractArgs, context: &mut ExecutionContext) -> Result<()> {
 
         info!(log, "extracting {} to stdout", found[0].1);
 
-        let mut file = archive.by_index(found[0].0)?;
-
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer)?;
+        let (_, buffer) = archive.extract_file_by_index(found[0].0)?;
         buffer
     } else {
         archive.zip.to_vec()

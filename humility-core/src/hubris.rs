@@ -1504,10 +1504,8 @@ impl HubrisArchive {
         let mut objects = (0..hubris.file_count()?)
             .into_par_iter()
             .map(|i| -> Result<Option<(usize, String, Vec<u8>)>> {
-                // TODO(matt) once hubtools#65 is merged, this can be made more
-                // efficient; right now, it extracts every file.
-                let (name, data) = hubris.extract_file_by_index(i)?;
-                let path = Path::new(&name);
+                let meta = hubris.file_metadata_by_index(i)?;
+                let path = Path::new(&meta.name);
                 let pieces = path.iter().collect::<Vec<_>>();
 
                 //
@@ -1518,10 +1516,10 @@ impl HubrisArchive {
                     return Ok(None);
                 }
 
-                let filename = Path::new(&name);
+                let (_, data) = hubris.extract_file_by_index(i)?;
                 Ok(Some((
                     i,
-                    filename.file_name().unwrap().to_str().unwrap().to_owned(),
+                    path.file_name().unwrap().to_str().unwrap().to_owned(),
                     data,
                 )))
             })
