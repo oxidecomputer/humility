@@ -2934,6 +2934,8 @@ dependencies = [
  "humility-idol",
  "idol",
  "postcard",
+ "strum 0.28.0",
+ "strum_macros 0.28.0",
  "thiserror 2.0.18",
  "zerocopy",
 ]

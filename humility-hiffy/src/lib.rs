@@ -77,6 +77,9 @@ impl<'a> HiffyVars<'a> {
     }
 }
 
+#[derive(strum_macros::EnumDiscriminants)]
+#[strum_discriminants(name(HiffyBackend))]
+#[strum_discriminants(vis(pub))]
 enum HiffyImpl<'a> {
     /// We are physically attached with a debugger
     Debugger(HiffyVars<'a>),
@@ -1444,6 +1447,11 @@ impl<'a> HiffyContext<'a> {
             }
             idol::IdolDecodeError::Idol(v) => HiffyError::Hiffy(v),
         })
+    }
+
+    /// Returns the backend that will be used to execute HIF programs
+    pub fn backend(&self) -> HiffyBackend {
+        (&self.hiffy).into()
     }
 }
 

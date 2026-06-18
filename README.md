@@ -1996,13 +1996,16 @@ just PMBus devices.)
 selected by the `--agent` command-line argument.
 
 - `--agent=i2c` uses direct construction and execution of raw I2C commands.
-  This only works when connected to the target via a debugger.
+  This works when connected to the target via a debugger, or when the target
+  has a `hiffy` task with the `net` feature enabled
 - `--agent=idol` uses Idol operations, which can be executed over the
   network.  This could also be used (in theory) when connected with a
-  debugger; in practice, the Idol operations have a larger encoding compared
-  to raw I2C operations, so the HIF program may not fit.
-- `--agent=auto` (the default) selects `i2c` if we're connected with a
-  debugger or `idol` if we're connected over the network.
+  debugger or when using the `hiffy` + `net` backend; in practice, the Idol
+  operations have a larger encoding compared to raw I2C operations, so the
+  HIF program may not fit.
+- `--agent=auto` (the default) selects `i2c` if we're either connected with a
+  debugger or support the `hiffy` + `net` backend, or `idol` if we're
+  connected over the network.
 
 In practice, allowing `humility pmbus` to select the agent is almost always
 what you want.
