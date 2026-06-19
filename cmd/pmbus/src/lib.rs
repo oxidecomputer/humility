@@ -1941,57 +1941,66 @@ fn pmbus(subargs: PmbusArgs, context: &mut ExecutionContext) -> Result<()> {
 
     let timeout = std::time::Duration::from_millis(subargs.timeout);
 
+    let context = HiffyContext::new(hubris, core, timeout, log)?;
+
     // Pick an implementation based on our flags and core state
     //
     // This is a little subtle, and requires knowing the difference between the
-    // two worker types:
+    // two worker types. We ask the `HiffyContext` which backend it plans to
+    // use, then select the worker (and warn / bail) appropriately.
     //
-    // - An `I2cWorker` constructs a HIF program which calls I2C read and write
-    //   APIs directly.  This works when a debugger is attached, or when we have
-    //   `net` support in the `hiffy` task.  It also produces shorter program
-    //   text, which matters because the program executes on the target system.
-    // - An `IdolWorker` constructs a HIF program which uses only `SEND` calls
-    //   to call Idol APIs in the `power` task.  This takes up more space in HIF
-    //   program text, but can be invoked over the network in a system which
-    //   only has the `udprpc` task.  In such a situation, the HIF program is
-    //   run on the host computer, so the additional program text doesn't make a
-    //   difference.
-    //
-    //  We ask the `HiffyContext` which backend it plans to use, then select the
-    //  worker (and warn / bail) appropriately.
-    let context = HiffyContext::new(hubris, core, timeout, log)?;
-    let mut worker: Box<dyn PmbusWorker> = match subargs.agent {
-        Agent::Auto => match context.backend() {
-            HiffyBackend::Debugger | HiffyBackend::NetHiffy => {
-                Box::new(I2cWorker::new(core, context)?)
-            }
-            HiffyBackend::NetUdpRpc => {
-                Box::new(IdolWorker::new(hubris, core, context)?)
-            }
-        },
-        Agent::I2c => match context.backend() {
-            HiffyBackend::Debugger | HiffyBackend::NetHiffy => {
-                Box::new(I2cWorker::new(core, context)?)
-            }
-            HiffyBackend::NetUdpRpc => bail!(
-                "cannot use `i2c` agent over the network \
-                 without network-enabled hiffy"
-            ),
-        },
-        Agent::Idol => {
-            match context.backend() {
-                HiffyBackend::Debugger | HiffyBackend::NetHiffy => {
-                    warn!(
-                        log,
-                        "idol interface may use too much program text when \
-                         using the `hiffy` task for execution; \
-                         consider selecting the `i2c` agent instead"
-                    );
-                }
-                HiffyBackend::NetUdpRpc => (),
-            }
+    // This is a small helper enum to help separate "planning" and "doing"
+    // stages...
+    enum Choice {
+        I2c,
+        Idol,
+        IdolWarn(&'static str),
+        Bail(&'static str),
+    }
+
+    // ...and a couple of constant texts that we may use for warnings/errors
+    const TOO_BIG: &str = "idol interface may use too much program text when \
+        using the `hiffy` task for execution; consider selecting the `i2c` \
+        agent instead";
+    const NO_NET: &str = "cannot use `i2c` agent over the network without \
+        network-enabled hiffy";
+
+    // Now: choose your fighter!
+    let choice = match (&subargs.agent, context.backend()) {
+        // An `I2cWorker` constructs a HIF program which calls I2C read and
+        // write APIs directly.  This works when a debugger is attached, or when
+        // we have `net` support in the `hiffy` task.  It also produces shorter
+        // program text, which matters because the program executes on the
+        // target system.
+        (Agent::Auto, HiffyBackend::Debugger) => Choice::I2c,
+        (Agent::Auto, HiffyBackend::NetHiffy) => Choice::I2c,
+        (Agent::I2c, HiffyBackend::Debugger) => Choice::I2c,
+        (Agent::I2c, HiffyBackend::NetHiffy) => Choice::I2c,
+
+        // The I2cWorker cannot be used with the UDP RPC backend
+        (Agent::I2c, HiffyBackend::NetUdpRpc) => Choice::Bail(NO_NET),
+
+        // An `IdolWorker` constructs a HIF program which uses only `SEND` calls
+        // to call Idol APIs in the `power` task.  This takes up more space in
+        // HIF program text, but can be invoked over the network in a system
+        // which only has the `udprpc` task.  In such a situation, the HIF
+        // program is run on the host computer, so the additional program text
+        // doesn't make a difference.
+        (Agent::Auto, HiffyBackend::NetUdpRpc) => Choice::Idol,
+        (Agent::Idol, HiffyBackend::NetUdpRpc) => Choice::Idol,
+        (Agent::Idol, HiffyBackend::Debugger) => Choice::IdolWarn(TOO_BIG),
+        (Agent::Idol, HiffyBackend::NetHiffy) => Choice::IdolWarn(TOO_BIG),
+    };
+
+    // We've finished planning, now start doing.
+    let mut worker: Box<dyn PmbusWorker> = match choice {
+        Choice::I2c => Box::new(I2cWorker::new(core, context)?),
+        Choice::Idol => Box::new(IdolWorker::new(hubris, core, context)?),
+        Choice::IdolWarn(wrn) => {
+            warn!(log, "{wrn}");
             Box::new(IdolWorker::new(hubris, core, context)?)
         }
+        Choice::Bail(err) => bail!(err),
     };
 
     if subargs.summarize {
