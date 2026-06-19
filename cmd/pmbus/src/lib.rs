@@ -1977,7 +1977,7 @@ fn pmbus(subargs: PmbusArgs, context: &mut ExecutionContext) -> Result<()> {
         (Agent::I2c, HiffyBackend::Debugger) => Choice::I2c,
         (Agent::I2c, HiffyBackend::NetHiffy) => Choice::I2c,
 
-        // The I2cWorker cannot be used with the UDP RPC backend
+        // The `I2cWorker` cannot be used with the UDP RPC backend.
         (Agent::I2c, HiffyBackend::NetUdpRpc) => Choice::Bail(NO_NET),
 
         // An `IdolWorker` constructs a HIF program which uses only `SEND` calls
