@@ -1955,15 +1955,19 @@ fn pmbus(subargs: PmbusArgs, context: &mut ExecutionContext) -> Result<()> {
         I2c,
         Idol,
         IdolWarn(&'static str),
-        Bail(&'static str),
+        Bail(anyhow::Error),
     }
 
     // ...and a couple of constant texts that we may use for warnings/errors
     const TOO_BIG: &str = "idol interface may use too much program text when \
         using the `hiffy` task for execution; consider selecting the `i2c` \
         agent instead";
-    const NO_NET: &str = "cannot use `i2c` agent over the network without \
-        network-enabled hiffy";
+
+    #[derive(Debug, thiserror::Error)]
+    #[error(
+        "cannot use `i2c` agent over the network without network-enabled hiffy"
+    )]
+    struct NoNet;
 
     // Now: choose your fighter!
     let choice = match (&subargs.agent, context.backend()) {
@@ -1972,13 +1976,13 @@ fn pmbus(subargs: PmbusArgs, context: &mut ExecutionContext) -> Result<()> {
         // we have `net` support in the `hiffy` task.  It also produces shorter
         // program text, which matters because the program executes on the
         // target system.
-        (Agent::Auto, HiffyBackend::Debugger) => Choice::I2c,
-        (Agent::Auto, HiffyBackend::NetHiffy) => Choice::I2c,
-        (Agent::I2c, HiffyBackend::Debugger) => Choice::I2c,
-        (Agent::I2c, HiffyBackend::NetHiffy) => Choice::I2c,
+        (
+            Agent::Auto | Agent::I2c,
+            HiffyBackend::Debugger | HiffyBackend::NetHiffy,
+        ) => Choice::I2c,
 
         // The `I2cWorker` cannot be used with the UDP RPC backend.
-        (Agent::I2c, HiffyBackend::NetUdpRpc) => Choice::Bail(NO_NET),
+        (Agent::I2c, HiffyBackend::NetUdpRpc) => Choice::Bail(NoNet.into()),
 
         // An `IdolWorker` constructs a HIF program which uses only `SEND` calls
         // to call Idol APIs in the `power` task.  This takes up more space in
@@ -1986,10 +1990,13 @@ fn pmbus(subargs: PmbusArgs, context: &mut ExecutionContext) -> Result<()> {
         // which only has the `udprpc` task.  In such a situation, the HIF
         // program is run on the host computer, so the additional program text
         // doesn't make a difference.
-        (Agent::Auto, HiffyBackend::NetUdpRpc) => Choice::Idol,
-        (Agent::Idol, HiffyBackend::NetUdpRpc) => Choice::Idol,
-        (Agent::Idol, HiffyBackend::Debugger) => Choice::IdolWarn(TOO_BIG),
-        (Agent::Idol, HiffyBackend::NetHiffy) => Choice::IdolWarn(TOO_BIG),
+        (Agent::Auto | Agent::Idol, HiffyBackend::NetUdpRpc) => Choice::Idol,
+
+        // If someone manually chooses the `IdolWorker` in a context where the
+        // HIF program is run on the target device, then we print a warning.
+        (Agent::Idol, HiffyBackend::Debugger | HiffyBackend::NetHiffy) => {
+            Choice::IdolWarn(TOO_BIG)
+        }
     };
 
     // We've finished planning, now start doing.
@@ -2000,7 +2007,7 @@ fn pmbus(subargs: PmbusArgs, context: &mut ExecutionContext) -> Result<()> {
             warn!(log, "{wrn}");
             Box::new(IdolWorker::new(hubris, core, context)?)
         }
-        Choice::Bail(err) => bail!(err),
+        Choice::Bail(err) => return Err(err),
     };
 
     if subargs.summarize {

@@ -2440,6 +2440,7 @@ dependencies = [
  "indexmap 2.14.0",
  "parse_int",
  "pmbus",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
