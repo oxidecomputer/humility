@@ -176,13 +176,16 @@
 //! selected by the `--agent` command-line argument.
 //!
 //! - `--agent=i2c` uses direct construction and execution of raw I2C commands.
-//!   This only works when connected to the target via a debugger.
+//!   This works when connected to the target via a debugger, or when the target
+//!   has a `hiffy` task with the `net` feature enabled
 //! - `--agent=idol` uses Idol operations, which can be executed over the
 //!   network.  This could also be used (in theory) when connected with a
-//!   debugger; in practice, the Idol operations have a larger encoding compared
-//!   to raw I2C operations, so the HIF program may not fit.
-//! - `--agent=auto` (the default) selects `i2c` if we're connected with a
-//!   debugger or `idol` if we're connected over the network.
+//!   debugger or when using the `hiffy` + `net` backend; in practice, the Idol
+//!   operations have a larger encoding compared to raw I2C operations, so the
+//!   HIF program may not fit.
+//! - `--agent=auto` (the default) selects `i2c` if we're either connected with a
+//!   debugger or support the `hiffy` + `net` backend, or `idol` if we're
+//!   connected over the network.
 //!
 //! In practice, allowing `humility pmbus` to select the agent is almost always
 //! what you want.
@@ -1456,14 +1459,7 @@ struct I2cWorker<'a> {
 }
 
 impl<'a> I2cWorker<'a> {
-    fn new(
-        hubris: &'a HubrisArchive,
-        core: &'a mut dyn Core,
-        timeout: u64,
-        log: &Logger,
-    ) -> Result<Self> {
-        let timeout = std::time::Duration::from_millis(timeout);
-        let context = HiffyContext::new(hubris, core, timeout, log)?;
+    fn new(core: &'a mut dyn Core, context: HiffyContext<'a>) -> Result<Self> {
         let read_func = context.get_function("I2cRead", 7)?;
         let write_func = context.get_function("I2cWrite", 8)?;
         Ok(Self { core, context, read_func, write_func, ops: vec![] })
@@ -1642,11 +1638,8 @@ impl<'a> IdolWorker<'a> {
     fn new(
         hubris: &'a HubrisArchive,
         core: &'a mut dyn Core,
-        timeout: u64,
-        log: &Logger,
+        context: HiffyContext<'a>,
     ) -> Result<Self> {
-        let timeout = std::time::Duration::from_millis(timeout);
-        let context = HiffyContext::new(hubris, core, timeout, log)?;
         let write_set = hubris.get_idol_command("Power.raw_pmbus_set")?;
         let write_byte =
             hubris.get_idol_command("Power.raw_pmbus_write_byte")?;
@@ -1946,35 +1939,75 @@ fn pmbus(subargs: PmbusArgs, context: &mut ExecutionContext) -> Result<()> {
 
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
-    let timeout = subargs.timeout;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+
+    let context = HiffyContext::new(hubris, core, timeout, log)?;
 
     // Pick an implementation based on our flags and core state
-    let mut worker: Box<dyn PmbusWorker> = match subargs.agent {
-        Agent::Auto => {
-            if core.is_net() {
-                Box::new(IdolWorker::new(hubris, core, timeout, log)?)
-            } else {
-                Box::new(I2cWorker::new(hubris, core, timeout, log)?)
-            }
+    //
+    // This is a little subtle, and requires knowing the difference between the
+    // two worker types. We ask the `HiffyContext` which backend it plans to
+    // use, then select the worker (and warn / bail) appropriately.
+    //
+    // This is a small helper enum to help separate "planning" and "doing"
+    // stages...
+    enum Choice {
+        I2c,
+        Idol,
+        IdolWarn(&'static str),
+        Bail(anyhow::Error),
+    }
+
+    // ...and a couple of constant texts that we may use for warnings/errors
+    const TOO_BIG: &str = "idol interface may use too much program text when \
+        using the `hiffy` task for execution; consider selecting the `i2c` \
+        agent instead";
+
+    #[derive(Debug, thiserror::Error)]
+    #[error(
+        "cannot use `i2c` agent over the network without network-enabled hiffy"
+    )]
+    struct NoNet;
+
+    // Now: choose your fighter!
+    let choice = match (&subargs.agent, context.backend()) {
+        // An `I2cWorker` constructs a HIF program which calls I2C read and
+        // write APIs directly.  This works when a debugger is attached, or when
+        // we have `net` support in the `hiffy` task.  It also produces shorter
+        // program text, which matters because the program executes on the
+        // target system.
+        (
+            Agent::Auto | Agent::I2c,
+            HiffyBackend::Debugger | HiffyBackend::NetHiffy,
+        ) => Choice::I2c,
+
+        // The `I2cWorker` cannot be used with the UDP RPC backend.
+        (Agent::I2c, HiffyBackend::NetUdpRpc) => Choice::Bail(NoNet.into()),
+
+        // An `IdolWorker` constructs a HIF program which uses only `SEND` calls
+        // to call Idol APIs in the `power` task.  This takes up more space in
+        // HIF program text, but can be invoked over the network in a system
+        // which only has the `udprpc` task.  In such a situation, the HIF
+        // program is run on the host computer, so the additional program text
+        // doesn't make a difference.
+        (Agent::Auto | Agent::Idol, HiffyBackend::NetUdpRpc) => Choice::Idol,
+
+        // If someone manually chooses the `IdolWorker` in a context where the
+        // HIF program is run on the target device, then we print a warning.
+        (Agent::Idol, HiffyBackend::Debugger | HiffyBackend::NetHiffy) => {
+            Choice::IdolWarn(TOO_BIG)
         }
-        Agent::I2c => {
-            if core.is_net() {
-                bail!("cannot use I2C agent over the network");
-            } else {
-                Box::new(I2cWorker::new(hubris, core, timeout, log)?)
-            }
+    };
+
+    // We've finished planning, now start doing.
+    let mut worker: Box<dyn PmbusWorker> = match choice {
+        Choice::I2c => Box::new(I2cWorker::new(core, context)?),
+        Choice::Idol => Box::new(IdolWorker::new(hubris, core, context)?),
+        Choice::IdolWarn(wrn) => {
+            warn!(log, "{wrn}");
+            Box::new(IdolWorker::new(hubris, core, context)?)
         }
-        Agent::Idol => {
-            if !core.is_net() {
-                warn!(
-                    log,
-                    "idol interface may use too much program text when \
-                     connected via debugger; \
-                     consider using the i2c core instead"
-                );
-            }
-            Box::new(IdolWorker::new(hubris, core, timeout, log)?)
-        }
+        Choice::Bail(err) => return Err(err),
     };
 
     if subargs.summarize {

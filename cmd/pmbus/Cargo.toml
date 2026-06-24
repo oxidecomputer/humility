@@ -12,6 +12,7 @@ hif.workspace = true
 indexmap.workspace = true
 parse_int.workspace = true
 pmbus.workspace = true
+thiserror.workspace = true
 
 humility.workspace = true
 humility-cli.workspace = true
