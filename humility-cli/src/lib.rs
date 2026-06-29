@@ -10,9 +10,9 @@ use env::Environment;
 use humility::{
     core::Core,
     hubris::{HubrisArchive, HubrisValidate},
-    net,
 };
-use std::time::Duration;
+use humility_net::{ScopedV6Addr, ScopedV6AddrError};
+use std::{str::FromStr, time::Duration};
 
 #[derive(Parser, Debug, Clone)]
 pub struct Cli {
@@ -66,7 +66,7 @@ pub struct Cli {
     /// HUMILITY_IP environment variable. Run "humility doc" for more
     /// information on running Humility over a network.
     #[clap(long, short, group = "hubris")]
-    pub ip: Option<net::ScopedV6AddrResult>,
+    pub ip: Option<ScopedV6AddrResult>,
 
     /// Hubris environment file. Thie may also be set via the
     /// HUMILITY_ENVIRONMENT environment variable. Run "humility doc" for
@@ -174,13 +174,8 @@ impl Cli {
                 bail!("cannot attach over net without Hubris archive");
             };
             let timeout = Duration::from_millis(self.timeout as u64);
-            humility_net_core::attach_net(
-                ip.0.clone()?,
-                hubris,
-                timeout,
-                self.log(),
-            )
-            .map(|b| Box::new(b) as Box<dyn Core>)
+            humility_net::attach_net(ip.0.clone()?, hubris, timeout, self.log())
+                .map(|b| Box::new(b) as Box<dyn Core>)
         } else {
             #[cfg(feature = "probes")]
             {
@@ -255,13 +250,8 @@ impl Cli {
                 bail!("cannot connect over the network without archive");
             };
             let timeout = Duration::from_millis(self.timeout as u64);
-            humility_net_core::attach_net(
-                ip.0.clone()?,
-                hubris,
-                timeout,
-                self.log(),
-            )
-            .map(|b| Box::new(b) as Box<dyn Core>)
+            humility_net::attach_net(ip.0.clone()?, hubris, timeout, self.log())
+                .map(|b| Box::new(b) as Box<dyn Core>)
         } else {
             #[cfg(feature = "probes")]
             {
@@ -382,5 +372,20 @@ pub struct ExecutionContext {
 impl ExecutionContext {
     pub fn log(&self) -> &humility::log::Logger {
         self.cli.log()
+    }
+}
+
+/// Wrapper which contains a parsed `ScopedV6Addr` or a parse error
+///
+/// This allows us to defer handling the parse error for an `--ip` argument if
+/// it's not actually needed.
+#[derive(Clone, Debug)]
+pub struct ScopedV6AddrResult(pub Result<ScopedV6Addr, ScopedV6AddrError>);
+
+impl FromStr for ScopedV6AddrResult {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(s.parse())) // defer to ScopedV6Addr::from_str
     }
 }

@@ -2,15 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! Humility `Core` which communicates over the network
-//!
-//! A `NetCore` talks to two sockets on the Hubris target:
-//! - `udprpc`, which executes arbitrary Idol calls via an ad-hoc protocol
-//! - `dump_agent`, which executes dump-related messages via a protocol
-//!   specified in `humpty::udp`
-//!
-//! In addition, it contains the contents of flash from the Hubris image,
-//! meaning it can handle flash reads locally.
+//! Tools for using Humility over a network connection.
 
 use anyhow::{Context, Result, anyhow, bail};
 use humility::{
@@ -19,17 +11,32 @@ use humility::{
         HubrisArchive, HubrisFlashMap, HubrisRegion, HubrisSocket, HubrisTask,
     },
     log::{Logger, info, warn},
-    net::ScopedV6Addr,
 };
 use humility_arch_arm::ARMRegister;
 use humility_dump_agent::{
     DumpAgent, DumpAgentCore, DumpAgentExt, DumpArea, UdpDumpAgent,
 };
 use std::{
-    net::{ToSocketAddrs, UdpSocket},
+    fmt,
+    net::{Ipv6Addr, ToSocketAddrs, UdpSocket},
+    str::FromStr,
     time::Duration,
 };
 
+/// [`Core`] which talks over a network connection to the Hubris target
+///
+/// Under the hood, the core uses up to three sockets:
+///
+/// - `udprpc`, which executes arbitrary Idol calls via an ad-hoc protocol
+/// - `hiffy`, which loads and executes HIF programs
+/// - `dump_agent`, which executes dump-related messages via a protocol
+///   specified in `humpty::udp`
+///
+/// (`hiffy` is a superset of `udprpc`, but we support both because not all
+///  images ship with a `net`-capable `hiffy` task)
+///
+/// In addition, it contains the contents of flash from the Hubris image,
+/// meaning it can handle flash reads locally.
 pub struct NetCore {
     /// Socket to communicate with `udprpc`, or `None` if it's not present
     udprpc_socket: Option<UdpSocket>,
@@ -374,4 +381,90 @@ pub fn attach_net(
     let core = NetCore::new(ip, hubris, timeout, log)?;
     info!(log, "connecting to {ip}");
     Ok(core)
+}
+
+/// An IPv6 address, plus a scope ID.
+///
+/// The Rust standard library's [`Ipv6Addr`] type does not parse scoped IPv6
+/// addresses with [zone indices], which are used to disambiguate link-local
+/// addresses. This type implements [`FromStr`] by parsing an IPv6 address
+/// (using [`Ipv6Addr::from_str`]) and a trailing zone index, which may either
+/// be numeric or an interface name, if the host OS supports this. Interface
+/// names are translated to numeric zone indices using [`decode_iface`].
+///
+/// [zone indices]: https://en.wikipedia.org/wiki/IPv6_address#Scoped_literal_IPv6_addresses_(with_zone_index)
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub struct ScopedV6Addr {
+    pub ip: Ipv6Addr,
+    pub scopeid: u32,
+}
+
+const SCOPE_DELIM: char = '%';
+
+impl FromStr for ScopedV6Addr {
+    type Err = ScopedV6AddrError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.trim();
+        let Some((ip, scope)) = s.rsplit_once(SCOPE_DELIM) else {
+            return Err(ScopedV6AddrError::MissingScopeId);
+        };
+        let ip = ip.parse().map_err(|err| ScopedV6AddrError::ParseFailed {
+            ip: ip.to_owned(),
+            err,
+        })?;
+        let scopeid = decode_iface(scope)?;
+        Ok(ScopedV6Addr { ip, scopeid })
+    }
+}
+
+impl fmt::Display for ScopedV6Addr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self { ip, scopeid } = self;
+        write!(f, "{ip}{SCOPE_DELIM}{scopeid}")
+    }
+}
+
+impl fmt::Debug for ScopedV6Addr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+
+pub fn decode_iface(iface: &str) -> Result<u32, CouldNotFindInterface> {
+    #[cfg(not(windows))]
+    use libc::if_nametoindex;
+    #[cfg(windows)]
+    use winapi::shared::netioapi::if_nametoindex;
+
+    // Work around https://github.com/rust-lang/rust/issues/65976 by manually
+    // converting from scopeid to numerical value.  I'm not any happier about
+    // this than you are!
+    let iface_c = std::ffi::CString::new(iface).unwrap();
+    let scopeid: u32 = iface
+        .parse()
+        .unwrap_or_else(|_| unsafe { if_nametoindex(iface_c.as_ptr()) });
+    if scopeid == 0 {
+        Err(CouldNotFindInterface(iface.to_owned()))
+    } else {
+        Ok(scopeid)
+    }
+}
+
+#[derive(Clone, Debug, thiserror::Error)]
+#[error("could not find interface for {0}")]
+pub struct CouldNotFindInterface(String);
+
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum ScopedV6AddrError {
+    #[error(transparent)]
+    CouldNotFindInterface(#[from] CouldNotFindInterface),
+    #[error("{ip:?} is not a valid IPv6 address")]
+    ParseFailed {
+        ip: String,
+        #[source]
+        err: std::net::AddrParseError,
+    },
+    #[error("missing scope ID (e.g. \"{SCOPE_DELIM}en0\") in IPv6 address")]
+    MissingScopeId,
 }
