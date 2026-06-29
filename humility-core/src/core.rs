@@ -8,7 +8,6 @@ use crate::hubris::*;
 use crate::mem::InMemoryCore;
 use humility_arch_arm::ARMRegister;
 use humility_log::{Logger, info};
-use std::str;
 use std::time::Duration;
 use thiserror::Error;
 
@@ -21,7 +20,7 @@ pub trait Core {
 
     fn halt(&mut self) -> Result<()>;
     fn run(&mut self) -> Result<()>;
-    fn is_dump(&self) -> bool {
+    fn is_memory_core(&self) -> bool {
         false
     }
 
@@ -84,7 +83,10 @@ pub enum NetAgent {
     Hiffy,
 }
 
-pub fn attach_dump(dump: &str, log: &Logger) -> Result<InMemoryCore> {
+pub fn attach_dump(
+    dump: &std::path::PathBuf,
+    log: &Logger,
+) -> Result<InMemoryCore> {
     let core = InMemoryCore::from_dump(dump)?;
     info!(log, "attached to dump");
     Ok(core)

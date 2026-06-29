@@ -358,7 +358,7 @@ fn spd(subargs: SpdArgs, context: &mut ExecutionContext) -> Result<()> {
         }
 
         Ok(())
-    } else if core.is_dump() {
+    } else if core.is_memory_core() {
         bail!("cannot specify bus/controller on a dump");
     } else {
         // At this point, the user wants to poll DDR SPDs directly over I2C.  We

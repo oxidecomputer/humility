@@ -1606,12 +1606,12 @@ impl HubrisArchive {
     /// Returns a tuple of `(raw archive, dump task)`; the second field is
     /// `Some(..)` if this is a single-task dump.
     pub fn load_dump(
-        dumpfile: &str,
+        dumpfile: &std::path::PathBuf,
     ) -> Result<(RawHubrisArchive, Option<DumpTask>)> {
         // We expect the dump to be an ELF core dump.
         let contents = fs::read(dumpfile)?;
         let elf = Elf::parse(&contents).map_err(|e| {
-            anyhow!("failed to parse {} as an ELF file: {}", dumpfile, e)
+            anyhow!("failed to parse {} as an ELF file: {}", dumpfile.display(), e)
         })?;
 
         let mut task_dump = None;

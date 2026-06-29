@@ -12,7 +12,7 @@ use humility_arch_arm::ARMRegister;
 use num_traits::FromPrimitive;
 use std::{collections::HashMap, fs::File, io::Read};
 
-/// A core stored entirely in host memory
+/// A core stored entirely in the memory of the computer running Humility
 ///
 /// This may include a [`HubrisDataMap`] containing data from flash, a separate
 /// [`HubrisDataMap`] storing other data from memory, and a map of registers.
@@ -34,7 +34,7 @@ pub struct InMemoryCore {
 }
 
 impl Core for InMemoryCore {
-    fn is_dump(&self) -> bool {
+    fn is_memory_core(&self) -> bool {
         true
     }
 
@@ -105,13 +105,13 @@ impl Core for InMemoryCore {
 }
 
 impl InMemoryCore {
-    pub fn from_dump(dump: &str) -> Result<Self> {
+    pub fn from_dump(dump: &std::path::PathBuf) -> Result<Self> {
         let mut file = File::open(dump)?;
         let mut contents = Vec::new();
         file.read_to_end(&mut contents)?;
 
         let elf = Elf::parse(&contents).map_err(|e| {
-            anyhow!("failed to parse {} as an ELF file: {}", dump, e)
+            anyhow!("failed to parse {} as an ELF file: {}", dump.display(), e)
         })?;
 
         let mut mem = HubrisDataMap::new();

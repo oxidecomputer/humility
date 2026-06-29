@@ -60,7 +60,7 @@ pub struct Cli {
     /// variable. Run "humility doc" for more information on debugging
     /// from a hubris dump.
     #[clap(long, short, group = "hubris")]
-    pub dump: Option<String>,
+    pub dump: Option<std::path::PathBuf>,
 
     /// IP address of remote Hubris instance. This may also be set via the
     /// HUMILITY_IP environment variable. Run "humility doc" for more
