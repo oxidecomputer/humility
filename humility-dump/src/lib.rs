@@ -39,7 +39,7 @@ pub enum DumpError {
     #[error("found system dump, expected task dump(s)")]
     SystemDump,
     /// Error creating in-memory core
-    #[error("Error creating in-memory core")]
+    #[error("error creating in-memory core")]
     InMemoryCore(#[source] anyhow::Error),
     /// Error reading dump via agent
     #[error("error reading dump")]
