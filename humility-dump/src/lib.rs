@@ -9,11 +9,11 @@
 
 #![warn(missing_docs)]
 use humility::core::Core;
-use humility::hubris::{HubrisArchive, HubrisFlashMap, HubrisTask};
+use humility::hubris::{HubrisArchive, HubrisTask};
 use humility::log::{Logger, warn};
+use humility::mem::InMemoryCore;
 use humility_dump_agent::{
-    DumpAgent, DumpAgentCore, DumpAgentExt, DumpArea, HiffyDumpAgent,
-    UdpDumpAgent, task_areas,
+    DumpAgent, DumpAgentExt, DumpArea, HiffyDumpAgent, UdpDumpAgent, task_areas,
 };
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
@@ -38,9 +38,9 @@ pub enum DumpError {
     /// Tried to extract a system dump when a task dump was expected
     #[error("found system dump, expected task dump(s)")]
     SystemDump,
-    /// Error creating hubris flash map
-    #[error("error creating hubris flash map")]
-    FlashMap(#[source] anyhow::Error),
+    /// Error creating in-memory core
+    #[error("error creating in-memory core")]
+    InMemoryCore(#[source] anyhow::Error),
     /// Error reading dump via agent
     #[error("error reading dump")]
     ReadDump(#[source] anyhow::Error),
@@ -203,9 +203,8 @@ pub fn extract_all_task_dumps(
             .open(&filename)
             .map_err(DumpError::OpenError)?;
 
-        let mut out = DumpAgentCore::new(
-            HubrisFlashMap::new(hubris).map_err(DumpError::FlashMap)?,
-        );
+        let mut out = InMemoryCore::from_archive(hubris)
+            .map_err(DumpError::InMemoryCore)?;
         let started = Some(Instant::now());
 
         let task = agent
@@ -243,9 +242,8 @@ fn extract_system_dump_via_agent(
     started: std::time::Instant,
     log: &Logger,
 ) -> Result<(), DumpError> {
-    let mut out = DumpAgentCore::new(
-        HubrisFlashMap::new(hubris).map_err(DumpError::FlashMap)?,
-    );
+    let mut out =
+        InMemoryCore::from_archive(hubris).map_err(DumpError::InMemoryCore)?;
 
     let _ = agent
         .read_dump(None, &mut out, false, log)

@@ -240,7 +240,7 @@ fn registers(
     let core = &mut *context.cli.attach_live_or_dump(hubris.as_ref(), None)?;
     let mut regs = BTreeMap::new();
 
-    if subargs.fp && !core.is_dump() {
+    if subargs.fp && !core.is_memory_core() {
         let mvfr = MVFR0::read(core)?;
 
         if mvfr.simd_registers() != 1 {
@@ -346,7 +346,7 @@ fn registers(
                         // kernel stacks; in classic Humility fashion, phrase
                         // our hunch in the form of a question.
                         //
-                        if core.is_dump() && task == HubrisTask::Kernel {
+                        if core.is_memory_core() && task == HubrisTask::Kernel {
                             info!(
                                 log,
                                 "kernel stack missing; \

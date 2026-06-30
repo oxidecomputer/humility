@@ -60,7 +60,7 @@ pub struct Cli {
     /// variable. Run "humility doc" for more information on debugging
     /// from a hubris dump.
     #[clap(long, short, group = "hubris")]
-    pub dump: Option<String>,
+    pub dump: Option<std::path::PathBuf>,
 
     /// IP address of remote Hubris instance. This may also be set via the
     /// HUMILITY_IP environment variable. Run "humility doc" for more
@@ -302,7 +302,7 @@ impl Cli {
     /// Attaches to a dump
     ///
     /// Reads from the `--dump` argument to pick a target file
-    pub fn attach_dump(&self) -> Result<humility::dump::DumpCore> {
+    pub fn attach_dump(&self) -> Result<humility::mem::InMemoryCore> {
         let core = if let Some(dump) = &self.dump {
             humility::core::attach_dump(dump, self.log())?
         } else {

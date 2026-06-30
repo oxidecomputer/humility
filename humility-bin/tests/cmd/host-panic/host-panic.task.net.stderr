@@ -1,2 +1,2 @@
 humility: attached to dump
-humility host failed: read of 4096 bytes from invalid address: 0x2401d10d
+humility host failed: read of 4096 bytes failed: could not find addr 0x2401d10d in memory

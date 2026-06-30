@@ -19,8 +19,8 @@ use anyhow::{Context, Result, anyhow, bail};
 use core::mem::size_of;
 use humility::{
     core::Core,
-    hubris::HubrisFlashMap,
     log::{Logger, info},
+    mem::InMemoryCore,
 };
 use humility_arch_arm::ARMRegister;
 use humpty::{
@@ -30,10 +30,7 @@ use humpty::{
 use indexmap::IndexMap;
 use indicatif::{HumanBytes, HumanDuration, ProgressBar, ProgressStyle};
 use num_traits::FromPrimitive;
-use std::{
-    collections::{BTreeMap, HashMap},
-    time::Instant,
-};
+use std::time::Instant;
 use zerocopy::FromBytes;
 
 mod hiffy;
@@ -136,209 +133,105 @@ impl DumpBreakdown {
     }
 }
 
-//
-// When using the dump agent, we create our own ersatz Core
-//
-pub struct DumpAgentCore {
-    flash: HubrisFlashMap,
-    ram_regions: BTreeMap<u32, Vec<u8>>,
-    registers: HashMap<ARMRegister, u32>,
-}
+fn process_dump(
+    out: &mut InMemoryCore,
+    headers: Vec<DumpAreaHeader>,
+    total: u32,
+    dump: &[u8],
+    task: Option<DumpTask>,
+) -> Result<DumpBreakdown> {
+    let header = headers[0];
+    let nsegments = header.nsegments;
+    let mut offset = nsegments as usize * size_of::<DumpSegmentHeader>();
+    let mut breakdown = DumpBreakdown::new(headers, total);
 
-impl DumpAgentCore {
-    pub fn new(flash: HubrisFlashMap) -> DumpAgentCore {
-        Self {
-            flash,
-            ram_regions: Default::default(),
-            registers: Default::default(),
-        }
+    if offset > dump.len() {
+        bail!("in situ dump is short; missing {nsegments} segments");
     }
 
-    pub fn add_ram_region(&mut self, addr: u32, contents: Vec<u8>) {
-        self.ram_regions.insert(addr, contents);
+    if offset == dump.len() {
+        bail!("in situ dump is empty");
     }
 
-    pub fn add_register(&mut self, reg: ARMRegister, val: u32) {
-        self.registers.insert(reg, val);
-    }
+    while offset < dump.len() {
+        let segment = match DumpSegment::from(&dump[offset..]) {
+            Some(segment) => segment,
+            None => {
+                bail!("short read at offset {offset}");
+            }
+        };
 
-    fn read_flash(&self, addr: u32, data: &mut [u8]) -> Result<()> {
-        self.flash
-            .read(addr, data)
-            .ok_or_else(|| anyhow!("address 0x{:08x} not found", addr))
-    }
+        match segment {
+            DumpSegment::Task(t) => {
+                match task {
+                    None => {
+                        bail!("found unexpected task {t:?}");
+                    }
+                    Some(task) if task != t => {
+                        bail!("task mismatch: found {t:?}, expected {task:?}");
+                    }
+                    _ => {}
+                }
 
-    fn read(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
-        if let Some((&base, contents)) =
-            self.ram_regions.range(..=addr).next_back()
-        {
-            if base > addr || base + (contents.len() as u32) <= addr {
-                //
-                // We don't have this in RAM -- pull it out of flash.
-                //
-                return self.read_flash(addr, data);
+                offset += size_of::<DumpTask>();
+                continue;
             }
 
-            let start = (addr - base) as usize;
+            DumpSegment::Register(reg) => {
+                //
+                // These are register values; slurp them and continue.
+                //
+                if let Some(register) = ARMRegister::from_u16(reg.register) {
+                    out.add_register(register, reg.value);
+                } else {
+                    let r = reg.register;
+                    bail!("unrecognized register {r:#x} at offset {offset}");
+                }
 
-            if start + data.len() <= contents.len() {
-                //
-                // This region -- and only this region -- contains our RAM.
-                // Copy it and leave.
-                //
-                data.copy_from_slice(&contents[start..start + data.len()]);
-                return Ok(());
+                breakdown.registers += size_of::<DumpRegister>() as u32;
+                offset += size_of::<DumpRegister>();
+                continue;
             }
 
-            //
-            // This region contains our RAM, but there is more.  Copy the bit
-            // that we want and recurse.
-            //
-            let len = contents.len() - start;
-            data[..len].copy_from_slice(&contents[start..contents.len()]);
-            self.read(addr + len as u32, &mut data[len..])
-        } else {
-            self.read_flash(addr, data)
-        }
-    }
+            DumpSegment::Data(data) => {
+                offset += size_of::<DumpSegmentData>();
 
-    fn process_dump(
-        &mut self,
-        headers: Vec<DumpAreaHeader>,
-        total: u32,
-        dump: &[u8],
-        task: Option<DumpTask>,
-    ) -> Result<DumpBreakdown> {
-        let header = headers[0];
-        let nsegments = header.nsegments;
-        let mut offset = nsegments as usize * size_of::<DumpSegmentHeader>();
-        let mut breakdown = DumpBreakdown::new(headers, total);
+                let len = data.uncompressed_length as usize;
 
-        if offset > dump.len() {
-            bail!("in situ dump is short; missing {nsegments} segments");
-        }
+                let mut contents = vec![0; len];
+                let limit = offset + data.compressed_length as usize;
 
-        if offset == dump.len() {
-            bail!("in situ dump is empty");
-        }
+                humpty::DumpLzss::decompress_stack(
+                    lzss::SliceReader::new(&dump[offset..limit]),
+                    lzss::SliceWriter::new(&mut contents),
+                )?;
 
-        while offset < dump.len() {
-            let segment = match DumpSegment::from(&dump[offset..]) {
-                Some(segment) => segment,
-                None => {
-                    bail!("short read at offset {offset}");
-                }
-            };
+                contents.resize(len, 0u8);
+                out.add_ram_region(data.address, contents)?;
+                offset = limit;
 
-            match segment {
-                DumpSegment::Task(t) => {
-                    match task {
-                        None => {
-                            bail!("found unexpected task {t:?}");
-                        }
-                        Some(task) if task != t => {
-                            bail!(
-                                "task mismatch: found {t:?}, expected {task:?}"
-                            );
-                        }
-                        _ => {}
-                    }
-
-                    offset += size_of::<DumpTask>();
-                    continue;
+                while offset < dump.len()
+                    && dump[offset] == humpty::DUMP_SEGMENT_PAD
+                {
+                    offset += 1;
                 }
 
-                DumpSegment::Register(reg) => {
-                    //
-                    // These are register values; slurp them and continue.
-                    //
-                    if let Some(register) = ARMRegister::from_u16(reg.register)
-                    {
-                        self.add_register(register, reg.value);
-                    } else {
-                        let r = reg.register;
-                        bail!(
-                            "unrecognized register {r:#x} at offset {offset}"
-                        );
-                    }
+                breakdown.add_data(
+                    data.compressed_length,
+                    data.uncompressed_length,
+                    offset - limit,
+                );
+            }
 
-                    breakdown.registers += size_of::<DumpRegister>() as u32;
-                    offset += size_of::<DumpRegister>();
-                    continue;
-                }
-
-                DumpSegment::Data(data) => {
-                    offset += size_of::<DumpSegmentData>();
-
-                    let len = data.uncompressed_length as usize;
-
-                    let mut contents = vec![0; len];
-                    let limit = offset + data.compressed_length as usize;
-
-                    humpty::DumpLzss::decompress_stack(
-                        lzss::SliceReader::new(&dump[offset..limit]),
-                        lzss::SliceWriter::new(&mut contents),
-                    )?;
-
-                    self.add_ram_region(
-                        data.address,
-                        contents[0..len].to_vec(),
-                    );
-                    offset = limit;
-
-                    while offset < dump.len()
-                        && dump[offset] == humpty::DUMP_SEGMENT_PAD
-                    {
-                        offset += 1;
-                    }
-
-                    breakdown.add_data(
-                        data.compressed_length,
-                        data.uncompressed_length,
-                        offset - limit,
-                    );
-                }
-
-                DumpSegment::Unknown(signature) => {
-                    bail!(
-                        "unrecognized data with signature \
+            DumpSegment::Unknown(signature) => {
+                bail!(
+                    "unrecognized data with signature \
                     {signature:x?} at offset {offset}"
-                    );
-                }
+                );
             }
         }
-
-        Ok(breakdown)
     }
-}
-
-impl Core for DumpAgentCore {
-    fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
-        self.read(addr, data)
-    }
-
-    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
-        match self.registers.get(&reg) {
-            Some(val) => Ok(*val),
-            None => bail!("unexpected read from register {reg:?}"),
-        }
-    }
-
-    fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
-        bail!("cannot write a word over dump agent");
-    }
-
-    fn write_8(&mut self, _addr: u32, _data: &[u8]) -> Result<()> {
-        bail!("cannot write a byte over dump agent");
-    }
-
-    fn halt(&mut self) -> Result<()> {
-        bail!("unexpected call to halt");
-    }
-
-    fn run(&mut self) -> Result<()> {
-        bail!("unexpected call to run");
-    }
+    Ok(breakdown)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -540,7 +433,7 @@ pub trait DumpAgentExt {
     fn read_dump(
         &mut self,
         area: Option<DumpArea>,
-        out: &mut DumpAgentCore,
+        out: &mut InMemoryCore,
         verbose: bool,
         log: &Logger,
     ) -> Result<(Option<DumpTask>, DumpBreakdown)> {
@@ -636,7 +529,7 @@ pub trait DumpAgentExt {
         //
         // We have a dump!  On to processing...
         //
-        let breakdown = out.process_dump(headers, total, &contents, task)?;
+        let breakdown = process_dump(out, headers, total, &contents, task)?;
 
         Ok((task, breakdown))
     }

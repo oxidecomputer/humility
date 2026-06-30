@@ -4,12 +4,10 @@
 
 use anyhow::{Result, bail};
 
-use crate::archive::ArchiveCore;
-use crate::dump::DumpCore;
 use crate::hubris::*;
+use crate::mem::InMemoryCore;
 use humility_arch_arm::ARMRegister;
 use humility_log::{Logger, info};
-use std::str;
 use std::time::Duration;
 use thiserror::Error;
 
@@ -22,7 +20,7 @@ pub trait Core {
 
     fn halt(&mut self) -> Result<()>;
     fn run(&mut self) -> Result<()>;
-    fn is_dump(&self) -> bool {
+    fn is_memory_core(&self) -> bool {
         false
     }
 
@@ -85,8 +83,11 @@ pub enum NetAgent {
     Hiffy,
 }
 
-pub fn attach_dump(dump: &str, log: &Logger) -> Result<DumpCore> {
-    let core = DumpCore::new(dump)?;
+pub fn attach_dump(
+    dump: &std::path::PathBuf,
+    log: &Logger,
+) -> Result<InMemoryCore> {
+    let core = InMemoryCore::from_dump(dump)?;
     info!(log, "attached to dump");
     Ok(core)
 }
@@ -94,8 +95,8 @@ pub fn attach_dump(dump: &str, log: &Logger) -> Result<DumpCore> {
 pub fn attach_archive(
     hubris: &HubrisArchive,
     log: &Logger,
-) -> Result<ArchiveCore> {
-    let core = ArchiveCore::new(hubris)?;
+) -> Result<InMemoryCore> {
+    let core = InMemoryCore::from_archive(hubris)?;
     info!(log, "attached to archive");
     Ok(core)
 }

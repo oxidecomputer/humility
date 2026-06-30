@@ -130,7 +130,7 @@ fn main() -> std::process::ExitCode {
         } else if let Ok(e) = env::var("HUMILITY_TARGET") {
             cli.target = Some(e);
         } else if let Ok(e) = env::var("HUMILITY_DUMP") {
-            cli.dump = Some(e);
+            cli.dump = Some(std::path::PathBuf::from(e));
         }
     }
 

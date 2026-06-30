@@ -70,11 +70,12 @@ use clap::{ArgGroup, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility::log::{Logger, info};
+use humility::mem::InMemoryCore;
 use humility_arch_arm::ARMRegister;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_dump_agent::{
-    DumpAgent, DumpAgentCore, DumpAgentExt, DumpArea, DumpBreakdown,
-    HiffyDumpAgent, UdpDumpAgent, task_areas,
+    DumpAgent, DumpAgentExt, DumpArea, DumpBreakdown, HiffyDumpAgent,
+    UdpDumpAgent, task_areas,
 };
 use humpty::DumpTask;
 use indicatif::{HumanBytes, HumanDuration, ProgressBar, ProgressStyle};
@@ -341,7 +342,7 @@ fn get_dump_agent<'a>(
 fn read_dump<'a>(
     agent: &mut Box<dyn DumpAgent + 'a>,
     area: Option<DumpArea>,
-    out: &mut DumpAgentCore,
+    out: &mut humility::mem::InMemoryCore,
     subargs: &DumpArgs,
     log: &Logger,
 ) -> Result<Option<DumpTask>> {
@@ -415,7 +416,7 @@ fn simulate_dump_via_agent(
     subargs: &DumpArgs,
     log: &Logger,
 ) -> Result<()> {
-    let mut out = DumpAgentCore::new(HubrisFlashMap::new(hubris)?);
+    let mut out = InMemoryCore::from_archive(hubris)?;
     let started = Some(Instant::now());
     let mut area = subargs.extract.map(DumpArea::ByIndex);
 
@@ -537,7 +538,7 @@ fn simulate_dump_via_agent(
 
                 ncompressed += compressed;
 
-                out.add_ram_region(addr, compare);
+                out.add_ram_region(addr, compare)?;
 
                 remain -= nbytes;
                 nread += nbytes;
@@ -650,7 +651,7 @@ fn extract_or_read_via_agent(
     subargs: &DumpArgs,
     log: &Logger,
 ) -> Result<()> {
-    let mut out = DumpAgentCore::new(HubrisFlashMap::new(hubris)?);
+    let mut out = InMemoryCore::from_archive(hubris)?;
     let started = Some(Instant::now());
 
     let mut agent = get_dump_agent(hubris, core, subargs, log)?;
@@ -726,7 +727,7 @@ fn dump_task_via_agent(
     subargs: &DumpArgs,
     log: &Logger,
 ) -> Result<()> {
-    let mut out = DumpAgentCore::new(HubrisFlashMap::new(hubris)?);
+    let mut out = InMemoryCore::from_archive(hubris)?;
     let started = Some(Instant::now());
 
     let mut agent = get_dump_agent(hubris, core, subargs, log)?;
@@ -835,7 +836,7 @@ fn dump_all(
                 .unwrap();
             info!(log, "dumping {task_name} (area {area})");
 
-            let mut out = DumpAgentCore::new(HubrisFlashMap::new(hubris)?);
+            let mut out = InMemoryCore::from_archive(hubris)?;
             let started = Some(Instant::now());
             let task = read_dump(
                 &mut agent,

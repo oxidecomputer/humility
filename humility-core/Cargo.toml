@@ -11,6 +11,7 @@ auto_impl.workspace = true
 bitfield.workspace = true
 capstone.workspace = true
 clap.workspace = true
+datamap.workspace = true
 gimli.workspace = true
 goblin.workspace = true
 hubpack.workspace = true

@@ -625,7 +625,7 @@ fn sensors(subargs: SensorsArgs, context: &mut ExecutionContext) -> Result<()> {
     let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
     let mut reader: Box<dyn SensorReader> = match subargs.backend {
         Some(Backend::Hiffy) => {
-            if core.is_dump() {
+            if core.is_memory_core() {
                 bail!("cannot use hiffy backend on dump");
             }
             let context = HiffyContext::new(hubris, core, timeout, log)?;
@@ -634,7 +634,7 @@ fn sensors(subargs: SensorsArgs, context: &mut ExecutionContext) -> Result<()> {
         Some(Backend::Readmem) => {
             Box::new(RamSensorReader::new(hubris, &sensors)?)
         }
-        None if core.is_dump() => {
+        None if core.is_memory_core() => {
             Box::new(RamSensorReader::new(hubris, &sensors)?)
         }
         None => match HiffyContext::new(hubris, core, timeout, log) {

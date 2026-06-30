@@ -152,7 +152,7 @@ fn diagnose(
         }
     }
 
-    if core.is_dump() {
+    if core.is_memory_core() {
         section("This Is A Core Dump");
         println!("You're running this on a dump; that's all we can do.");
         println!("Connect to a live system for more output.");

@@ -1,7 +1,7 @@
 system time = 6193
 ID TASK                       GEN PRI STATE    
 19 control_plane_agent          1   6 FAULT: stack overflow; sp=0x2402ff90 (was: ready)
-   could not read registers: read of 32 bytes from invalid address: 0x2402ff90
+   could not read registers: read of 32 bytes failed: could not find addr 0x2402ff90 in memory
    guessing at stack trace using saved frame pointer
    |
    +--->  0x24030090 0x08027790 drv_lpc55_update_api::_::<impl serde::de::Deserialize for drv_lpc55_update_api::RotBootInfo>::deserialize
