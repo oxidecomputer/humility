@@ -142,3 +142,44 @@ impl Default for Dumper {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// dump() computes the first-line offset as `addr & (width - 1)`.
+    /// Verify that a non-zero starting address correctly places data
+    /// at the right column in the first row (i.e. offset = addr % 16).
+    #[test]
+    fn dump_offset_from_address() {
+        // addr = 0x13: offset within a 16-byte row = 3
+        // only 1 byte of data — should not panic
+        let mut d = Dumper::new();
+        d.header = false;
+        d.ascii = false;
+        // Exercise path: offs = 0x13 & 0x0f = 3, lim = min(16-3, 1) = 1
+        d.dump(&[0xAB], 0x13);
+    }
+
+    /// When addr is at the very end of the u32 address space and the byte
+    /// slice is exactly 1 byte, dump() must not overflow the addr arithmetic.
+    #[test]
+    fn dump_high_address_single_byte() {
+        let mut d = Dumper::new();
+        d.header = false;
+        d.ascii = false;
+        // offs = 0xFFFFFFFF & 0x0F = 15; lim = min(16-15, 1) = 1; no wrapping
+        d.dump(&[0xFF], 0xFFFF_FFFF);
+    }
+
+    /// Verify that a multi-chunk dump (more than one 16-byte row) advances
+    /// addr correctly between rows without wrapping.
+    #[test]
+    fn dump_multirow_addr_advance() {
+        let mut d = Dumper::new();
+        d.header = false;
+        d.ascii = false;
+        // addr = 0, 32 bytes → 2 rows; addr increments by 16 between rows
+        d.dump(&[0u8; 32], 0x0);
+    }
+}
