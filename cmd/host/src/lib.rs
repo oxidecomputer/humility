@@ -100,7 +100,7 @@
 //! # etc...
 //! ```
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, bail};
 use chrono::DateTime;
 use clap::Parser;
 
@@ -108,8 +108,7 @@ use humility::{
     core::Core,
     hubris::HubrisArchive,
     log::{Logger, info, warn},
-    reflect,
-    reflect::Load,
+    reflect::{self, Load, Value},
 };
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_doppel as doppel;
@@ -154,8 +153,15 @@ static SEPARATE_HOST_BOOT_FAIL_NAME: &str = "LAST_HOST_BOOT_FAIL";
 
 static SEPARATE_LAST_HOST_PANIC_NAME: &str = "LAST_HOST_PANIC";
 
-static HOST_STATE_BUF_NAME: &str =
+// Pre-2544
+static HOST_STATE_BUF_NAME_1: &str =
     "task_host_sp_comms::ServerImpl::claim_static_resources::BUFS";
+
+// Post-2544
+static HOST_STATE_BUF_NAME_2: &str =
+    "<task_host_sp_comms::ServerImpl>::claim_static_resources::BUFS";
+
+static PACKRAT_BUF_NAME: &str = "task_packrat::main::BUFS";
 
 /// Mirror type of the internal buf struct in `host_sp_comms`. Must be kept in
 /// (partial) sync with that structure (fields that are present need to match,
@@ -229,25 +235,149 @@ fn print_escaped_ascii(mut bytes: &[u8]) {
     println!("{buf}");
 }
 
+fn host_boot_fail_spcomms_old(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+) -> Result<Option<Vec<u8>>> {
+    read_uqvar(hubris, core, SEPARATE_HOST_BOOT_FAIL_NAME)
+}
+
+fn host_boot_fail_spcomms_new(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    base_buf: &str,
+) -> Result<Option<Vec<u8>>> {
+    let buf = read_qualified_state_buf(hubris, core, base_buf)?;
+    let maybe_bf = buf.map(|b| b.last_boot_fail);
+    Ok(maybe_bf)
+}
+
+fn host_boot_fail_packrat(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+) -> Result<Option<Vec<u8>>> {
+    // If this variable doesn't exist, we're probably on a REALLY old version
+    // of hubris, but don't return the error here, as it means we'll still want
+    // to check the host-sp-comms's vars.
+    let lookup = hubris.lookup_qualified_variable(PACKRAT_BUF_NAME);
+    let Ok(buf_ty) = lookup else {
+        return Ok(None);
+    };
+
+    // We do ? the error here, because errors while loading indicate some
+    // kind of transport error.
+    let buf: Value = humility::reflect::read_variable(hubris, core, buf_ty)?;
+
+    // Again, it's possible the image DOES have the packrat buf, but NOT this
+    // field (either it is older than #2518, or it is a hostless SP), so treat
+    // errors here as "no data".
+    let res_payload: Result<Vec<u8>> =
+        buf.field("cell.value.host_info.host_bootfail_payload");
+    let res_state: Result<Option<Value>> =
+        buf.field("cell.value.host_info.host_bootfail_state");
+
+    let (Ok(mut payload), Ok(state)) = (res_payload, res_state) else {
+        return Ok(None);
+    };
+
+    // Cool, cool, we have the fields! Now check if the state is in a place
+    // where there is something reasonable to extract. If the variables DO
+    // exist, but DON'T have data, return an empty vec.
+    let Some(state) = state else {
+        return Ok(Some(vec![]));
+    };
+
+    let total: u32 = state.field("total_length")?;
+    payload.truncate(total as usize);
+
+    Ok(Some(payload))
+}
+
+/// Try getting boot fail from packrat, where it moved to in
+/// https://github.com/oxidecomputer/hubris/pull/2518.
 fn host_boot_fail(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
-    // Try old name:
-    let d = read_uqvar(hubris, core, SEPARATE_HOST_BOOT_FAIL_NAME)?;
-    if let Some(d) = d {
-        print_escaped_ascii(&d);
-        return Ok(());
+    // Work through the different places "boot fail" info could be hiding
+    let sources: [fn(&HubrisArchive, &mut dyn Core) -> _; _] = [
+        host_boot_fail_packrat,
+        host_boot_fail_spcomms_old,
+        |h, c| host_boot_fail_spcomms_new(h, c, HOST_STATE_BUF_NAME_1),
+        |h, c| host_boot_fail_spcomms_new(h, c, HOST_STATE_BUF_NAME_2),
+    ];
+
+    for source in sources {
+        if let Some(bootfail) = source(hubris, core)? {
+            print_escaped_ascii(&bootfail);
+            return Ok(());
+        }
     }
-    // Try new name
-    let buf = read_qualified_state_buf(hubris, core, HOST_STATE_BUF_NAME)?
-        .ok_or_else(|| {
-            anyhow!(
-                "Could not find host boot variables under any known name; \
-            is this a Gimlet image?"
-            )
-        })?;
 
-    print_escaped_ascii(&buf.last_boot_fail[..]);
+    bail!(
+        "Could not find host boot variables under any known name; is this a \
+        Gimlet image?"
+    )
+}
 
-    Ok(())
+/// In host-sp-comms, with the legacy-ish name
+fn host_last_panic_spcomms_old(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+) -> Result<Option<Vec<u8>>> {
+    read_uqvar(hubris, core, SEPARATE_LAST_HOST_PANIC_NAME)
+}
+
+/// In host-sp-comms, with the modern-ish name
+fn host_last_panic_spcomms_new(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    base_buf: &str,
+) -> Result<Option<Vec<u8>>> {
+    // Try new name:
+    let buf = read_qualified_state_buf(hubris, core, base_buf)?;
+    let maybe_panic = buf.map(|b| b.last_panic);
+    Ok(maybe_panic)
+}
+
+/// Try getting last panic from packrat, where it moved to in
+/// https://github.com/oxidecomputer/hubris/pull/2518.
+fn host_last_panic_packrat(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+) -> Result<Option<Vec<u8>>> {
+    // If this variable doesn't exist, we're probably on a REALLY old version
+    // of hubris, but don't return the error here, as it means we'll still want
+    // to check the host-sp-comms's vars.
+    let lookup = hubris.lookup_qualified_variable(PACKRAT_BUF_NAME);
+    let Ok(buf_ty) = lookup else {
+        return Ok(None);
+    };
+
+    // We do ? the error here, because errors while loading indicate some
+    // kind of transport error.
+    let buf: Value = humility::reflect::read_variable(hubris, core, buf_ty)?;
+
+    // Again, it's possible the image DOES have the packrat buf, but NOT this
+    // field (either it is older than #2518, or it is a hostless SP), so treat
+    // errors here as "no data".
+    let res_payload: Result<Vec<u8>> =
+        buf.field("cell.value.host_info.host_panic_payload");
+    let res_state: Result<Option<Value>> =
+        buf.field("cell.value.host_info.host_panic_state");
+
+    let (Ok(mut payload), Ok(state)) = (res_payload, res_state) else {
+        return Ok(None);
+    };
+
+    // Cool, cool, we have the fields! Now check if the state is in a place
+    // where there is something reasonable to extract. If the variables DO
+    // exist, but DON'T have data, return an empty vec.
+    let Some(state) = state else {
+        return Ok(Some(vec![]));
+    };
+
+    let total: u32 = state.field("total_length")?;
+    payload.truncate(total as usize);
+
+    Ok(Some(payload))
 }
 
 fn host_last_panic(
@@ -255,22 +385,24 @@ fn host_last_panic(
     core: &mut dyn Core,
     log: &Logger,
 ) -> Result<()> {
-    // Try original name:
-    let d = read_uqvar(hubris, core, SEPARATE_LAST_HOST_PANIC_NAME)?;
-    if let Some(d) = d {
-        return print_panic(d, log);
+    // Work through the different places "last panic" info could be hiding
+    let sources: [fn(&HubrisArchive, &mut dyn Core) -> _; _] = [
+        host_last_panic_packrat,
+        host_last_panic_spcomms_old,
+        |h, c| host_last_panic_spcomms_new(h, c, HOST_STATE_BUF_NAME_1),
+        |h, c| host_last_panic_spcomms_new(h, c, HOST_STATE_BUF_NAME_2),
+    ];
+
+    for source in sources {
+        if let Some(panic) = source(hubris, core)? {
+            return print_panic(panic, log);
+        }
     }
 
-    // Try new name:
-    let buf = read_qualified_state_buf(hubris, core, HOST_STATE_BUF_NAME)?
-        .ok_or_else(|| {
-            anyhow!(
-                "Could not find host boot variables under any known name; \
-            is this a Gimlet image?"
-            )
-        })?;
-
-    print_panic(buf.last_panic, log)
+    bail!(
+        "Could not find host boot variables under any known name; is this a \
+        Gimlet image?"
+    )
 }
 
 fn print_panic(d: Vec<u8>, log: &Logger) -> Result<()> {
