@@ -10,7 +10,7 @@
 //! $ humility tasks
 //! humility: attached via ST-Link
 //! system time = 1764993
-//! ID TASK                 GEN PRI STATE    
+//! ID TASK                 GEN PRI STATE
 //!  0 jefe                   0   0 recv, notif: bit0 bit1(T+7)
 //!  1 rcc_driver             0   1 recv
 //!  2 gpio_driver            0   2 recv
@@ -31,7 +31,7 @@
 //! $ humility -d hubris.core.4 tasks -v
 //! humility: attached to dump
 //! system time = 1791860
-//! ID TASK                 GEN PRI STATE    
+//! ID TASK                 GEN PRI STATE
 //! ...
 //!  7 pong                   0   3 FAULT: killed by jefe/gen0 (was: recv, notif: bit0)
 //!    |
@@ -64,7 +64,7 @@
 //! $ humility tasks -r user_leds
 //! humility: attached via ST-Link
 //! system time = 1990498
-//! ID TASK                 GEN PRI STATE    
+//! ID TASK                 GEN PRI STATE
 //!  6 user_leds              0   2 recv
 //!    |
 //!    +--->   R0 = 0x20005fc8   R1 = 0x0000000c   R2 = 0x00000000   R3 = 0x20005fd8
@@ -79,7 +79,7 @@
 //! $ humility tasks -s user_leds
 //! humility: attached via ST-Link
 //! system time = 2021382
-//! ID TASK                 GEN PRI STATE    
+//! ID TASK                 GEN PRI STATE
 //!  6 user_leds              0   2 recv
 //!    |
 //!    +--->  0x20005fc0 0x08026e42 userlib::sys_recv_stub
@@ -95,7 +95,7 @@
 //! $ humility tasks -sl user_leds
 //! humility: attached via ST-Link
 //! system time = 2049587
-//! ID TASK                 GEN PRI STATE    
+//! ID TASK                 GEN PRI STATE
 //!  6 user_leds              0   2 recv
 //!    |
 //!    +--->  0x20005fc0 0x08026e42 userlib::sys_recv_stub
@@ -236,8 +236,26 @@ pub fn print_tasks(
     loop {
         core.halt()?;
 
+        // let Some(var) = hubris.lookup_variable(name).ok() else {
+        //     return Ok(None);
+        // };
+        // let buf: doppel::MaybeUninit<Vec<u8>> =
+        //     reflect::read_variable(hubris, core, var)?;
+        // Ok(Some(buf.value))
+        let var = hubris.lookup_variable("PTIME_LAST_SWITCH").unwrap();
+        let total_ticks: doppel::Instant =
+            reflect::read_variable(hubris, core, var).unwrap();
+
         let ticks =
             if core.is_net() { None } else { Some(hubris.ticks(core)?) };
+
+        let pct = |t: u64| -> f64 {
+            if total_ticks.0 == 0 {
+                return 0.0;
+            }
+            let div = (t as f64) / (total_ticks.0 as f64);
+            div * 100.0
+        };
 
         let cur = hubris.current_task(core)?;
         let task_dump = hubris.task_dump();
@@ -310,8 +328,8 @@ pub fn print_tasks(
         )?;
         writeln!(
             w,
-            "{:2} {:21} {:>8} {:3} {:9}",
-            "ID", "TASK", "GEN", "PRI", "STATE"
+            "{:2} {:21} {:>8} {:3} {:>10} {:6} {:9}",
+            "ID", "TASK", "GEN", "PRI", "µs active", "cpu %", "STATE"
         )?;
 
         let mut any_names_truncated = false;
@@ -362,23 +380,32 @@ pub fn print_tasks(
                 modname
             };
 
+            let ticks = task.active.0;
+
             // Special case for the supervisor on a net core, which we can't
             // meaningfully process.
             if i == 0 && core.is_net() {
                 writeln!(
                     w,
-                    "{:2} {:21} {:>8} {:3} [cannot read supervisor memory]",
-                    i, modname, "?", task.priority.0
+                    "{:2} {:21} {:>8} {:3} {:>10} {:05.2}% [cannot read supervisor memory]",
+                    i,
+                    modname,
+                    "?",
+                    task.priority.0,
+                    ticks,
+                    pct(ticks),
                 )?;
                 continue;
             } else {
                 write!(
                     w,
-                    "{:2} {:21} {:>8} {:3} ",
+                    "{:2} {:21} {:>8} {:3} {:>10} {:05.2}% ",
                     i,
                     modname,
                     u32::from(task.generation),
-                    task.priority.0
+                    task.priority.0,
+                    ticks,
+                    pct(ticks),
                 )?;
             }
             explain_state(

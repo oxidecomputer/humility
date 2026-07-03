@@ -1815,6 +1815,9 @@ impl HubrisArchive {
         &self,
         name: &str,
     ) -> Result<&HubrisVariable> {
+        // for qv in self.qualified_variables() {
+        //     println!("{}", qv.0);
+        // }
         match self.qualified_variables.get(name) {
             Some(variable) => Ok(variable),
             None => Err(anyhow!("variable {} not found", name)),

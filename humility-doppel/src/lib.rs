@@ -66,12 +66,17 @@ pub struct TaskDesc {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Load)]
+pub struct Instant(pub u64);
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Load)]
 pub struct Task {
     pub state: TaskState,
     pub generation: GenOrRestartCount,
     pub priority: Priority,
     pub descriptor: Ptr,
     pub timer: TimerState,
+    // TODO: how to make this modular?
+    pub active: Instant,
 }
 
 impl Task {
