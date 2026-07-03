@@ -244,7 +244,8 @@ pub fn print_tasks(
         // Ok(Some(buf.value))
         let var = hubris.lookup_variable("PTIME_LAST_SWITCH").unwrap();
         let total_ticks: doppel::Instant =
-            reflect::read_variable(hubris, core, var).unwrap();
+            reflect::read_variable(hubris, core, var)
+                .unwrap_or(doppel::Instant(0));
 
         let ticks =
             if core.is_net() { None } else { Some(hubris.ticks(core)?) };
@@ -328,7 +329,7 @@ pub fn print_tasks(
         )?;
         writeln!(
             w,
-            "{:2} {:21} {:>8} {:3} {:>10} {:6} {:9}",
+            "{:2} {:21} {:>8} {:3} {:>10} {:>6} {:9}",
             "ID", "TASK", "GEN", "PRI", "µs active", "cpu %", "STATE"
         )?;
 
