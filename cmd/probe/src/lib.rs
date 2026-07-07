@@ -319,7 +319,7 @@ fn probecmd(subargs: ProbeArgs, context: &mut ExecutionContext) -> Result<()> {
     }
 
     let regions = if let Some(hubris) = &hubris {
-        match hubris.validate(core, HubrisValidate::ArchiveMatch) {
+        match hubris.validate(core, HubrisValidate::ArchiveMatch, log) {
             Ok(_) => hubris.regions(core).unwrap(),
             Err(err) => {
                 //

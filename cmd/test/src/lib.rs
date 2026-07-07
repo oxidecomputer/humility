@@ -165,7 +165,7 @@ fn test(subargs: TestArgs, context: &mut ExecutionContext) -> Result<()> {
     let log = context.log();
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
-    hubris.validate(core, HubrisValidate::Booted)?;
+    hubris.validate(core, HubrisValidate::Booted, log)?;
 
     // This type is &[(&str, &(dyn Fn() + Send + Sync))]
     let test_slice = hubris

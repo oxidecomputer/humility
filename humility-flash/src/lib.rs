@@ -5,10 +5,12 @@
 //! Functions to check flash state and reprogram a processor
 #![warn(missing_docs)]
 
+use anyhow::anyhow;
+
 use humility::{
     core::Core,
-    hubris::{HubrisArchive, HubrisValidate},
-    log::{Logger, info},
+    hubris::HubrisArchive,
+    log::{Logger, info, warn},
 };
 use humility_auxflash::{AuxFlashHandler, AuxFlashWriter};
 use humility_probes_core::ProbeCore;
@@ -92,11 +94,45 @@ pub fn get_image_state(
 ) -> Result<ImageStateResult, ImageStateError> {
     core.halt().map_err(ImageStateError::HaltFailed)?;
 
-    // First pass: check only the image ID
-    if let Err(e) = hubris.validate(core, HubrisValidate::ArchiveMatch) {
-        return Ok(ImageStateResult::DoesNotMatch(
-            ImageStateMismatch::FlashArchiveMismatch(e),
-        ));
+    // Warn if we're sure that the user is flashing an archive for a different
+    // image slot than the one currently running (e.g. flashing an A image onto
+    // an RoT that's running a B image). This isn't necessarily a problem but it
+    // means that the newly flashed image won't actually run after the target
+    // resets. If the user does it by accident, they could get very confused.
+    if let Some(archive_image_name) = hubris.manifest.image.as_deref()
+        && let Ok((_, name)) = hubris.booted_image(core)
+        && name != archive_image_name
+    {
+        warn!(
+            log,
+            "the archive contains image '{archive_image_name}' but the target \
+             is running image '{name}'; image '{archive_image_name}' won't run \
+             unless the boot preference is changed"
+        );
+    }
+
+    // First pass: check only the image ID.
+    //
+    // We specifically care about the ID of the image stored in the FLASH slot
+    // that we're planning to overwrite, not the ID of the image that's
+    // currently running.
+    match hubris.read_image_id_from_flash(core) {
+        Err(e) => {
+            return Ok(ImageStateResult::DoesNotMatch(
+                ImageStateMismatch::FlashArchiveMismatch(e),
+            ));
+        }
+        Ok(id) if id != hubris.image_id() => {
+            return Ok(ImageStateResult::DoesNotMatch(
+                ImageStateMismatch::FlashArchiveMismatch(anyhow!(
+                    "image ID in archive ({:x?}) does not equal \
+                         image ID of target ({:x?})",
+                    hubris.image_id(),
+                    id,
+                )),
+            ));
+        }
+        _ => (),
     }
 
     // More rigorous checks if requested

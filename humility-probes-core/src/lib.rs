@@ -300,6 +300,7 @@ impl HubrisAttach for humility::hubris::HubrisArchive {
         self.validate(
             &mut core,
             humility::hubris::HubrisValidate::ArchiveMatch,
+            log,
         )?;
 
         Ok(core)

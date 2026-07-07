@@ -2071,36 +2071,39 @@ impl HubrisArchive {
         &self,
         core: &mut dyn crate::core::Core,
         criteria: HubrisValidate,
+        log: &Logger,
     ) -> Result<()> {
-        let ntasks = self.ntasks();
         if core.is_net() || core.is_archive() {
             return Ok(());
         }
 
-        // To validate that what we're running on the target matches what
-        // we have in the archive, we are going to check the image ID, an
-        // identifer created for this purpose.
-        let addr = self.imageid.0;
-        let nbytes = self.imageid.1.len();
-        assert!(nbytes > 0);
+        // To validate that what we're running on the target matches what we
+        // have in the archive, we are going to check the image ID, an identifer
+        // created for this purpose. First try to read the ID of the image that
+        // actually booted, as recorded by the kernel. If that fails then fall
+        // back to reading the ID from FLASH, which can be misleading on targets
+        // with A/B images. For example, if the archive is an A image, then
+        // `read_image_id_from_flash` will return the ID of whichever A image
+        // was last flashed regardless of whether the target is currently
+        // running an A or B image.
+        let id = match self.booted_image(core) {
+            Ok((id, _)) => id,
+            Err(err) => {
+                info!(
+                    log,
+                    "can't detect booted image, reading image ID from FLASH ({})",
+                    err
+                );
+                self.read_image_id_from_flash(core)?
+            }
+        };
 
-        let mut id = vec![0; nbytes];
-        core.read_8(addr, &mut id[0..nbytes]).with_context(|| {
-            format!("failed to read image ID at 0x{:x}; board mismatch?", addr)
-        })?;
-
-        let deltas = id
-            .iter()
-            .zip(self.imageid.1.iter())
-            .filter(|&(lhs, rhs)| lhs != rhs)
-            .count();
-
-        if deltas > 0 || id.len() != self.imageid.1.len() {
+        if id != self.imageid.1 {
             bail!(
                     "image ID in archive ({:x?}) does not equal \
-                    ID at 0x{:x} ({:x?})",
-                    self.imageid.1, self.imageid.0, id,
-                );
+                    image ID of target ({:x?})",
+                    self.imageid.1, id,
+            );
         }
 
         if criteria == HubrisValidate::ArchiveMatch {
@@ -2111,6 +2114,7 @@ impl HubrisArchive {
             return Ok(());
         }
 
+        let ntasks = self.ntasks();
         let (_, n) = self.task_table(core)?;
 
         if n == ntasks as u32 {
@@ -2168,6 +2172,67 @@ impl HubrisArchive {
             "target does not appear to be booted and may be panicking on \
             boot; run \"humility registers -s\" for a kernel stack trace"
         );
+    }
+
+    /// Reads the kernel's `BOOTED_IMAGE` array to determine which image is
+    /// actually running on the target.
+    ///
+    /// Returns the image ID and the image name.
+    pub fn booted_image(
+        &self,
+        core: &mut dyn crate::core::Core,
+    ) -> Result<(Vec<u8>, String)> {
+        const MAGIC: &[u8] = b"HUBRISID";
+        const ID_LEN: usize = 8;
+
+        // If BOOTED_IMAGE isn't in the symbol table, it's probably because the
+        // archive is too old.
+        let &(addr, size) =
+            self.esyms_byname.get("BOOTED_IMAGE").ok_or_else(|| {
+                anyhow!("BOOTED_IMAGE not in archive's symbol table")
+            })?;
+
+        let size = size as usize;
+        if size < ID_LEN + MAGIC.len() {
+            // Even if the name was empty, the fixed length parts wouldn't fit.
+            // Don't try to interpret it.
+            return Err(anyhow!("BOOTED_IMAGE array is unexpectedly short"));
+        }
+
+        let mut block = vec![0u8; size];
+        core.read_8(addr, &mut block).with_context(|| {
+            format!("failed to read BOOTED_IMAGE at 0x{:x}", addr)
+        })?;
+
+        let id = &block[..ID_LEN];
+        // We don't know the length of the name, but we know the lengths of the
+        // stuff on either side.
+        let name = &block[ID_LEN..size - MAGIC.len()];
+        let magic = &block[size - MAGIC.len()..];
+        if magic != MAGIC {
+            return Err(
+                anyhow!("BOOTED_IMAGE array does not contain magic marker"),
+            );
+        }
+        let name_string =
+            String::from_utf8_lossy(name).trim_end_matches('\0').to_string();
+
+        Ok((id.to_vec(), name_string))
+    }
+
+    pub fn read_image_id_from_flash(
+        &self,
+        core: &mut dyn crate::core::Core,
+    ) -> Result<Vec<u8>> {
+        let addr = self.imageid.0;
+        let nbytes = self.imageid.1.len();
+        assert!(nbytes > 0);
+
+        let mut id = vec![0; nbytes];
+        core.read_8(addr, &mut id[0..nbytes]).with_context(|| {
+            format!("failed to read image ID at 0x{:x}; board mismatch?", addr)
+        })?;
+        Ok(id)
     }
 
     pub fn verify(

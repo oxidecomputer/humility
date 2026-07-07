@@ -188,7 +188,7 @@ fn readmem(subargs: ReadmemArgs, context: &mut ExecutionContext) -> Result<()> {
 
     if subargs.symbol {
         if let Some(hubris) = &hubris {
-            hubris.validate(core, HubrisValidate::ArchiveMatch)?;
+            hubris.validate(core, HubrisValidate::ArchiveMatch, log)?;
         } else {
             bail!("cannot specify `--symbol` without Hubris archive");
         }
@@ -198,7 +198,7 @@ fn readmem(subargs: ReadmemArgs, context: &mut ExecutionContext) -> Result<()> {
         Ok(addr) => addr,
         _ => {
             if let Some(hubris) = &hubris {
-                hubris.validate(core, HubrisValidate::ArchiveMatch)?;
+                hubris.validate(core, HubrisValidate::ArchiveMatch, log)?;
                 hubris.lookup_peripheral(&subargs.address)?
             } else {
                 bail!("cannot look up peripheral without archive");

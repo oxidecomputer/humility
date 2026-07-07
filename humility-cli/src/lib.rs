@@ -193,7 +193,7 @@ impl Cli {
             let Some(hubris) = hubris else {
                 bail!("cannot validate without Hubris archive");
             };
-            hubris.validate(&mut *core, validate)?;
+            hubris.validate(&mut *core, validate, self.log())?;
         }
         Ok(core)
     }
@@ -269,7 +269,7 @@ impl Cli {
             let Some(hubris) = hubris else {
                 bail!("cannot validate without Hubris archive");
             };
-            hubris.validate(&mut *core, validate)?;
+            hubris.validate(&mut *core, validate, self.log())?;
         }
         Ok(core)
     }
