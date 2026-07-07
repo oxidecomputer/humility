@@ -2103,11 +2103,19 @@ impl HubrisArchive {
                 );
         }
 
-        if criteria == HubrisValidate::ArchiveMatch {
+        if self.task_dump().is_some() {
             return Ok(());
+        } else {
+            core.halt()?;
+            if let Ok(pc) = core.read_reg(ARMRegister::PC) {
+                if self.instr_mod(pc).is_none() {
+                    bail!("PC at 0x{pc:x} is not part of any module. This is \
+                            likely an incorrect archive.");
+                }
+            }
         }
 
-        if self.task_dump().is_some() {
+        if criteria == HubrisValidate::ArchiveMatch {
             return Ok(());
         }
 
