@@ -9,7 +9,7 @@ use anyhow::anyhow;
 use humility::{
     core::Core,
     hubris::{HubrisArchive},
-    log::{Logger, info},
+    log::{Logger, info, warn},
 };
 use humility_auxflash::{AuxFlashHandler, AuxFlashWriter};
 use humility_probes_core::ProbeCore;
@@ -92,6 +92,12 @@ pub fn get_image_state(
     log: &Logger,
 ) -> Result<ImageStateResult, ImageStateError> {
     core.halt().map_err(ImageStateError::HaltFailed)?;
+
+    if let Ok((false, pc)) = hubris.is_pc_within_archive(core) {
+        warn!(log, "PC at 0x{pc:x} is not part of any module. Maybe you're \
+                    flashing an A image while a B image is running, or vice \
+                    versa?");
+    }
 
     // First pass: check only the image ID
     match hubris.read_image_id_from_flash(core) {
