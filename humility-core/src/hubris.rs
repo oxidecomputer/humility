@@ -2093,11 +2093,9 @@ impl HubrisArchive {
             return Ok(());
         } else {
             core.halt()?;
-            if let Ok(pc) = core.read_reg(ARMRegister::PC) {
-                if self.instr_mod(pc).is_none() {
-                    bail!("PC at 0x{pc:x} is not part of any module. This is \
-                            likely an incorrect archive.");
-                }
+            if let Ok((false, pc)) = self.is_pc_within_archive(core) {
+                bail!("image ID matches but PC at 0x{pc:x} is not part of any \
+                       module. This is likely an incorrect A/B archive.");
             }
             core.run()?;
         }
@@ -2178,6 +2176,19 @@ impl HubrisArchive {
             format!("failed to read image ID at 0x{:x}; board mismatch?", addr)
         })?;
         Ok(id)
+    }
+
+    /// The core must be halted before this is called
+    pub fn is_pc_within_archive(
+        &self,
+        core: &mut dyn crate::core::Core
+    ) -> Result<(bool, u32)> {
+        let pc = core.read_reg(ARMRegister::PC)?;
+        if self.instr_mod(pc).is_none() {
+            Ok((false, pc))
+        } else {
+            Ok((true, pc))
+        }
     }
 
     pub fn verify(
