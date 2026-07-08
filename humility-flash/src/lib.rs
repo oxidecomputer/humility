@@ -5,9 +5,10 @@
 //! Functions to check flash state and reprogram a processor
 #![warn(missing_docs)]
 
+use anyhow::anyhow;
 use humility::{
     core::Core,
-    hubris::{HubrisArchive, HubrisValidate},
+    hubris::{HubrisArchive},
     log::{Logger, info},
 };
 use humility_auxflash::{AuxFlashHandler, AuxFlashWriter};
@@ -93,10 +94,23 @@ pub fn get_image_state(
     core.halt().map_err(ImageStateError::HaltFailed)?;
 
     // First pass: check only the image ID
-    if let Err(e) = hubris.validate(core, HubrisValidate::ArchiveMatch) {
-        return Ok(ImageStateResult::DoesNotMatch(
-            ImageStateMismatch::FlashArchiveMismatch(e),
-        ));
+    match hubris.read_image_id_from_flash(core) {
+        Err(e) => {
+            return Ok(ImageStateResult::DoesNotMatch(
+                ImageStateMismatch::FlashArchiveMismatch(e),
+            ));
+        }
+        Ok(id) if id != hubris.image_id() => {
+            return Ok(ImageStateResult::DoesNotMatch(
+                ImageStateMismatch::FlashArchiveMismatch(anyhow!(
+                    "image ID in archive ({:x?}) does not equal \
+                         image ID of target ({:x?})",
+                    hubris.image_id(),
+                    id,
+                )),
+            ));
+        }
+        _ => (),
     }
 
     // More rigorous checks if requested
