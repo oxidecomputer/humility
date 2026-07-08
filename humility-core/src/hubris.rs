@@ -2113,6 +2113,7 @@ impl HubrisArchive {
                             likely an incorrect archive.");
                 }
             }
+            core.run()?;
         }
 
         if criteria == HubrisValidate::ArchiveMatch {
