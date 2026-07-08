@@ -2080,22 +2080,8 @@ impl HubrisArchive {
         // To validate that what we're running on the target matches what
         // we have in the archive, we are going to check the image ID, an
         // identifer created for this purpose.
-        let addr = self.imageid.0;
-        let nbytes = self.imageid.1.len();
-        assert!(nbytes > 0);
-
-        let mut id = vec![0; nbytes];
-        core.read_8(addr, &mut id[0..nbytes]).with_context(|| {
-            format!("failed to read image ID at 0x{:x}; board mismatch?", addr)
-        })?;
-
-        let deltas = id
-            .iter()
-            .zip(self.imageid.1.iter())
-            .filter(|&(lhs, rhs)| lhs != rhs)
-            .count();
-
-        if deltas > 0 || id.len() != self.imageid.1.len() {
+        let id = self.read_image_id_from_flash(core)?;
+        if id != self.imageid.1 {
             bail!(
                     "image ID in archive ({:x?}) does not equal \
                     ID at 0x{:x} ({:x?})",
@@ -2177,6 +2163,21 @@ impl HubrisArchive {
             "target does not appear to be booted and may be panicking on \
             boot; run \"humility registers -s\" for a kernel stack trace"
         );
+    }
+
+    pub fn read_image_id_from_flash(
+        &self,
+        core: &mut dyn crate::core::Core,
+    ) -> Result<Vec<u8>> {
+        let addr = self.imageid.0;
+        let nbytes = self.imageid.1.len();
+        assert!(nbytes > 0);
+
+        let mut id = vec![0; nbytes];
+        core.read_8(addr, &mut id[0..nbytes]).with_context(|| {
+            format!("failed to read image ID at 0x{:x}; board mismatch?", addr)
+        })?;
+        Ok(id)
     }
 
     pub fn verify(
