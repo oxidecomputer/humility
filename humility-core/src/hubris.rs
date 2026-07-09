@@ -2178,10 +2178,15 @@ impl HubrisArchive {
         Ok(id)
     }
 
-    /// The core must be halted before this is called
+    /// Reads the core's program counter and returns true if it's within the
+    /// range of instruction addresses defined by this archive. Also returns the
+    /// value of the program counter, in case you want to include it in an error
+    /// message.
+    ///
+    /// NOTE: The core must be halted before this is called.
     pub fn is_pc_within_archive(
         &self,
-        core: &mut dyn crate::core::Core
+        core: &mut dyn crate::core::Core,
     ) -> Result<(bool, u32)> {
         let pc = core.read_reg(ARMRegister::PC)?;
         if self.instr_mod(pc).is_none() {
