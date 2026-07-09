@@ -5,10 +5,9 @@
 //! Functions to check flash state and reprogram a processor
 #![warn(missing_docs)]
 
-use anyhow::anyhow;
 use humility::{
     core::Core,
-    hubris::{HubrisArchive},
+    hubris::HubrisArchive,
     log::{Logger, info, warn},
 };
 use humility_auxflash::{AuxFlashHandler, AuxFlashWriter};
@@ -50,9 +49,21 @@ pub enum ImageStateError {
 /// Type indicating a mismatch when checking image state
 #[derive(Debug, thiserror::Error)]
 pub enum ImageStateMismatch {
-    /// Failed at the archive ID check
-    #[error("flash/archive mismatch")]
-    FlashArchiveMismatch(#[source] anyhow::Error),
+    /// The image contained in the archive is different from the the image on
+    /// the target.
+    #[error(
+        "image ID in archive ({archive:x?}) does not equal image ID of #target ({target:x?})"
+    )]
+    FlashArchiveMismatch {
+        /// The image ID in the archive
+        archive: Vec<u8>,
+        /// The image ID on the target
+        target: Vec<u8>,
+    },
+
+    /// An error occurred when trying to check the IDs
+    #[error("could not check if IDs match")]
+    CouldNotCheckID(#[source] anyhow::Error),
 
     /// Call to [`HubrisArchive::verify`] failed
     #[error("flash contents do not match archive contents")]
@@ -94,26 +105,27 @@ pub fn get_image_state(
     core.halt().map_err(ImageStateError::HaltFailed)?;
 
     if let Ok((false, pc)) = hubris.is_pc_within_archive(core) {
-        warn!(log, "PC at 0x{pc:x} is not part of any module. Maybe you're \
+        warn!(
+            log,
+            "PC at 0x{pc:x} is not part of any module. Maybe you're \
                     flashing an A image while a B image is running, or vice \
-                    versa?");
+                    versa?"
+        );
     }
 
     // First pass: check only the image ID
     match hubris.read_image_id_from_flash(core) {
         Err(e) => {
             return Ok(ImageStateResult::DoesNotMatch(
-                ImageStateMismatch::FlashArchiveMismatch(e),
+                ImageStateMismatch::CouldNotCheckID(e),
             ));
         }
         Ok(id) if id != hubris.image_id() => {
             return Ok(ImageStateResult::DoesNotMatch(
-                ImageStateMismatch::FlashArchiveMismatch(anyhow!(
-                    "image ID in archive ({:x?}) does not equal \
-                         image ID of target ({:x?})",
-                    hubris.image_id(),
-                    id,
-                )),
+                ImageStateMismatch::FlashArchiveMismatch {
+                    target: id,
+                    archive: hubris.image_id().to_owned(),
+                },
             ));
         }
         _ => (),
