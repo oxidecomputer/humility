@@ -2090,6 +2090,8 @@ impl HubrisArchive {
         }
 
         if self.task_dump().is_some() {
+            // Single-task dumps don't contain enough info to do the PC check
+            // or the `HubrisValidate::Booted` checks.
             return Ok(());
         } else {
             core.halt()?;
