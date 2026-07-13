@@ -2095,7 +2095,8 @@ impl HubrisArchive {
             core.halt()?;
             if let Ok((false, pc)) = self.is_pc_within_archive(core) {
                 bail!("image ID matches but PC at 0x{pc:x} is not part of any \
-                       module. This is likely an incorrect A/B archive.");
+                       module. Maybe this is an incorrect A/B archive, or \
+                       bootloader or ROM code is running?");
             }
             core.run()?;
         }
