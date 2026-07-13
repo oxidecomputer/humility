@@ -2142,17 +2142,8 @@ impl HubrisArchive {
                     bail!("target is not yet booted (currently in Reset)");
                 }
 
-                //
-                // Check against the PC not being in any known module
-                //
-                if self.instr_mod(pc).is_none() {
-                    bail!(
-                        "target does not appear booted and PC 0x{:x} is \
-                        unknown; is system executing boot ROM or other \
-                        program?",
-                        pc
-                    );
-                }
+                // We already checked is_pc_within_archive() during the
+                // `ArchiveMatch` check, so we don't need to repeat that here.
             } else {
                 core.run()?;
             }
