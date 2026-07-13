@@ -7,7 +7,7 @@
 
 use humility::{
     core::Core,
-    hubris::HubrisArchive,
+    hubris::{HubrisArchive, PcResult},
     log::{Logger, info, warn},
 };
 use humility_auxflash::{AuxFlashHandler, AuxFlashWriter};
@@ -104,7 +104,8 @@ pub fn get_image_state(
 ) -> Result<ImageStateResult, ImageStateError> {
     core.halt().map_err(ImageStateError::HaltFailed)?;
 
-    if let Ok((false, pc)) = hubris.is_pc_within_archive(core) {
+    if let Ok(PcResult::NotInArchive { pc }) = hubris.is_pc_within_archive(core)
+    {
         warn!(
             log,
             "PC at 0x{pc:x} is not part of any module. Maybe you're \

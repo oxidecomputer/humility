@@ -2097,7 +2097,7 @@ impl HubrisArchive {
             core.halt()?;
             let result = self.is_pc_within_archive(core);
             core.run()?;
-            if let Ok((false, pc)) = result {
+            if let Ok(PcResult::NotInArchive { pc }) = result {
                 bail!("image ID matches but PC at 0x{pc:x} is not part of any \
                        module. Maybe this is an incorrect A/B archive, or \
                        bootloader or ROM code is running?");
@@ -2182,12 +2182,12 @@ impl HubrisArchive {
     pub fn is_pc_within_archive(
         &self,
         core: &mut dyn crate::core::Core,
-    ) -> Result<(bool, u32)> {
+    ) -> Result<PcResult> {
         let pc = core.read_reg(ARMRegister::PC)?;
         if self.instr_mod(pc).is_none() {
-            Ok((false, pc))
+            Ok(PcResult::NotInArchive { pc })
         } else {
-            Ok((true, pc))
+            Ok(PcResult::InArchive)
         }
     }
 
@@ -6448,6 +6448,16 @@ pub enum HubrisValidate {
     ArchiveMatch,
     /// Validate that the archive matches and the system has booted
     Booted,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum PcResult {
+    /// The program counter is within the range of instruction addresses
+    /// defined by this archive
+    InArchive,
+    /// The program counter is NOT within the range of instruction addresses
+    /// defined by this archive, and is instead at the given address
+    NotInArchive { pc: u32 },
 }
 
 //
