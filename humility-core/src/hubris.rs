@@ -2095,12 +2095,13 @@ impl HubrisArchive {
             return Ok(());
         } else {
             core.halt()?;
-            if let Ok((false, pc)) = self.is_pc_within_archive(core) {
+            let result = self.is_pc_within_archive(core);
+            core.run()?;
+            if let Ok((false, pc)) = result {
                 bail!("image ID matches but PC at 0x{pc:x} is not part of any \
                        module. Maybe this is an incorrect A/B archive, or \
                        bootloader or ROM code is running?");
             }
-            core.run()?;
         }
 
         if criteria == HubrisValidate::ArchiveMatch {
