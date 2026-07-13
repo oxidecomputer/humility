@@ -1,2 +1,2 @@
 humility: attached to dump
-humility counters failed: no IPC counters found
+humility counters failed: image ID matches but PC at 0x1ff0a6e0 is not part of any module. Maybe this is an incorrect A/B archive, or bootloader or ROM code is running?
