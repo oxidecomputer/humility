@@ -1354,7 +1354,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1875,7 +1875,7 @@ dependencies = [
 
 [[package]]
 name = "humility-bin"
-version = "0.13.1"
+version = "0.13.2"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -4446,7 +4446,7 @@ dependencies = [
 [[package]]
 name = "probe-rs"
 version = "0.31.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide_v0.31.0#2cfc92e4a10ea1f2755af2091bd1a06b13dc9112"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide_v0.31.0#c4680958c3d2faa94447cdad42013ddd5dac9b74"
 dependencies = [
  "anyhow",
  "async-io",
@@ -4480,7 +4480,7 @@ dependencies = [
 [[package]]
 name = "probe-rs-target"
 version = "0.31.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide_v0.31.0#2cfc92e4a10ea1f2755af2091bd1a06b13dc9112"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide_v0.31.0#c4680958c3d2faa94447cdad42013ddd5dac9b74"
 dependencies = [
  "base64 0.22.1",
  "indexmap 2.14.0",
@@ -4875,7 +4875,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5428,7 +5428,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
