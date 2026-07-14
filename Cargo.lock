@@ -4446,7 +4446,7 @@ dependencies = [
 [[package]]
 name = "probe-rs"
 version = "0.31.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide_v0.31.0#2cfc92e4a10ea1f2755af2091bd1a06b13dc9112"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=add_retries#8c63cef36726b39d66bab3ee34c8c92d85855579"
 dependencies = [
  "anyhow",
  "async-io",
@@ -4480,7 +4480,7 @@ dependencies = [
 [[package]]
 name = "probe-rs-target"
 version = "0.31.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide_v0.31.0#2cfc92e4a10ea1f2755af2091bd1a06b13dc9112"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=add_retries#8c63cef36726b39d66bab3ee34c8c92d85855579"
 dependencies = [
  "base64 0.22.1",
  "indexmap 2.14.0",

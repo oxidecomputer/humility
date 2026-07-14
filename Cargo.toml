@@ -124,7 +124,7 @@ nusb = { git = "https://github.com/oxidecomputer/nusb.git", branch = "add_illumo
 # to try CMSIS DAP v2 if it can so we should only be using HID as a last
 # resort. It would still be really nice to eventually drop that feature so
 # we don't have to keep using our hidapi-rs fork for illumos fixes.
-probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "oxide_v0.31.0", default-features = false, features = ["builtin-targets", "cmsisdap_v1"] }
+probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "add_retries", default-features = false, features = ["builtin-targets", "cmsisdap_v1"] }
 
 # Local `path`-based deps
 humility = { path = "./humility-core", package = "humility-core" }
