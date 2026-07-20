@@ -2080,22 +2080,8 @@ impl HubrisArchive {
         // To validate that what we're running on the target matches what
         // we have in the archive, we are going to check the image ID, an
         // identifer created for this purpose.
-        let addr = self.imageid.0;
-        let nbytes = self.imageid.1.len();
-        assert!(nbytes > 0);
-
-        let mut id = vec![0; nbytes];
-        core.read_8(addr, &mut id[0..nbytes]).with_context(|| {
-            format!("failed to read image ID at 0x{:x}; board mismatch?", addr)
-        })?;
-
-        let deltas = id
-            .iter()
-            .zip(self.imageid.1.iter())
-            .filter(|&(lhs, rhs)| lhs != rhs)
-            .count();
-
-        if deltas > 0 || id.len() != self.imageid.1.len() {
+        let id = self.read_image_id_from_flash(core)?;
+        if id != self.imageid.1 {
             bail!(
                     "image ID in archive ({:x?}) does not equal \
                     ID at 0x{:x} ({:x?})",
@@ -2103,11 +2089,22 @@ impl HubrisArchive {
                 );
         }
 
-        if criteria == HubrisValidate::ArchiveMatch {
+        if self.task_dump().is_some() {
+            // Single-task dumps don't contain enough info to do the PC check
+            // or the `HubrisValidate::Booted` checks.
             return Ok(());
+        } else {
+            core.halt()?;
+            let result = self.is_pc_within_archive(core);
+            core.run()?;
+            if let Ok(PcResult::NotInArchive { pc }) = result {
+                bail!("image ID matches but PC at 0x{pc:x} is not part of any \
+                       module. Maybe this is an incorrect A/B archive, or \
+                       bootloader or ROM code is running?");
+            }
         }
 
-        if self.task_dump().is_some() {
+        if criteria == HubrisValidate::ArchiveMatch {
             return Ok(());
         }
 
@@ -2148,17 +2145,8 @@ impl HubrisArchive {
                     bail!("target is not yet booted (currently in Reset)");
                 }
 
-                //
-                // Check against the PC not being in any known module
-                //
-                if self.instr_mod(pc).is_none() {
-                    bail!(
-                        "target does not appear booted and PC 0x{:x} is \
-                        unknown; is system executing boot ROM or other \
-                        program?",
-                        pc
-                    );
-                }
+                // We already checked is_pc_within_archive() during the
+                // `ArchiveMatch` check, so we don't need to repeat that here.
             } else {
                 core.run()?;
             }
@@ -2168,6 +2156,39 @@ impl HubrisArchive {
             "target does not appear to be booted and may be panicking on \
             boot; run \"humility registers -s\" for a kernel stack trace"
         );
+    }
+
+    pub fn read_image_id_from_flash(
+        &self,
+        core: &mut dyn crate::core::Core,
+    ) -> Result<Vec<u8>> {
+        let addr = self.imageid.0;
+        let nbytes = self.imageid.1.len();
+        assert!(nbytes > 0);
+
+        let mut id = vec![0; nbytes];
+        core.read_8(addr, &mut id[0..nbytes]).with_context(|| {
+            format!("failed to read image ID at 0x{:x}; board mismatch?", addr)
+        })?;
+        Ok(id)
+    }
+
+    /// Reads the core's program counter and returns true if it's within the
+    /// range of instruction addresses defined by this archive. Also returns the
+    /// value of the program counter, in case you want to include it in an error
+    /// message.
+    ///
+    /// NOTE: The core must be halted before this is called.
+    pub fn is_pc_within_archive(
+        &self,
+        core: &mut dyn crate::core::Core,
+    ) -> Result<PcResult> {
+        let pc = core.read_reg(ARMRegister::PC)?;
+        if self.instr_mod(pc).is_none() {
+            Ok(PcResult::NotInArchive { pc })
+        } else {
+            Ok(PcResult::InArchive)
+        }
     }
 
     pub fn verify(
@@ -6427,6 +6448,16 @@ pub enum HubrisValidate {
     ArchiveMatch,
     /// Validate that the archive matches and the system has booted
     Booted,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum PcResult {
+    /// The program counter is within the range of instruction addresses
+    /// defined by this archive
+    InArchive,
+    /// The program counter is NOT within the range of instruction addresses
+    /// defined by this archive, and is instead at the given address
+    NotInArchive { pc: u32 },
 }
 
 //

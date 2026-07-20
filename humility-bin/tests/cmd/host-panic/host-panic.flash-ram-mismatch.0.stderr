@@ -1,2 +1,2 @@
 humility: attached to dump
-humility host failed: Could not find host boot variables under any known name; is this a Gimlet image?
+humility host failed: image ID matches but PC at 0x1ff0a6e0 is not part of any module. Maybe this is an incorrect A/B archive, or bootloader or ROM code is running?
