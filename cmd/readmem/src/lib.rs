@@ -206,15 +206,25 @@ fn readmem(subargs: ReadmemArgs, context: &mut ExecutionContext) -> Result<()> {
         }
     };
 
+    // line 208 (blank)
     if addr & (size - 1) as u32 != 0 {
         bail!("address must be {}-byte aligned", size);
     }
 
     if let Some(file) = subargs.file {
+        let len32 = u32::try_from(length)
+            .ok()
+            .and_then(|l| addr.checked_add(l))
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "address 0x{:08x} + length {} overflows a 32-bit address",
+                    addr,
+                    length
+                )
+            })?;
         let mut f = std::fs::File::create(&file)?;
         let mut bytes = vec![0u8; max];
-        for (i, addr) in (addr..addr + (length as u32)).step_by(max).enumerate()
-        {
+        for (i, addr) in (addr..len32).step_by(max).enumerate() {
             let buf = &mut bytes[..std::cmp::min(max, length - (i * max))];
             core.read_8(addr, buf)?;
             f.write_all(buf)?;
@@ -222,7 +232,6 @@ fn readmem(subargs: ReadmemArgs, context: &mut ExecutionContext) -> Result<()> {
         info!(log, "Wrote {} bytes to {:?}", length, file);
         return Ok(());
     }
-
     if length > max {
         bail!("cannot read more than {} bytes", max);
     }
