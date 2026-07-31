@@ -26,9 +26,9 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release
+          args: --profile binrelease
 
       - name: Upload Release
-        run: gh release upload --repo oxidecomputer/humility nightly --clobber target/release/humility
+        run: gh release upload --repo oxidecomputer/humility nightly --clobber target/binrelease/humility
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
