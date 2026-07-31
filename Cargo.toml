@@ -282,6 +282,10 @@ zip = "8.6.0"
 [profile.release]
 debug = true
 
+[profile.binrelease]
+inherits = "release"
+debug = "line-tables-only"
+
 [profile.ci]
 inherits = "release"
 debug = false
