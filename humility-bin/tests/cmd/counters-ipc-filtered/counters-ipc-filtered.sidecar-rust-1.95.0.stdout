@@ -1,0 +1,34 @@
+drv_sidecar_seq_api::__SEQUENCER_CLIENT_COUNTERS
+ fn Sequencer::is_clock_config_loaded() ............................... 1 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 1 ok
+
+
+drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+ fn Sys::gpio_set_reset() ........................................... 153 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ......... = 153 ok
+
+ fn Sys::gpio_configure_raw() ........................................ 16 calls
+    clients:
+    task net (0 restarts) .............................. = 0 .......... = 16 ok
+
+ fn Sys::enable_clock_raw() ........................................... 5 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 5 ok
+
+ fn Sys::enter_reset_raw() ............................................ 3 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 3 ok
+
+ fn Sys::leave_reset_raw() ............................................ 3 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 3 ok
+
+
+task_packrat_api::__PACKRAT_CLIENT_COUNTERS
+ fn Packrat::get_mac_address_block() .................................. 1 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 1 ok
+
+

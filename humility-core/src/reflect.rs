@@ -209,23 +209,6 @@ impl Value {
             bail!("not a pointer: {:?}", self)
         }
     }
-
-    /// Reassigns the name of the given `Value`.
-    ///
-    /// This is useful when loading a `MaybeUnint`, which is internally
-    /// represented as a union; it's more user-friendly to show the top-level
-    /// name.
-    pub fn set_name(&mut self, name: String) -> Result<()> {
-        match self {
-            Value::Base(..) => bail!("Cannot reassign name of base value"),
-            Value::Array(..) => bail!("Cannot reassign name of array value"),
-            Value::Ptr(..) => bail!("Cannot reassign name of pointer value"),
-            Value::Enum(e) => e.0 = name,
-            Value::Struct(s) => s.name = name,
-            Value::Tuple(t) => t.0 = name,
-        }
-        Ok(())
-    }
 }
 
 impl Format for Value {
@@ -956,10 +939,66 @@ pub fn load_enum(
     Ok(Enum(var.name.to_string(), val))
 }
 
+/// Compiler-internal newtypes that `MaybeUninit` wraps its payload in.
+///
+/// These are `#[repr(transparent)]` and carry no data of their own, but they do
+/// appear in DWARF, and which of them appear has changed over time:
+///
+/// ```text
+/// before 1.95.0:    Struct(ManuallyDrop) { value: T }
+/// 1.95.0 and later: Struct(ManuallyDrop) { value: Tuple(MaybeDangling)[ T ] }
+/// ```
+///
+/// That extra level is why images built by the newer toolchains stopped
+/// decoding. We peel all of these, so the payload can be presented the same way
+/// whichever toolchain built the image.
+const TRANSPARENT_WRAPPERS: &[&str] = &["ManuallyDrop", "MaybeDangling"];
+
+/// Returns true if `name` names one of the [`TRANSPARENT_WRAPPERS`].
+///
+/// DWARF spells these with their type parameters attached
+/// (`MaybeDangling<[f32; 136]>`), so we compare the stem, the same way the
+/// `Load` derive does when it checks a reflected type name.
+fn is_transparent_wrapper(name: &str) -> bool {
+    let stem = name.split('<').next().unwrap_or(name);
+    TRANSPARENT_WRAPPERS.contains(&stem)
+}
+
+/// Strips any [`TRANSPARENT_WRAPPERS`] from around `v`, returning the payload.
+fn peel_transparent(mut v: Value) -> Value {
+    loop {
+        v = match v {
+            Value::Struct(s)
+                if s.len() == 1 && is_transparent_wrapper(s.name()) =>
+            {
+                s.members.into_values().next().unwrap()
+            }
+            Value::Tuple(t)
+                if t.len() == 1 && is_transparent_wrapper(t.name()) =>
+            {
+                t.1.into_iter().next().unwrap()
+            }
+            v => return v,
+        };
+    }
+}
+
 /// Loads a union from memory image `buf` at offset `addr`.
 ///
 /// We assume that the only union types in our image are using
-/// `core::mem::MaybeUnint`, and extract the "value" variant.
+/// `core::mem::MaybeUninit`, and extract the "value" variant.
+///
+/// The result is a single-member struct named for the union:
+///
+/// ```text
+/// MaybeUninit<[u32; 154]> { value: [ ... ] }
+/// ```
+///
+/// That is the shape older toolchains produced on their own, because the
+/// union's `value` member was a `ManuallyDrop` struct with a `value` field.
+/// Newer toolchains interpose further `#[repr(transparent)]` wrappers, so we
+/// peel those and rebuild this shape, keeping both the decoded payload and the
+/// name we display it under independent of the toolchain that built the image.
 pub fn load_union(
     hubris: &HubrisArchive,
     buf: &[u8],
@@ -971,16 +1010,22 @@ pub fn load_union(
     }
     for v in ty.variants.iter() {
         if v.name == "value" {
-            let mut out = load_value(
+            let value = peel_transparent(load_value(
                 hubris,
                 buf,
                 hubris.lookup_type(
                     v.goff.ok_or_else(|| anyhow!("Missing goff in union"))?,
                 )?,
                 addr,
-            )?;
-            out.set_name(ty.name.to_owned())?;
-            return Ok(out);
+            )?);
+
+            let mut members = IndexMap::new();
+            members.insert("value".to_string(), value);
+
+            return Ok(Value::Struct(Struct {
+                name: ty.name.to_owned(),
+                members,
+            }));
         }
     }
     bail!("Could not find 'value' in {:?}", ty);
@@ -1401,4 +1446,76 @@ fn deserialize_base<'a>(
         _ => panic!("unexpected basetype: {:?}", ty),
     };
     Ok((v, buf))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tuple(name: &str, values: Vec<Value>) -> Value {
+        Value::Tuple(Tuple(name.to_string(), values))
+    }
+
+    fn strukt(name: &str, member: (&str, Value)) -> Value {
+        let mut members = IndexMap::new();
+        members.insert(member.0.to_string(), member.1);
+        Value::Struct(Struct { name: name.to_string(), members })
+    }
+
+    fn payload() -> Value {
+        Value::Base(Base::U32(42))
+    }
+
+    #[test]
+    fn peels_nested_wrappers() {
+        // What newer toolchains produce for `MaybeUninit<u32>`.
+        let v = strukt(
+            "ManuallyDrop<MaybeDangling<u32>>",
+            ("value", tuple("MaybeDangling<u32>", vec![payload()])),
+        );
+        assert!(matches!(peel_transparent(v), Value::Base(Base::U32(42))));
+    }
+
+    #[test]
+    fn peels_manually_drop_alone() {
+        // What older toolchains produce.
+        let v = strukt("ManuallyDrop<u32>", ("value", payload()));
+        assert!(matches!(peel_transparent(v), Value::Base(Base::U32(42))));
+    }
+
+    #[test]
+    fn leaves_ordinary_values_alone() {
+        assert!(matches!(peel_transparent(payload()), Value::Base(..)));
+
+        // A 1-element tuple that isn't a compiler wrapper stays put.
+        let v = tuple("Foo", vec![payload()]);
+        let Value::Tuple(t) = peel_transparent(v) else {
+            panic!("newtype was peeled");
+        };
+        assert_eq!(t.name(), "Foo");
+    }
+
+    #[test]
+    fn leaves_lookalike_wrappers_alone() {
+        // A hubris type whose name merely starts with a wrapper's is not one.
+        let v = strukt("ManuallyDropGuard<u32>", ("value", payload()));
+        let Value::Struct(s) = peel_transparent(v) else {
+            panic!("lookalike type was peeled");
+        };
+        assert_eq!(s.name(), "ManuallyDropGuard<u32>");
+    }
+
+    #[test]
+    fn leaves_multi_field_wrappers_alone() {
+        // Were a wrapper to gain a second field, peeling it would be a guess:
+        // leave it for a human rather than pick a field.
+        let mut members = IndexMap::new();
+        members.insert("value".to_string(), payload());
+        members.insert("other".to_string(), payload());
+        let v = Value::Struct(Struct {
+            name: "ManuallyDrop<u32>".to_string(),
+            members,
+        });
+        assert!(matches!(peel_transparent(v), Value::Struct(..)));
+    }
 }
