@@ -421,6 +421,11 @@ pub struct UnsafeCell<T: Load> {
     pub value: T,
 }
 
+/// Double of `core::mem::MaybeUninit`.
+///
+/// `load_union` presents a `MaybeUninit` as a struct named for the union with a
+/// single `value` member, whatever wrappers the toolchain put around the
+/// payload in DWARF, so this stays a plain derived `Load`.
 #[derive(Clone, Debug, Load)]
 #[load(check_name)]
 pub struct MaybeUninit<T: Load> {
