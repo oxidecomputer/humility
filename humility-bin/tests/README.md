@@ -17,6 +17,39 @@ dump</a></tt> for details on Hubris dumps).
 Cores that act as input are in the `cmd/cores` subdirectory; to add a new core
 file, deposit it there with a unique name that begins with `hubris.core.`
 
+A core is opaque once checked in:  nothing in the file says which board it came
+from or which toolchain built the image.  When a core is added to cover
+something specific, record it under "Dump provenance" below, so that a later
+reader can tell what it is for and whether it is still needed.
+
+## Dump provenance
+
+`hubris.core.sidecar-rust-1.95.0` was taken from a sidecar-b-lab running
+`all-sp-v1.76.0` (GITC `1a60776c91377792aeed1d4ce4849bcb98339818`), the first
+Hubris release series built with stable Rust 1.95.0.  That toolchain changed
+the in-DWARF representation of `MaybeUninit`, which broke every command that
+decodes one until humility learned to handle it (oxidecomputer/hubris#2615).
+It is here so the suite keeps exercising that layout.  `humility sensors`
+against a dump uses the `readmem` backend, which is the path that failed.
+
+Note that this is a sidecar image, so the commands that want Gimlet state
+(`spd`, `host`, and counters naming `gimlet_seq`) are marked as expected
+failures, per "Indicating expected failure" below.
+
+## Keeping up with the toolchain
+
+These dumps are frozen:  each one decodes the same way forever, so the suite
+catches humility regressions against the toolchains already represented here,
+but it cannot catch the *next* change to how rustc represents a type.  Nothing
+in the corpus was built by a toolchain that does not yet exist, so a change of
+that kind shows up as a person in the lab hitting it, which is how #2615 was
+found.
+
+The way to keep that window short is to add a dump whenever Hubris changes
+`rust-toolchain.toml`, and to record it under "Dump provenance" above.  That is
+what `hubris.core.sidecar-rust-1.95.0` is, and what `hubris.core.new-compiler`
+and `hubris.core.nightly-2022-11-01` appear to have been for earlier eras.
+
 ## Adding archives
 
 Some tests are able to operate on archives alone.  Archives that act as input

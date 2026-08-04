@@ -1,0 +1,3 @@
+humility: WARNING: couldn't find type [u32; 3] for Sys.read_uid
+humility: WARNING: couldn't find type Option<(Result<f32, NoData>, u64)> for Sensor.get_raw_reading
+humility: WARNING: couldn't find type Option<(NoData, u64)> for Sensor.get_last_nodata

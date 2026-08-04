@@ -1,0 +1,80 @@
+humility: ring buffer drv_i2c_devices::adm127x::__RINGBUF in power:
+ NDX LINE      GEN    COUNT PAYLOAD
+   2  178        3        1 Coefficients(Coefficients { m: 0x297, b: 0x5000, R: 0xff })
+   3  206        3        1 Coefficients(Coefficients { m: 0x2927, b: 0x0, R: 0xfd })
+   4  107        3        1 Config(CommandData(0x3f37))
+   5  117        3        1 WriteConfig(CommandData(0x3f3f))
+   6  160        3        1 Coefficients(Coefficients { m: 0xfde, b: 0x0, R: 0xfe })
+   7  178        3        1 Coefficients(Coefficients { m: 0x297, b: 0x5000, R: 0xff })
+   0  206        4        1 Coefficients(Coefficients { m: 0x2927, b: 0x0, R: 0xfd })
+   1  117        4    12965 WriteConfig(CommandData(0x3f3f))
+humility: ring buffer drv_i2c_devices::bmr491::__RINGBUF in sequencer:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  186        1        1 MitigationApplied(AlreadyApplied)
+humility: ring buffer drv_i2c_devices::emc2305::__RINGBUF in thermal:
+humility: ring buffer drv_i2c_devices::lm5066::__RINGBUF in power:
+humility: ring buffer drv_i2c_devices::lm5066i::__RINGBUF in power:
+humility: ring buffer drv_i2c_devices::max31790::__RINGBUF in thermal:
+humility: ring buffer drv_stm32xx_i2c::__RINGBUF in i2c_driver:
+   TOTAL VARIANT
+ 4766413 Write
+ 1212836 WriteWait
+  959514 Read
+  377862 ReadWait
+  304811 Wait
+ NDX LINE      GEN    COUNT PAYLOAD
+  17  634    36662        3 Write(ISR, 0x8020)
+  18  634    36662        1 Write(ISR, 0x8023)
+  19  634    36662        3 Write(ISR, 0x8020)
+  20  634    36662        1 Write(ISR, 0x8023)
+  21  634    36662        3 Write(ISR, 0x8020)
+  22  634    36662        1 Write(ISR, 0x8023)
+  23  634    36662        3 Write(ISR, 0x8020)
+  24  634    36662        1 Write(ISR, 0x8023)
+  25  634    36662        3 Write(ISR, 0x8020)
+  26  634    36662        1 Write(ISR, 0x8023)
+  27  634    36662        3 Write(ISR, 0x8020)
+  28  634    36662        1 Write(ISR, 0x8023)
+  29  634    36662        3 Write(ISR, 0x8020)
+  30  634    36662        1 Write(ISR, 0x8023)
+  31  634    36662        3 Write(ISR, 0x8020)
+  32  634    36662        1 Write(ISR, 0x8023)
+  33  666    36662        3 WriteWait(ISR, 0x8020)
+  34  666    36662        1 WriteWait(ISR, 0x8061)
+  35  549    36662        1 Wait(ISR, 0x21)
+  36  634    36662        1 Write(ISR, 0x21)
+  37  634    36662        2 Write(ISR, 0x8021)
+  38  634    36662        1 Write(ISR, 0x8023)
+  39  634    36662        1 Write(ISR, 0x8020)
+  40  634    36662        1 Write(ISR, 0x8023)
+  41  666    36662        3 WriteWait(ISR, 0x8020)
+  42  666    36662        1 WriteWait(ISR, 0x8061)
+  43  549    36662        1 Wait(ISR, 0x21)
+  44  634    36662        1 Write(ISR, 0x21)
+  45  634    36662        2 Write(ISR, 0x8021)
+  46  634    36662        1 Write(ISR, 0x8023)
+  47  666    36662        1 WriteWait(ISR, 0x8020)
+   0  666    36663        2 WriteWait(ISR, 0x8021)
+   1  666    36663        1 WriteWait(ISR, 0x8061)
+   2  733    36663        2 Read(ISR, 0x8021)
+   3  733    36663        1 Read(ISR, 0x8025)
+   4  779    36663        1 ReadWait(ISR, 0x8021)
+   5  779    36663        1 ReadWait(ISR, 0x8061)
+   6  549    36663        1 Wait(ISR, 0x21)
+   7  634    36663        1 Write(ISR, 0x21)
+   8  634    36663        2 Write(ISR, 0x8021)
+   9  634    36663        1 Write(ISR, 0x8023)
+  10  666    36663        1 WriteWait(ISR, 0x8020)
+  11  666    36663        2 WriteWait(ISR, 0x8021)
+  12  666    36663        1 WriteWait(ISR, 0x8061)
+  13  733    36663        2 Read(ISR, 0x8021)
+  14  733    36663        1 Read(ISR, 0x8025)
+  15  779    36663        1 ReadWait(ISR, 0x8021)
+  16  779    36663        1 ReadWait(ISR, 0x8061)
+humility: ring buffer drv_stm32xx_i2c_server::__RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  670        1        9 Wiggles(0x0)
+   1  778        1        1 SegmentFailed(MuxMissing)
+   2  793        1        1 MuxUnknown((I2C3, PortIndex(0x1)))
+   3  177        1        1 MuxMissing(0x70)
+   4  189        1        1 MuxUnknownRecover((I2C3, PortIndex(0x1)))

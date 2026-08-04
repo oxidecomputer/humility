@@ -1,0 +1,239 @@
+drv_fpga_api::idl::__FPGA_CLIENT_COUNTERS
+ fn Fpga::user_design_read() ...................................... 85997 calls
+    clients:
+    task sequencer (0 restarts) ........................ + 0 ....... + 45048 ok
+    task monorail (0 restarts) ......................... + 0 ....... + 27671 ok
+    task transceivers (0 restarts) ..................... + 0 ....... + 10610 ok
+    task ignition (0 restarts) ......................... + 0 ........ + 2668 ok
+                                                         ---         -------
+    totals:                                              = 0 err     = 85997 ok
+
+ fn Fpga::user_design_write() ..................................... 48921 calls
+    clients:
+    task monorail (0 restarts) ......................... + 0 ....... + 27671 ok
+    task sequencer (0 restarts) ........................ + 0 ....... + 21211 ok
+    task ignition (0 restarts) ......................... + 0 .......... + 35 ok
+    task transceivers (0 restarts) ..................... + 0 ........... + 4 ok
+                                                         ---         -------
+    totals:                                              = 0 err     = 48921 ok
+
+ fn Fpga::device_state() ............................................. 12 calls
+    clients:
+    task sequencer (0 restarts) ........................ = 0 .......... = 12 ok
+
+
+drv_front_io_api::__FRONTIO_CLIENT_COUNTERS
+ fn FrontIO::board_present() .......................................... 1 calls
+    clients:
+    task monorail (0 restarts) ......................... = 0 ........... = 1 ok
+
+ fn FrontIO::board_ready() ............................................ 1 calls
+    clients:
+    task transceivers (0 restarts) ..................... = 0 ........... = 1 ok
+
+ fn FrontIO::phy_reset() .............................................. 1 calls
+    clients:
+    task monorail (0 restarts) ......................... = 0 ........... = 1 ok
+
+ fn FrontIO::phy_set_osc_state() ...................................... 1 calls
+    clients:
+    task monorail (0 restarts) ......................... = 0 ........... = 1 ok
+
+
+drv_sidecar_seq_api::__SEQUENCER_CLIENT_COUNTERS
+ fn Sequencer::tofino_seq_state() ................................. 34417 calls
+    clients:
+    task transceivers (0 restarts) ..................... + 0 ....... + 26521 ok
+    task thermal (0 restarts) .......................... + 0 ........ + 5302 ok
+    task power (0 restarts) ............................ + 0 ........ + 2594 ok
+                                                         ---         -------
+    totals:                                              = 0 err     = 34417 ok
+
+ fn Sequencer::tofino_pcie_link_up() ............................... 5292 calls
+    clients:
+    task monorail (0 restarts) ......................... = 0 ........ = 5292 ok
+
+ fn Sequencer::fan_module_presence() ............................... 2651 calls
+    clients:
+    task thermal (0 restarts) .......................... = 0 ........ = 2651 ok
+
+ fn Sequencer::is_clock_config_loaded() ............................... 2 calls
+    clients:
+    task net (0 restarts) .............................. + 0 ........... + 1 ok
+    task monorail (0 restarts) ......................... + 0 ........... + 1 ok
+                                                         ---             ---
+    totals:                                              = 0 err         = 2 ok
+
+ fn Sequencer::front_io_board_present() ............................... 1 calls
+    clients:
+    task front_io (0 restarts) ......................... = 0 ........... = 1 ok
+
+ fn Sequencer::front_io_board_ready() ................................. 1 calls
+    clients:
+    task front_io (0 restarts) ......................... = 0 ........... = 1 ok
+
+ fn Sequencer::mainboard_controller_ready() ........................... 1 calls
+    clients:
+    task ignition (0 restarts) ......................... = 0 ........... = 1 ok
+
+ fn Sequencer::set_front_io_phy_osc_state() ........................... 1 calls
+    clients:
+    task front_io (0 restarts) ......................... = 0 ........... = 1 ok
+
+ fn Sequencer::reset_front_io_phy() ................................... 1 calls
+    clients:
+    task front_io (0 restarts) ......................... = 0 ........... = 1 ok
+
+
+drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+ fn Sys::gpio_set_reset() ........................................ 399506 calls
+    clients:
+    task ecp5_front_io (0 restarts) .................... + 0 ...... + 142578 ok
+    task ecp5_mainboard (0 restarts) ................... + 0 ...... + 137882 ok
+    task monorail (0 restarts) ......................... + 0 ...... + 118397 ok
+    task i2c_driver (0 restarts) ....................... + 0 ......... + 495 ok
+    task net (0 restarts) .............................. + 0 ......... + 153 ok
+    task sprot (0 restarts) ............................ + 0 ........... + 1 ok
+                                                         ---        --------
+    totals:                                              = 0 err    = 399506 ok
+
+ fn Sys::gpio_configure_raw() .................................... 147936 calls
+    clients:
+    task i2c_driver (0 restarts) ....................... + 0 ...... + 147894 ok
+    task net (0 restarts) .............................. + 0 .......... + 16 ok
+    task ecp5_mainboard (0 restarts) ................... + 0 ........... + 9 ok
+    task ecp5_front_io (0 restarts) .................... + 0 ........... + 6 ok
+    task sprot (0 restarts) ............................ + 0 ........... + 4 ok
+    task auxflash (0 restarts) ......................... + 0 ........... + 3 ok
+    task monorail (0 restarts) ......................... + 0 ........... + 3 ok
+    task sequencer (0 restarts) ........................ + 0 ........... + 1 ok
+                                                         ---        --------
+    totals:                                              = 0 err    = 147936 ok
+
+ fn Sys::gpio_read_input() ........................................... 89 calls
+    clients:
+    task i2c_driver (0 restarts) ....................... + 0 .......... + 81 ok
+    task ecp5_mainboard (0 restarts) ................... + 0 ........... + 6 ok
+    task sequencer (0 restarts) ........................ + 0 ........... + 2 ok
+                                                         ---            ----
+    totals:                                              = 0 err        = 89 ok
+
+ fn Sys::enable_clock_raw() .......................................... 15 calls
+    clients:
+    task net (0 restarts) .............................. + 0 ........... + 5 ok
+    task i2c_driver (0 restarts) ....................... + 0 ........... + 4 ok
+    task rng_driver (0 restarts) ....................... + 0 ........... + 1 ok
+    task auxflash (0 restarts) ......................... + 0 ........... + 1 ok
+    task sprot (0 restarts) ............................ + 0 ........... + 1 ok
+    task monorail (0 restarts) ......................... + 0 ........... + 1 ok
+    task ecp5_mainboard (0 restarts) ................... + 0 ........... + 1 ok
+    task ecp5_front_io (0 restarts) .................... + 0 ........... + 1 ok
+                                                         ---            ----
+    totals:                                              = 0 err        = 15 ok
+
+ fn Sys::leave_reset_raw() ........................................... 13 calls
+    clients:
+    task i2c_driver (0 restarts) ....................... + 0 ........... + 4 ok
+    task net (0 restarts) .............................. + 0 ........... + 3 ok
+    task rng_driver (0 restarts) ....................... + 0 ........... + 1 ok
+    task auxflash (0 restarts) ......................... + 0 ........... + 1 ok
+    task sprot (0 restarts) ............................ + 0 ........... + 1 ok
+    task monorail (0 restarts) ......................... + 0 ........... + 1 ok
+    task ecp5_mainboard (0 restarts) ................... + 0 ........... + 1 ok
+    task ecp5_front_io (0 restarts) .................... + 0 ........... + 1 ok
+                                                         ---            ----
+    totals:                                              = 0 err        = 13 ok
+
+ fn Sys::enter_reset_raw() ............................................ 8 calls
+    clients:
+    task net (0 restarts) .............................. + 0 ........... + 3 ok
+    task rng_driver (0 restarts) ....................... + 0 ........... + 1 ok
+    task sprot (0 restarts) ............................ + 0 ........... + 1 ok
+    task monorail (0 restarts) ......................... + 0 ........... + 1 ok
+    task ecp5_mainboard (0 restarts) ................... + 0 ........... + 1 ok
+    task ecp5_front_io (0 restarts) .................... + 0 ........... + 1 ok
+                                                         ---             ---
+    totals:                                              = 0 err         = 8 ok
+
+
+task_jefe_api::__JEFE_CLIENT_COUNTERS
+ fn Jefe::set_reset_reason() .......................................... 1 calls
+    clients:
+    task sys (0 restarts) .............................. = 0 ........... = 1 ok
+
+
+task_net_api::__NET_CLIENT_COUNTERS
+ fn Net::recv_packet() ............................................ 26544 calls
+    clients:
+    task transceivers (0 restarts) ..................................... + 0 ok
+    - Err(QueueEmpty) .............................. + 26521 ..................
+    task control_plane_agent (0 restarts) .............................. + 7 ok
+    - Err(QueueEmpty) .................................. + 8 ..................
+    task udpecho (0 restarts) .......................................... + 0 ok
+    - Err(QueueEmpty) .................................. + 2 ..................
+    task dump_agent (0 restarts) ....................................... + 0 ok
+    - Err(QueueEmpty) .................................. + 2 ..................
+    task snitch (0 restarts) ........................................... + 0 ok
+    - Err(QueueEmpty) .................................. + 2 ..................
+    task udprpc (0 restarts) ........................................... + 0 ok
+    - Err(QueueEmpty) .................................. + 2 ..................
+                                                     -------             ---
+    totals:                                          = 26537 err         = 7 ok
+
+ fn Net::send_packet() ............................................ 10563 calls
+    clients:
+    task udpbroadcast (0 restarts) ..................... + 0 ....... + 10556 ok
+    task control_plane_agent (0 restarts) .............. + 0 ........... + 7 ok
+                                                         ---         -------
+    totals:                                              = 0 err     = 10563 ok
+
+ fn Net::get_mac_address() ............................................ 2 calls
+    clients:
+    task control_plane_agent (0 restarts) .............. + 0 ........... + 1 ok
+    task udpbroadcast (0 restarts) ..................... + 0 ........... + 1 ok
+                                                         ---             ---
+    totals:                                              = 0 err         = 2 ok
+
+
+task_packrat_api::__PACKRAT_CLIENT_COUNTERS
+ fn Packrat::get_mac_address_block() .................................. 1 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 1 ok
+
+ fn Packrat::set_mac_address_block() .................................. 1 calls
+    clients:
+    task sequencer (0 restarts) ........................ = 0 ........... = 1 ok
+
+ fn Packrat::get_identity() ........................................... 1 calls
+    clients:
+    task udpbroadcast (0 restarts) ..................... = 0 ........... = 1 ok
+
+ fn Packrat::set_identity() ........................................... 1 calls
+    clients:
+    task sequencer (0 restarts) ........................ = 0 ........... = 1 ok
+
+ fn Packrat::set_ereport_restart_id() ................................. 1 calls
+    clients:
+    task rng_driver (0 restarts) ....................... = 0 ........... = 1 ok
+
+
+task_sensor_api::__SENSOR_CLIENT_COUNTERS
+ fn Sensor::post() ............................................... 135857 calls
+    clients:
+    task power (0 restarts) ............................ + 0 ....... + 90790 ok
+    task thermal (0 restarts) .......................... + 0 ....... + 45067 ok
+                                                         ---        --------
+    totals:                                              = 0 err    = 135857 ok
+
+ fn Sensor::nodata() .............................................. 57125 calls
+    clients:
+    task power (0 restarts) ............................ + 0 ....... + 54474 ok
+    task thermal (0 restarts) .......................... + 0 ........ + 2651 ok
+                                                         ---         -------
+    totals:                                              = 0 err     = 57125 ok
+
+ fn Sensor::get_reading() .......................................... 2651 calls
+    clients:
+    task thermal (0 restarts) .......................... = 0 ........ = 2651 ok
+
+

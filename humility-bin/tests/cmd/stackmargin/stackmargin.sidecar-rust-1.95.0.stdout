@@ -1,0 +1,30 @@
+ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
+ 0 jefe               0x24010000       2328       1064       1264
+ 1 sys                0x24017000        896        216        680
+ 2 rng_driver         0x24018200        448        296        152
+ 3 update_server      0x2401b800       2048       1304        744
+ 4 auxflash           0x24022000       1456       1456          0
+ 5 net                0x24040000      10000       6624       3376
+ 6 control_plane_agent 0x24028000      12000       6500       5500
+ 7 sprot              0x24024000      10240        352       9888
+ 8 udpecho            0x24036000       4096        392       3704
+ 9 udpbroadcast       0x2401d000       2048        416       1632
+10 monorail           0x24002000       2560       2560          0
+11 i2c_driver         0x24011000       1048        720        328
+12 hiffy              0x24008000       1200        656        544
+13 sensor             0x24018800        512        312        200
+14 ecp5_mainboard     0x24035000       1504       1256        248
+15 ecp5_front_io      0x24038000       1504       1208        296
+16 transceivers       0x24014000       4096       2400       1696
+17 front_io           0x2401a000       4096        184       3912
+18 packrat            0x24031c00        968        760        208
+19 sequencer          0x24012000       4096       1384       2712
+20 thermal            0x2403c000       3680       2664       1016
+21 power              0x2401f000       3800        544       3256
+22 validate           0x24017800       1000        184        816
+23 ignition           0x2401e000        896        896          0
+24 vpd                0x24034000        800        344        456
+25 dump_agent         0x24004000       2400       1112       1288
+26 snitch             0x24021000        624        352        272
+27 idle               0x24001900        128        112         16
+28 udprpc             0x24039000       4096       2400       1696

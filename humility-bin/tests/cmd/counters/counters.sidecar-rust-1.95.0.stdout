@@ -1,0 +1,288 @@
+auxflash
+ |
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+           3 gpio_configure_raw
+           1 enable_clock_raw(Ok)
+           1 leave_reset_raw(Ok)
+control_plane_agent
+ |
+ +---> drv_auxflash_api::__AUXFLASH_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_ignition_api::idl::__IGNITION_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_monorail_api::__MONORAIL_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_rng_api::__RNG_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_sidecar_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_sprot_api::__SPROT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_stm32h7_update_api::__UPDATE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_transceivers_api::__TRANSCEIVERS_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> dump_agent_api::__DUMPAGENT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_control_plane_agent::CRITICAL:
+ |     <no counts recorded>
+ +---> task_control_plane_agent::__RINGBUF:
+ |         7 Rx
+ |         1 MgsMessage(Discovery)
+ +---> task_control_plane_agent::mgs_handler::__RINGBUF:
+ |         6 MessageNotTrusted(TechPort2)
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+ |         8 recv_packet(Err(QueueEmpty))
+ |         7 recv_packet(Ok)
+ |         7 send_packet(Ok)
+ |         1 get_mac_address
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_sensor_api::__SENSOR_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_validate_api::__VALIDATE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_vpd_api::__VPD_CLIENT_COUNTERS:
+       <no counts recorded>
+dump_agent
+ |
+ +---> drv_sprot_api::__SPROT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+           2 recv_packet(Err(QueueEmpty))
+ecp5_front_io
+ |
+ +---> drv_stm32h7_spi_server_core::__RINGBUF:
+ |    599553 WaitISR
+ |    533762 Tx
+ |    533762 Rx
+ |     93657 Start(write)
+ |     38303 Start(read)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+      142578 gpio_set_reset
+           6 gpio_configure_raw
+           1 enable_clock_raw(Ok)
+           1 enter_reset_raw(Ok)
+           1 leave_reset_raw(Ok)
+ecp5_mainboard
+ |
+ +---> drv_stm32h7_spi_server_core::__RINGBUF:
+ |    545451 WaitISR
+ |    315549 Tx
+ |    315549 Rx
+ |     90182 Start(write)
+ |     47694 Start(read)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+      137882 gpio_set_reset
+           9 gpio_configure_raw
+           6 gpio_read_input
+           1 enable_clock_raw(Ok)
+           1 enter_reset_raw(Ok)
+           1 leave_reset_raw(Ok)
+front_io
+ |
+ +---> drv_sidecar_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+           1 front_io_board_present
+           1 front_io_board_ready(Ok)
+           1 reset_front_io_phy(Ok)
+           1 set_front_io_phy_osc_state(Ok)
+hiffy
+ |
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+       <no counts recorded>
+i2c_driver
+ |
+ +---> drv_stm32xx_i2c::__RINGBUF:
+ |   4766413 Write
+ |   1212836 WriteWait
+ |    959514 Read
+ |    377862 ReadWait
+ |    304811 Wait
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+      147894 gpio_configure_raw
+         495 gpio_set_reset
+          81 gpio_read_input
+           4 enable_clock_raw(Ok)
+           4 leave_reset_raw(Ok)
+ignition
+ |
+ +---> drv_fpga_api::idl::__FPGA_CLIENT_COUNTERS:
+ |      2668 user_design_read(Ok)
+ |        35 user_design_write(Ok)
+ +---> drv_sidecar_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+           1 mainboard_controller_ready(Ok)
+monorail
+ |
+ +---> drv_fpga_api::idl::__FPGA_CLIENT_COUNTERS:
+ |     27671 user_design_read(Ok)
+ |     27671 user_design_write(Ok)
+ +---> drv_front_io_api::__FRONTIO_CLIENT_COUNTERS:
+ |         1 board_present
+ |         1 phy_reset(Ok)
+ |         1 phy_set_osc_state(Ok)
+ +---> drv_sidecar_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |      5292 tofino_pcie_link_up
+ |         1 is_clock_config_loaded
+ +---> drv_stm32h7_spi_server_core::__RINGBUF:
+ |    455057 Tx
+ |    455057 Rx
+ |    404226 WaitISR
+ |     40671 Start(exchange)
+ |     18527 Start(write)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |    118397 gpio_set_reset
+ |         3 gpio_configure_raw
+ |         1 enable_clock_raw(Ok)
+ |         1 enter_reset_raw(Ok)
+ |         1 leave_reset_raw(Ok)
+ +---> task_monorail_server::__RINGBUF:
+           1 BspInit
+net
+ |
+ +---> drv_sidecar_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |         1 is_clock_config_loaded
+ +---> drv_stm32h7_spi_server_core::__RINGBUF:
+ |       288 Tx
+ |       288 Rx
+ |       288 WaitISR
+ |        63 Start(write)
+ |         9 Start(exchange)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |       153 gpio_set_reset
+ |        16 gpio_configure_raw
+ |         5 enable_clock_raw(Ok)
+ |         3 enter_reset_raw(Ok)
+ |         3 leave_reset_raw(Ok)
+ +---> task_net::__COUNTERS:
+ |     53097 Iter
+ |     10604 IpActivity
+ |      5300 TimerWake
+ +---> task_net::mgmt::__RINGBUF:
+ |     <no counts recorded>
+ +---> task_net::server::__RINGBUF:
+ |     <no counts recorded>
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+           1 get_mac_address_block(Ok)
+packrat
+ |
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_packrat::ereport::__RINGBUF:
+       <no counts recorded>
+power
+ |
+ +---> drv_sidecar_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |      2594 tofino_seq_state(Ok)
+ +---> task_sensor_api::__SENSOR_CLIENT_COUNTERS:
+       90790 post
+       54474 nodata
+rng_driver
+ |
+ +---> drv_stm32h7_rng::__RINGBUF:
+ |         1 SetRestartId
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |         1 enable_clock_raw(Ok)
+ |         1 enter_reset_raw(Ok)
+ |         1 leave_reset_raw(Ok)
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+           1 set_ereport_restart_id(Ok)
+sequencer
+ |
+ +---> drv_auxflash_api::__AUXFLASH_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_fpga_api::idl::__FPGA_CLIENT_COUNTERS:
+ |     45048 user_design_read(Ok)
+ |     21211 user_design_write(Ok)
+ |        12 device_state(Ok)
+ +---> drv_sidecar_seq_server::ereporter::__EREPORT_RINGBUF:
+ |     <no counts recorded>
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |         2 gpio_read_input
+ |         1 gpio_configure_raw
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+           1 set_mac_address_block(Ok)
+           1 set_identity(Ok)
+snitch
+ |
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+ |         2 recv_packet(Err(QueueEmpty))
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_snitch::__COUNTERS:
+           2 RecvError(QueueEmpty)
+sprot
+ |
+ +---> drv_stm32h7_spi_server_core::__RINGBUF:
+ |     <no counts recorded>
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+           4 gpio_configure_raw
+           1 enable_clock_raw(Ok)
+           1 enter_reset_raw(Ok)
+           1 leave_reset_raw(Ok)
+           1 gpio_set_reset
+sys
+ |
+ +---> drv_stm32xx_sys::__EXTI_IRQ_COUNTERS:
+ |     <no counts recorded>
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+           1 set_reset_reason
+thermal
+ |
+ +---> drv_sidecar_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |      5302 tofino_seq_state(Ok)
+ |      2651 fan_module_presence(Ok)
+ +---> task_sensor_api::__SENSOR_CLIENT_COUNTERS:
+ |     45067 post
+ |      2651 get_reading(Ok)
+ |      2651 nodata
+ +---> task_thermal::__RINGBUF:
+        2651 ControlPwm
+           8 FanAdded
+           2 AutoState(Boot)
+           1 AutoState(Running)
+           2 FanControllerInitialized
+           1 Start
+           1 ThermalMode(Auto)
+           1 PowerModeChanged
+           1 SetFanWatchdogOk
+transceivers
+ |
+ +---> drv_fpga_api::idl::__FPGA_CLIENT_COUNTERS:
+ |     10610 user_design_read(Ok)
+ |         4 user_design_write(Ok)
+ +---> drv_front_io_api::__FRONTIO_CLIENT_COUNTERS:
+ |         1 board_ready(Ok)
+ +---> drv_sidecar_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |     26521 tofino_seq_state(Ok)
+ +---> drv_transceivers_server::__RINGBUF:
+ |         1 FrontIOBoardReady(true)
+ |         1 LEDInit
+ |         1 LEDInitComplete
+ |         1 ModulePresenceUpdate
+ +---> drv_transceivers_server::udp::__RINGBUF:
+ |     <no counts recorded>
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+ |     26521 recv_packet(Err(QueueEmpty))
+ +---> task_sensor_api::__SENSOR_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_thermal_api::__THERMAL_CLIENT_COUNTERS:
+       <no counts recorded>
+udpbroadcast
+ |
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+ |     10556 send_packet(Ok)
+ |         1 get_mac_address
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+           1 get_identity(Ok)
+udpecho
+ |
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+           2 recv_packet(Err(QueueEmpty))
+udprpc
+ |
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+           2 recv_packet(Err(QueueEmpty))
