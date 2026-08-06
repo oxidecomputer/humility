@@ -12,7 +12,7 @@ fn main() {
 
     let hubris = HubrisArchive::load_from_path(&hubris, &log).unwrap();
 
-    let core = &mut hubris.attach_probe(&probe, &log).unwrap();
+    let core = &mut hubris.attach_probe(&probe, 8000, &log).unwrap();
 
     // Read the first VPD
     let target = humility_vpd_lib::VpdTarget::Device(0);

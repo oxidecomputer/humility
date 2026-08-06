@@ -12,7 +12,7 @@ fn main() {
 
     let hubris = HubrisArchive::load_from_path(&hubris, &log).unwrap();
 
-    let core = &mut hubris.attach_probe(&probe, &log).unwrap();
+    let core = &mut hubris.attach_probe(&probe, 8000, &log).unwrap();
 
     let results = humility_vpd_lib::vpd_list(
         &hubris,

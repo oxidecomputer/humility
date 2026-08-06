@@ -131,6 +131,7 @@ fn auxflash(
         AuxFlashCommand::Write { slot, input, force } => {
             let core = &mut hubris.attach_probe(
                 context.cli.probe.as_deref().unwrap_or("auto"),
+                context.cli.speed,
                 log,
             )?;
             let mut writer = AuxFlashWriter::new(hubris, core, timeout, log)?;
