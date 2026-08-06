@@ -69,7 +69,7 @@ fn get_usb_probe(index: Option<usize>) -> Result<DebugProbeInfo> {
 
 fn open_probe_from_selector(
     selector: DebugProbeSelector,
-    speed_khz: Option<u32>,
+    speed_khz: u32,
 ) -> Result<Probe> {
     let lister = ::probe_rs::probe::list::Lister::new();
     let mut probe = match lister.open(selector.clone()) {
@@ -104,9 +104,7 @@ fn open_probe_from_selector(
         Err(e) => bail!("{e:?}"),
     };
 
-    if let Some(speed) = speed_khz {
-        probe.set_speed(speed)?;
-    };
+    probe.set_speed(speed_khz)?;
 
     Ok(probe)
 }
@@ -132,7 +130,7 @@ fn attach_err(e: ::probe_rs::Error) -> anyhow::Error {
 #[rustfmt::skip::macros(anyhow, bail)]
 pub fn attach_to_probe(
     probe: &str,
-    speed_khz: Option<u32>,
+    speed_khz: u32,
     log: &Logger,
 ) -> Result<::probe_rs::probe::Probe> {
     let (probe, index) = parse_probe(probe);
@@ -142,9 +140,7 @@ pub fn attach_to_probe(
             let probe_info = get_usb_probe(index)?;
 
             let mut probe = probe_info.open()?;
-            if let Some(speed) = speed_khz {
-                probe.set_speed(speed)?;
-            }
+            probe.set_speed(speed_khz)?;
 
             info!(log, "Opened probe {}", probe_info.identifier);
             Ok(probe)
@@ -167,7 +163,7 @@ pub fn attach_to_probe(
 pub fn attach_to_chip(
     probe: &str,
     chip: Option<&str>,
-    speed_khz: Option<u32>,
+    speed_khz: u32,
     log: &Logger,
 ) -> Result<probe_rs::ProbeCore> {
     let (probe, index) = parse_probe(probe);
@@ -177,9 +173,7 @@ pub fn attach_to_chip(
             let probe_info = get_usb_probe(index)?;
 
             let mut probe = probe_info.open()?;
-            if let Some(speed) = speed_khz {
-                probe.set_speed(speed)?;
-            }
+            probe.set_speed(speed_khz)?;
 
             //
             // probe-rs needs us to specify a chip that it knows about -- but
@@ -267,7 +261,7 @@ pub fn attach_to_chip(
 pub fn attach_for_flashing(
     probe: &str,
     chip: &str,
-    speed_khz: Option<u32>,
+    speed_khz: u32,
     log: &Logger,
 ) -> Result<probe_rs::ProbeCore> {
     attach_to_chip(probe, Some(chip), speed_khz, log)
@@ -285,6 +279,7 @@ pub trait HubrisAttach {
     fn attach_probe(
         &self,
         probe: &str,
+        speed_khz: u32,
         log: &Logger,
     ) -> Result<probe_rs::ProbeCore>;
 }
@@ -293,9 +288,11 @@ impl HubrisAttach for humility::hubris::HubrisArchive {
     fn attach_probe(
         &self,
         probe: &str,
+        speed_khz: u32,
         log: &Logger,
     ) -> Result<probe_rs::ProbeCore> {
-        let mut core = attach_to_chip(probe, Some(&self.chip()?), None, log)?;
+        let mut core =
+            attach_to_chip(probe, Some(&self.chip()?), speed_khz, log)?;
 
         self.validate(
             &mut core,
