@@ -296,7 +296,7 @@ impl NetCore {
         }
 
         // By construction, this DumpAgentCore has exactly what it needs!
-        agent_core.read_8(addr, data)?;
+        agent_core.read_bulk(addr, data)?;
 
         Ok(())
     }
@@ -344,6 +344,10 @@ impl Core for NetCore {
 
     fn recv(&self, buf: &mut [u8], target: NetAgent) -> Result<usize> {
         self.get_socket_for(target)?.recv(buf).map_err(anyhow::Error::from)
+    }
+
+    fn read_bulk(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
+        self.read(addr, data)
     }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {

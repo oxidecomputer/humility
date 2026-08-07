@@ -762,7 +762,7 @@ impl Ptr {
     ) -> Result<T> {
         let ty = hubris.lookup_type(self.dest_goff(hubris)?)?;
         let mut buf = vec![0; ty.size(hubris)?];
-        core.read_8(self.addr(), &mut buf)?;
+        core.read_bulk(self.addr(), &mut buf)?;
         load(hubris, &buf, ty, 0)
     }
 }
@@ -806,7 +806,7 @@ pub fn read_variable<T: Load>(
     let var_ty = hubris.lookup_type(var.goff)?;
     let mut buf: Vec<u8> = vec![0u8; var.size];
 
-    core.read_8(var.addr, &mut buf)?;
+    core.read_bulk(var.addr, &mut buf)?;
     let v = load(hubris, &buf, var_ty, 0)?;
 
     Ok(v)

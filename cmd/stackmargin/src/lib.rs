@@ -73,15 +73,15 @@ fn stackmargin(
     if let Some(HubrisTask::Task(i)) = task_dump {
         let offs = i as usize * task.size;
         let addr = base + offs as u32;
-        core.read_8(addr, &mut taskblock[offs..offs + task.size])?;
+        core.read_bulk(addr, &mut taskblock[offs..offs + task.size])?;
     } else if core.is_net() {
         info!(
             log,
             "skipping supervisor because we are reading over the network"
         );
-        core.read_8(base + task.size as u32, &mut taskblock[task.size..])?;
+        core.read_bulk(base + task.size as u32, &mut taskblock[task.size..])?;
     } else {
-        core.read_8(base, &mut taskblock)?;
+        core.read_bulk(base, &mut taskblock)?;
     }
 
     let descriptor = task.lookup_member("descriptor")?.offset as u32;

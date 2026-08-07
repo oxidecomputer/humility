@@ -10,7 +10,7 @@
 //! $ humility tasks
 //! humility: attached via ST-Link
 //! system time = 1764993
-//! ID TASK                 GEN PRI STATE    
+//! ID TASK                 GEN PRI STATE
 //!  0 jefe                   0   0 recv, notif: bit0 bit1(T+7)
 //!  1 rcc_driver             0   1 recv
 //!  2 gpio_driver            0   2 recv
@@ -31,7 +31,7 @@
 //! $ humility -d hubris.core.4 tasks -v
 //! humility: attached to dump
 //! system time = 1791860
-//! ID TASK                 GEN PRI STATE    
+//! ID TASK                 GEN PRI STATE
 //! ...
 //!  7 pong                   0   3 FAULT: killed by jefe/gen0 (was: recv, notif: bit0)
 //!    |
@@ -64,7 +64,7 @@
 //! $ humility tasks -r user_leds
 //! humility: attached via ST-Link
 //! system time = 1990498
-//! ID TASK                 GEN PRI STATE    
+//! ID TASK                 GEN PRI STATE
 //!  6 user_leds              0   2 recv
 //!    |
 //!    +--->   R0 = 0x20005fc8   R1 = 0x0000000c   R2 = 0x00000000   R3 = 0x20005fd8
@@ -79,7 +79,7 @@
 //! $ humility tasks -s user_leds
 //! humility: attached via ST-Link
 //! system time = 2021382
-//! ID TASK                 GEN PRI STATE    
+//! ID TASK                 GEN PRI STATE
 //!  6 user_leds              0   2 recv
 //!    |
 //!    +--->  0x20005fc0 0x08026e42 userlib::sys_recv_stub
@@ -95,7 +95,7 @@
 //! $ humility tasks -sl user_leds
 //! humility: attached via ST-Link
 //! system time = 2049587
-//! ID TASK                 GEN PRI STATE    
+//! ID TASK                 GEN PRI STATE
 //!  6 user_leds              0   2 recv
 //!    |
 //!    +--->  0x20005fc0 0x08026e42 userlib::sys_recv_stub
@@ -251,17 +251,17 @@ pub fn print_tasks(
         if let Some(HubrisTask::Task(i)) = task_dump {
             let offs = i as usize * task_t.size;
             let addr = base + offs as u32;
-            core.read_8(addr, &mut taskblock[offs..offs + task_t.size])?;
+            core.read_bulk(addr, &mut taskblock[offs..offs + task_t.size])?;
         } else if core.is_net() {
             // We cannot remotely read supervisor or non-TCB memory, so we skip
             // the supervisor and the kernel epitaph if this is a remote core.
-            core.read_8(
+            core.read_bulk(
                 base + task_t.size as u32,
                 &mut taskblock[task_t.size..],
             )?;
             info!(log, "reading tasks remotely; state may not be consistent");
         } else {
-            core.read_8(base, &mut taskblock)?;
+            core.read_bulk(base, &mut taskblock)?;
 
             if let Some(epitaph) = hubris.epitaph(core)? {
                 warn!(log, "kernel has panicked: {}", epitaph);
@@ -763,7 +763,7 @@ fn explain_fault_info(
             let msg_len = *regs.get(&(task_index, ARMRegister::R5)).unwrap();
             let msg_len = msg_len.min(255) as usize;
             let mut buf = vec![0; msg_len];
-            core.read_8(msg_base, &mut buf)?;
+            core.read_bulk(msg_base, &mut buf)?;
             match std::str::from_utf8(&buf) {
                 Ok(msg) => {
                     write!(w, "{}", msg)?;

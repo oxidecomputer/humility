@@ -163,7 +163,7 @@ pub fn read_tlvc_caboose(
 
     // Read the whole caboose into memory
     let mut caboose_data = vec![0u8; caboose_data_size];
-    core.read_8(caboose_data_range.start, &mut caboose_data)
+    core.read_bulk(caboose_data_range.start, &mut caboose_data)
         .map_err(CabooseError::FlashReadFailed)?;
 
     let reader = tlvc::TlvcReader::begin(caboose_data.as_slice())?;

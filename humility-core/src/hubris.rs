@@ -2040,14 +2040,14 @@ impl HubrisArchive {
 
                 let mut buf: Vec<u8> = vec![];
                 buf.resize_with(failed.size, Default::default);
-                core.read_8(failed.addr, buf.as_mut_slice())?;
+                core.read_bulk(failed.addr, buf.as_mut_slice())?;
 
                 match buf[0] {
                     0 => Ok(None),
 
                     1 => {
                         buf.resize_with(epitaph.size, Default::default);
-                        core.read_8(epitaph.addr, buf.as_mut_slice())?;
+                        core.read_bulk(epitaph.addr, buf.as_mut_slice())?;
 
                         let fmt = HubrisPrintFormat {
                             newline: false,
@@ -2167,7 +2167,7 @@ impl HubrisArchive {
         assert!(nbytes > 0);
 
         let mut id = vec![0; nbytes];
-        core.read_8(addr, &mut id[0..nbytes]).with_context(|| {
+        core.read_bulk(addr, &mut id[0..nbytes]).with_context(|| {
             format!("failed to read image ID at 0x{:x}; board mismatch?", addr)
         })?;
         Ok(id)
@@ -2278,7 +2278,7 @@ impl HubrisArchive {
             while !expected_bytes.is_empty() {
                 let nbytes = usize::min(expected_bytes.len(), buffer.len());
 
-                core.read_8(addr, &mut buffer[0..nbytes])?;
+                core.read_bulk(addr, &mut buffer[0..nbytes])?;
 
                 #[allow(clippy::needless_range_loop)]
                 for i in 0..nbytes {
@@ -2462,7 +2462,7 @@ impl HubrisArchive {
                         bail!("task {} has bad regions addr 0x{:x}", i, taddr);
                     }
 
-                    core.read_8(taddr, &mut indices).with_context(|| format!(
+                    core.read_bulk(taddr, &mut indices).with_context(|| format!(
                         "failed to read region descriptors for task {} at 0x{:x}",
                         i, taddr)
                     )?;
@@ -2661,7 +2661,7 @@ impl HubrisArchive {
         regs.resize_with(state.size, Default::default);
 
         let offset = base + (ndx * task.size as u32) + save;
-        core.read_8(offset, regs.as_mut_slice())?;
+        core.read_bulk(offset, regs.as_mut_slice())?;
 
         //
         // If this is the current task, we want to pull the current PC.
@@ -2720,7 +2720,7 @@ impl HubrisArchive {
 
         let mut stack: Vec<u8> = vec![];
         stack.resize_with(NREGS_CORE * 4, Default::default);
-        core.read_8(sp, stack.as_mut_slice())?;
+        core.read_bulk(sp, stack.as_mut_slice())?;
 
         //
         // R0-R3, and then R12, LR and the PSR are found on the stack
@@ -2797,7 +2797,7 @@ impl HubrisArchive {
 
         let mut buf: Vec<u8> = vec![];
         buf.resize_with(region.size as usize, Default::default);
-        core.read_8(region.base, buf.as_mut_slice())?;
+        core.read_bulk(region.base, buf.as_mut_slice())?;
 
         let readval = |addr| {
             if addr < region.base {
@@ -3389,7 +3389,7 @@ impl HubrisArchive {
                 let nbytes =
                     if remain > bytes.len() { bytes.len() } else { remain };
 
-                core.read_8(addr, &mut bytes[0..nbytes])?;
+                core.read_bulk(addr, &mut bytes[0..nbytes])?;
                 file.write_all(&bytes[0..nbytes])?;
                 remain -= nbytes;
                 written += nbytes;

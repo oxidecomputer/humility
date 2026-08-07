@@ -35,7 +35,7 @@
 //! $ humility -d hubris.core.0 tasks
 //! humility: attached to dump
 //! system time = 94529
-//! ID TASK                       GEN PRI STATE    
+//! ID TASK                       GEN PRI STATE
 //!  0 jefe                         0   0 recv, notif: bit0 bit1(T+71)
 //!  1 net                          1   5 recv, notif: bit0(irq61) bit2(T+213)
 //!  2 sys                          0   1 recv
@@ -239,7 +239,7 @@ fn emulate_dump(
         |addr, buf, _meta| {
             nread += buf.len();
             bar.set_position(nread as u64);
-            shared.borrow_mut().read_8(addr, buf)
+            shared.borrow_mut().read_bulk(addr, buf)
         },
         |addr, buf| {
             nwritten += buf.len();
@@ -274,7 +274,7 @@ fn emulate_task_dump_prep(
     let area = match humpty::claim_dump_area::<anyhow::Error>(
         base,
         humpty::DumpContents::SingleTask,
-        |addr, buf, _meta| shared.borrow_mut().read_8(addr, buf),
+        |addr, buf, _meta| shared.borrow_mut().read_bulk(addr, buf),
         |addr, buf| shared.borrow_mut().write_8(addr, buf),
     ) {
         Ok(area) => area,
@@ -299,7 +299,7 @@ fn emulate_task_dump_prep(
             area.region.address,
             *base,
             *size,
-            |addr, buf, _meta| shared.borrow_mut().read_8(addr, buf),
+            |addr, buf, _meta| shared.borrow_mut().read_bulk(addr, buf),
             |addr, buf| shared.borrow_mut().write_8(addr, buf),
         ) {
             bail!("adding segment at {base:#x} (length {size}) failed: {e:x?}");
@@ -508,7 +508,7 @@ fn simulate_dump_via_agent(
                 let offs = bytes.len() - nbytes;
                 let len = bytes.len();
 
-                core.read_8(addr, &mut bytes[offs..len])?;
+                core.read_bulk(addr, &mut bytes[offs..len])?;
 
                 let mut output = vec![0; 2048];
                 let mut compare: Vec<u8> = vec![];

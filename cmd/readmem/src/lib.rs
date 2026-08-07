@@ -216,7 +216,7 @@ fn readmem(subargs: ReadmemArgs, context: &mut ExecutionContext) -> Result<()> {
         for (i, addr) in (addr..addr + (length as u32)).step_by(max).enumerate()
         {
             let buf = &mut bytes[..std::cmp::min(max, length - (i * max))];
-            core.read_8(addr, buf)?;
+            core.read_bulk(addr, buf)?;
             f.write_all(buf)?;
         }
         info!(log, "Wrote {} bytes to {:?}", length, file);
@@ -229,7 +229,7 @@ fn readmem(subargs: ReadmemArgs, context: &mut ExecutionContext) -> Result<()> {
 
     let mut bytes = vec![0u8; length];
 
-    core.read_8(addr, &mut bytes)?;
+    core.read_bulk(addr, &mut bytes)?;
 
     if subargs.symbol {
         let hubris = hubris.as_ref().unwrap(); // checked above
