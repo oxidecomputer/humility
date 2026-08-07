@@ -210,6 +210,14 @@ fn readmem(subargs: ReadmemArgs, context: &mut ExecutionContext) -> Result<()> {
         bail!("address must be {}-byte aligned", size);
     }
 
+    //
+    // `read_bulk` vs `read_8` note! Since `readmem` could be used for reading
+    // arbitrary things, including peripherals, we choose to use `read_8` still
+    // here instead of `read_bulk`. This might be reconsidered in the future.
+    //
+    // See https://github.com/oxidecomputer/humility/pull/722 for discussion.
+    //
+
     if let Some(file) = subargs.file {
         let mut f = std::fs::File::create(&file)?;
         let mut bytes = vec![0u8; max];

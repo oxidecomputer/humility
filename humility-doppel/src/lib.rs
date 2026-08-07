@@ -88,7 +88,7 @@ impl Task {
     ) -> Result<Vec<Self>> {
         let taskblock = {
             let mut taskblock = vec![0; task_t.size * task_count];
-            core.read_8(task_table_base, &mut taskblock)?;
+            core.read_bulk(task_table_base, &mut taskblock)?;
             taskblock
         };
 

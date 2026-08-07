@@ -609,7 +609,7 @@ fn load_counters(
     let mut buf = vec![0u8; var.size];
 
     core.halt()?;
-    core.read_8(var.addr, buf.as_mut_slice())?;
+    core.read_bulk(var.addr, buf.as_mut_slice())?;
     core.run()?;
 
     let val: Value = Value::Struct(reflect::load_struct(hubris, &buf, def, 0)?);

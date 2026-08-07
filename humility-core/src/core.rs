@@ -13,6 +13,16 @@ use thiserror::Error;
 
 #[auto_impl::auto_impl(&mut)] // adds `impl<C: Core> Core for &mut C`
 pub trait Core {
+    /// Like read_8, but is allowed to slightly over-read data before and after,
+    /// and allowed to use other read primitives like reading 32-bit words.
+    ///
+    /// TODO: soften the "over-read" exception by implementing our own alignment
+    /// check? Right now this matches the guarantees from probe-rs'
+    /// `MemoryInterface::read`.
+    fn read_bulk(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
+        self.read_8(addr, data)
+    }
+
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()>;
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32>;
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()>;

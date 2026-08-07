@@ -124,7 +124,7 @@ fn ringbuf_dump(
     buf.resize_with(ringbuf_var.size, Default::default);
 
     core.halt()?;
-    core.read_8(ringbuf_var.addr, buf.as_mut_slice())?;
+    core.read_bulk(ringbuf_var.addr, buf.as_mut_slice())?;
     core.run()?;
 
     // There are three possible shapes of ringbufs, depending on the age of the

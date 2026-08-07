@@ -82,7 +82,7 @@ fn readvar_dump(
     buf.resize_with(variable.size, Default::default);
 
     core.halt()?;
-    core.read_8(variable.addr, buf.as_mut_slice())?;
+    core.read_bulk(variable.addr, buf.as_mut_slice())?;
 
     if !subargs.leave_halted {
         core.run()?;

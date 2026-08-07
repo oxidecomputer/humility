@@ -232,7 +232,7 @@ fn test(subargs: TestArgs, context: &mut ExecutionContext) -> Result<()> {
         let str_addr = core.read_word_32(
             base + (test_name_str.lookup_member("data_ptr")?.offset as u32),
         )?;
-        core.read_8(str_addr, &mut bytes)?;
+        core.read_bulk(str_addr, &mut bytes)?;
 
         let test_name =
             std::str::from_utf8(&bytes).unwrap_or("<test name unknown>");

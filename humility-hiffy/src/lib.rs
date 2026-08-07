@@ -1261,7 +1261,7 @@ impl<'a> HiffyContext<'a> {
             buf.resize_with(vars.failure.size, Default::default);
 
             core.op_start()?;
-            let r = core.read_8(vars.failure.addr, buf.as_mut_slice());
+            let r = core.read_bulk(vars.failure.addr, buf.as_mut_slice());
             core.op_done()?;
 
             match r {
@@ -1343,7 +1343,7 @@ impl<'a> HiffyContext<'a> {
         core.op_start()?;
 
         let mut rvec = vec![];
-        core.read_8(vars.rstack.addr, rstack.as_mut_slice())?;
+        core.read_bulk(vars.rstack.addr, rstack.as_mut_slice())?;
 
         core.op_done()?;
 
@@ -1472,7 +1472,7 @@ fn has_task_started(
 
     let addr = base + (task_index * task_t.size as u32);
     let mut buffer = vec![0; task_t.size];
-    core.read_8(addr, &mut buffer)?;
+    core.read_bulk(addr, &mut buffer)?;
 
     let task: humility_doppel::Task =
         reflect::load(hubris, &buffer, task_t, 0)?;
