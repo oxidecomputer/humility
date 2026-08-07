@@ -210,13 +210,21 @@ fn readmem(subargs: ReadmemArgs, context: &mut ExecutionContext) -> Result<()> {
         bail!("address must be {}-byte aligned", size);
     }
 
+    //
+    // `read_bulk` vs `read_8` note! Since `readmem` could be used for reading
+    // arbitrary things, including peripherals, we choose to use `read_8` still
+    // here instead of `read_bulk`. This might be reconsidered in the future.
+    //
+    // See https://github.com/oxidecomputer/humility/pull/722 for discussion.
+    //
+
     if let Some(file) = subargs.file {
         let mut f = std::fs::File::create(&file)?;
         let mut bytes = vec![0u8; max];
         for (i, addr) in (addr..addr + (length as u32)).step_by(max).enumerate()
         {
             let buf = &mut bytes[..std::cmp::min(max, length - (i * max))];
-            core.read_bulk(addr, buf)?;
+            core.read_8(addr, buf)?;
             f.write_all(buf)?;
         }
         info!(log, "Wrote {} bytes to {:?}", length, file);
@@ -229,7 +237,7 @@ fn readmem(subargs: ReadmemArgs, context: &mut ExecutionContext) -> Result<()> {
 
     let mut bytes = vec![0u8; length];
 
-    core.read_bulk(addr, &mut bytes)?;
+    core.read_8(addr, &mut bytes)?;
 
     if subargs.symbol {
         let hubris = hubris.as_ref().unwrap(); // checked above

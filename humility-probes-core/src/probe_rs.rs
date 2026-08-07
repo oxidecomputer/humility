@@ -30,6 +30,13 @@ pub struct ProbeCore {
     log: Logger,
 }
 
+enum ReadKind {
+    /// use `Core::read_8`
+    Bytes,
+    /// use `Core::read`
+    Bulk,
+}
+
 impl ProbeCore {
     pub(crate) fn new(
         session: probe_rs::Session,
@@ -73,6 +80,54 @@ impl ProbeCore {
         }
 
         rval
+    }
+
+    /// Helper for common `Core::read_bulk`/`Core::read_8` checks
+    fn read_with(
+        &mut self,
+        kind: ReadKind,
+        addr: u32,
+        data: &mut [u8],
+    ) -> Result<()> {
+        if data.len() > CORE_MAX_READSIZE {
+            bail!(
+                "read of {} bytes at 0x{:x} exceeds max of {}",
+                data.len(),
+                addr,
+                CORE_MAX_READSIZE
+            );
+        }
+
+        if let Some(range) = self.unhalted_read.range(..=addr).next_back()
+            && addr + (data.len() as u32) < range.0 + range.1
+        {
+            let mut core = self.session.core(0)?;
+            let res = match kind {
+                ReadKind::Bytes => core.read_8(addr.into(), data),
+                ReadKind::Bulk => core.read(addr.into(), data),
+            };
+            return res.with_context(|| {
+                format!(
+                    "failed to perform unhalted read at address \
+                        {addr:#x} for length {}",
+                    data.len()
+                )
+            });
+        }
+
+        self.halt_and_read(|core| {
+            let res = match kind {
+                ReadKind::Bytes => core.read_8(addr.into(), data),
+                ReadKind::Bulk => core.read(addr.into(), data),
+            };
+            res.with_context(|| {
+                format!(
+                    "failed to perform halted read at address \
+                    {addr:#x} for length {}",
+                    data.len()
+                )
+            })
+        })
     }
 }
 
@@ -258,63 +313,11 @@ impl Core for ProbeCore {
     }
 
     fn read_bulk(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
-        if data.len() > CORE_MAX_READSIZE {
-            bail!("read of {} bytes at 0x{:x} exceeds max of {}",
-                data.len(), addr, CORE_MAX_READSIZE);
-        }
-
-        if let Some(range) = self.unhalted_read.range(..=addr).next_back()
-            && addr + (data.len() as u32) < range.0 + range.1
-        {
-            let mut core = self.session.core(0)?;
-            return core.read(addr.into(), data).with_context(|| {
-                format!(
-                    "failed to perform unhalted read at address \
-                     {addr:#x} for length {}",
-                    data.len()
-                )
-            });
-        }
-
-        self.halt_and_read(|core| {
-            core.read(addr.into(), data).with_context(|| {
-                format!(
-                    "failed to perform halted read at address \
-                    {addr:#x} for length {}",
-                    data.len()
-                )
-            })
-        })
+        self.read_with(ReadKind::Bulk, addr, data)
     }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
-        if data.len() > CORE_MAX_READSIZE {
-            bail!("read of {} bytes at 0x{:x} exceeds max of {}",
-                data.len(), addr, CORE_MAX_READSIZE);
-        }
-
-        if let Some(range) = self.unhalted_read.range(..=addr).next_back()
-            && addr + (data.len() as u32) < range.0 + range.1
-        {
-            let mut core = self.session.core(0)?;
-            return core.read_8(addr.into(), data).with_context(|| {
-                format!(
-                    "failed to perform unhalted read at address \
-                     {addr:#x} for length {}",
-                    data.len()
-                )
-            });
-        }
-
-        self.halt_and_read(|core| {
-            core.read_8(addr.into(), data).with_context(|| {
-                format!(
-                    "failed to perform halted read at address \
-                    {addr:#x} for length {}",
-                    data.len()
-                )
-            })
-        })
+        self.read_with(ReadKind::Bytes, addr, data)
     }
 
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
