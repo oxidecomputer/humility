@@ -11,6 +11,14 @@ use humility_log::{Logger, info};
 use std::time::Duration;
 use thiserror::Error;
 
+/// State of the CPU before the halt/run operation
+pub enum PreviousCpuState {
+    /// CPU was halted
+    Halted,
+    /// CPU was running
+    Running,
+}
+
 #[auto_impl::auto_impl(&mut)] // adds `impl<C: Core> Core for &mut C`
 pub trait Core {
     /// Like read_8, but is allowed to slightly over-read data before and after,
@@ -28,8 +36,8 @@ pub trait Core {
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()>;
     fn write_8(&mut self, addr: u32, data: &[u8]) -> Result<()>;
 
-    fn halt(&mut self) -> Result<()>;
-    fn run(&mut self) -> Result<()>;
+    fn halt(&mut self) -> Result<PreviousCpuState>;
+    fn run(&mut self) -> Result<PreviousCpuState>;
     fn is_memory_core(&self) -> bool {
         false
     }
