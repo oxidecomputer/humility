@@ -2072,6 +2072,8 @@ impl HubrisArchive {
         core: &mut dyn crate::core::Core,
         criteria: HubrisValidate,
     ) -> Result<()> {
+        use crate::core::PreviousCpuState;
+
         let ntasks = self.ntasks();
         if core.is_net() || core.is_archive() {
             return Ok(());
@@ -2094,9 +2096,14 @@ impl HubrisArchive {
             // or the `HubrisValidate::Booted` checks.
             return Ok(());
         } else {
-            core.halt()?;
+            let should_run = match core.halt()? {
+                PreviousCpuState::Running => true,
+                PreviousCpuState::Halted => false,
+            };
             let result = self.is_pc_within_archive(core);
-            core.run()?;
+            if should_run {
+                core.run()?;
+            }
             if let Ok(PcResult::NotInArchive { pc }) = result {
                 bail!("image ID matches but PC at 0x{pc:x} is not part of any \
                        module. Maybe this is an incorrect A/B archive, or \
@@ -2136,10 +2143,15 @@ impl HubrisArchive {
         // the ROM).
         //
         if let Some(sym) = self.esyms_byname.get("Reset") {
-            core.halt()?;
+            let should_run = match core.halt()? {
+                PreviousCpuState::Halted => false,
+                PreviousCpuState::Running => true,
+            };
 
             if let Ok(pc) = core.read_reg(ARMRegister::PC) {
-                core.run()?;
+                if should_run {
+                    core.run()?;
+                }
 
                 if pc >= sym.0 && pc < sym.0 + sym.1 {
                     bail!("target is not yet booted (currently in Reset)");
@@ -2147,7 +2159,7 @@ impl HubrisArchive {
 
                 // We already checked is_pc_within_archive() during the
                 // `ArchiveMatch` check, so we don't need to repeat that here.
-            } else {
+            } else if should_run {
                 core.run()?;
             }
         }
