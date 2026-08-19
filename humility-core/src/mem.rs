@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::{
-    core::Core,
+    core::{Core, PreviousCpuState},
     hubris::{HubrisArchive, HubrisDataMap, OXIDE_NT_HUBRIS_REGISTERS},
 };
 use anyhow::{Context, Result, anyhow, bail};
@@ -95,12 +95,12 @@ impl Core for InMemoryCore {
         bail!("cannot write a byte on an in-memory core");
     }
 
-    fn halt(&mut self) -> Result<()> {
-        Ok(())
+    fn halt(&mut self) -> Result<PreviousCpuState> {
+        Ok(PreviousCpuState::Running)
     }
 
-    fn run(&mut self) -> Result<()> {
-        Ok(())
+    fn run(&mut self) -> Result<PreviousCpuState> {
+        Ok(PreviousCpuState::Running)
     }
 }
 

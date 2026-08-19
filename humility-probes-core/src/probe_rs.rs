@@ -4,7 +4,7 @@
 
 use anyhow::{Context, Result, bail};
 use humility::{
-    core::Core,
+    core::{Core, PreviousCpuState},
     log::{Logger, info, trace},
 };
 use humility_arch_arm::ARMRegister;
@@ -341,24 +341,35 @@ impl Core for ProbeCore {
         Ok(())
     }
 
-    fn halt(&mut self) -> Result<()> {
+    fn halt(&mut self) -> Result<PreviousCpuState> {
+        let prev = if self.halted {
+            PreviousCpuState::Halted
+        } else {
+            PreviousCpuState::Running
+        };
+
         if !self.halted {
             let mut core = self.session.core(0)?;
             core.halt(std::time::Duration::from_millis(1000))?;
             self.halted = true;
         }
 
-        Ok(())
+        Ok(prev)
     }
 
-    fn run(&mut self) -> Result<()> {
+    fn run(&mut self) -> Result<PreviousCpuState> {
+        let prev = if self.halted {
+            PreviousCpuState::Halted
+        } else {
+            PreviousCpuState::Running
+        };
         if self.halted {
             let mut core = self.session.core(0)?;
             core.run()?;
             self.halted = false;
         }
 
-        Ok(())
+        Ok(prev)
     }
 
     fn op_start(&mut self) -> Result<()> {
@@ -477,7 +488,8 @@ impl ProbeCore {
                 measurement_token::SP_ADDR as u32,
                 measurement_token::SKIP,
             )?;
-            self.run()
+            self.run()?;
+            Ok(())
         } else {
             self.reset()
         }

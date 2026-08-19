@@ -6,7 +6,7 @@
 
 use anyhow::{Context, Result, anyhow, bail};
 use humility::{
-    core::{Core, NetAgent},
+    core::{Core, NetAgent, PreviousCpuState},
     hubris::{
         HubrisArchive, HubrisDataMap, HubrisRegion, HubrisSocket, HubrisTask,
     },
@@ -366,12 +366,12 @@ impl Core for NetCore {
         bail!("cannot write a byte over network");
     }
 
-    fn halt(&mut self) -> Result<()> {
-        Ok(())
+    fn halt(&mut self) -> Result<PreviousCpuState> {
+        Ok(PreviousCpuState::Running)
     }
 
-    fn run(&mut self) -> Result<()> {
-        Ok(())
+    fn run(&mut self) -> Result<PreviousCpuState> {
+        Ok(PreviousCpuState::Running)
     }
 }
 
