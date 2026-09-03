@@ -164,12 +164,10 @@ static HOST_STATE_BUF_NAME_2: &str =
 static PACKRAT_BUF_NAME: &str = "task_packrat::main::BUFS";
 
 // packrat field names
-const PACKRAT_LAST_PANIC_PAYLOAD: &str =
-    "cell.value.host_info.host_panic_payload";
-const PACKRAT_LAST_PANIC_STATE: &str = "cell.value.host_info.host_panic_state";
-const PACKRAT_BOOT_FAIL_PAYLOAD: &str =
-    "cell.value.host_info.host_panic_payload";
-const PACKRAT_BOOT_FAIL_STATE: &str = "cell.value.host_info.host_panic_state";
+const PACKRAT_LAST_PANIC_PAYLOAD: &str = "cell.value.host_info.panic_payload";
+const PACKRAT_LAST_PANIC_STATE: &str = "cell.value.host_info.panic_state";
+const PACKRAT_BOOT_FAIL_PAYLOAD: &str = "cell.value.host_info.panic_payload";
+const PACKRAT_BOOT_FAIL_STATE: &str = "cell.value.host_info.panic_state";
 
 /// Mirror type of the internal buf struct in `host_sp_comms`. Must be kept in
 /// (partial) sync with that structure (fields that are present need to match,
