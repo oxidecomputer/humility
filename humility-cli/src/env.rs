@@ -4,16 +4,18 @@
 
 use anyhow::{Result, anyhow, bail};
 use indexmap::IndexMap;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{fs, path::PathBuf};
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Environment {
     pub probe: String,
     pub archive: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cmds: Option<serde_json::Value>,
 }
 
@@ -115,4 +117,27 @@ fn validate_multi_archive() {
 
     let _b = v.get("board1").unwrap().archive(&Some("name1".to_string()));
     let _b = v.get("board1").unwrap().archive(&Some("name2".to_string()));
+}
+
+/// Omit Absent fields instead of writing as null.
+#[test]
+fn serialize_omits_absent_fields() {
+    let data = r#"
+    {
+        "supply": {
+            "probe" : "1234:5678:HIJKLMN",
+            "archive" : "/some/other/path"
+        }
+    }
+    "#;
+
+    let read: IndexMap<String, Environment> =
+        serde_json::from_str(data).unwrap();
+    let written = serde_json::to_string(&read).unwrap();
+
+    assert!(!written.contains("null"), "{written}");
+    let reread: IndexMap<String, Environment> =
+        serde_json::from_str(&written).unwrap();
+    assert!(reread["supply"].description.is_none());
+    assert!(reread["supply"].cmds.is_none());
 }
