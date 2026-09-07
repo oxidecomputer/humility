@@ -10,7 +10,7 @@
 
 # Humility
 
-Humility is the debugger for Hubris.
+Humility is the debugger for [Hubris](https://github.com/oxidecomputer/hubris).
 
 ## Guiding principles
 
