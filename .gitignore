@@ -1,1 +1,5 @@
 /target
+# created by `nix-direnv`
+.direnv
+# created by `nix build`
+/result
