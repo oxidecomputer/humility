@@ -488,16 +488,30 @@ impl humility::reflect::Load for CountedRingbuf {
 
 impl humility::reflect::Load for Counters {
     fn from_value(v: &Value) -> Result<Self> {
-        let count_struct = v.as_struct()?;
-        let counts = count_struct
-            .iter()
-            .map(|(name, value)| {
-                let value = CounterVariant::from_value(value)
-                    .with_context(|| format!("failed to read {name}"))?;
-                Ok((name.to_string(), value))
-            })
-            .collect::<Result<IndexMap<_, _>>>()?;
-        Ok(Self { counts })
+        if let Ok(count_struct) = v.as_struct() {
+            let counts = count_struct
+                .iter()
+                .map(|(name, value)| {
+                    let value = CounterVariant::from_value(value)
+                        .with_context(|| format!("failed to read {name}"))?;
+                    Ok((name.to_string(), value))
+                })
+                .collect::<Result<IndexMap<_, _>>>()?;
+            Ok(Self { counts })
+        } else if let Ok(arr) = v.as_array() {
+            let counts = arr
+                .iter()
+                .enumerate()
+                .map(|(idx, value)| {
+                    let value = CounterVariant::from_value(value)
+                        .with_context(|| format!("failed to read {idx}"))?;
+                    Ok((idx.to_string(), value))
+                })
+                .collect::<Result<IndexMap<_, _>>>()?;
+            Ok(Self { counts })
+        } else {
+            bail!("uhhh")
+        }
     }
 }
 
@@ -581,9 +595,11 @@ impl humility::reflect::Load for CounterVariant {
             return Ok(Self::Single(0));
         }
 
-        let counter = value.as_struct()?;
-        if counter.name().starts_with("AtomicU32") {
+        if let Ok(counter) = value.as_struct()
+            && counter.name().starts_with("AtomicU32")
+        {
             let cell = UnsafeCell::<u32>::from_value(&counter["v"])
+                .inspect_err(|_| println!("ohno"))
                 .context("ringbuf count must be a u32")?;
             return Ok(Self::Single(cell.value));
         }
