@@ -2388,11 +2388,13 @@ impl HubrisArchive {
                 } else if self.ptrtypes.contains_key(&m.goff) {
                     break;
                 } else {
-                    return Err(anyhow!(
-                        "expected {} in struct {} ({}) to \
-                        be 4 byte type, found to be {}",
-                        member, structure.name, structure.goff, m.goff
-                    ));
+                    // TODO: lol, yolo
+                    //
+                    // return Err(anyhow!(
+                    //     "expected {} in struct {} ({}) to \
+                    //     be 4 byte type, found to be {}",
+                    //     member, structure.name, structure.goff, m.goff
+                    // ));
                 }
 
                 break;

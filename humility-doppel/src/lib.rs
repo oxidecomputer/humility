@@ -36,8 +36,8 @@
 use anyhow::{Context, Result, anyhow, bail};
 use humility::reflect::{self, Base, Load, Ptr, Value};
 use indexmap::IndexMap;
-use std::convert::TryInto;
 use std::fmt;
+use std::{convert::TryInto, ops::Deref};
 use zerocopy::{
     Immutable, IntoBytes, KnownLayout, LittleEndian, U16, U32, U64,
 };
@@ -153,6 +153,44 @@ pub enum SchedState {
     InRecv(Option<TaskId>),
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Addr {
+    Bits32(u32),
+    Bits64(u64),
+}
+
+impl fmt::LowerHex for Addr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Addr::Bits32(b32) => <u32 as fmt::LowerHex>::fmt(b32, f),
+            Addr::Bits64(b64) => <u64 as fmt::LowerHex>::fmt(b64, f),
+        }
+    }
+}
+
+impl Load for Addr {
+    fn from_value(v: &Value) -> Result<Self> {
+        match v {
+            Value::Base(base) => match base {
+                Base::U32(b32) => Ok(Self::Bits32(*b32)),
+                Base::U64(b64) => Ok(Self::Bits64(*b64)),
+                _ => todo!(),
+            },
+            Value::Tuple(tuple)
+                if tuple.name() == "Addr"
+                    && let [single] = tuple.deref() =>
+            {
+                match single {
+                    Value::Base(Base::U32(b32)) => Ok(Self::Bits32(*b32)),
+                    Value::Base(Base::U64(b64)) => Ok(Self::Bits64(*b64)),
+                    _ => todo!(),
+                }
+            }
+            _ => todo!(),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Load)]
 pub enum FaultInfo {
     /// The task has violated memory access rules. This may have come from a
@@ -163,15 +201,15 @@ pub enum FaultInfo {
         /// Problematic address that the task accessed, or asked the kernel to
         /// access. This is `Option` because there are cases of processor
         /// protection faults that don't provide a precise address.
-        address: Option<u32>,
+        address: Option<Addr>,
         /// Origin of the fault.
         source: FaultSource,
     },
     /// A task has overflowed its stack. We can always determine the bad
     /// stack address, but we can't determine the PC
-    StackOverflow { address: u32 },
+    StackOverflow { address: Addr },
     /// A task has induced a bus error
-    BusError { address: Option<u32>, source: FaultSource },
+    BusError { address: Option<Addr>, source: FaultSource },
     /// Divide-by-zero
     DivideByZero,
     /// Attempt to execute non-executable memory
