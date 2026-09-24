@@ -488,30 +488,44 @@ impl humility::reflect::Load for CountedRingbuf {
 
 impl humility::reflect::Load for Counters {
     fn from_value(v: &Value) -> Result<Self> {
-        if let Ok(count_struct) = v.as_struct() {
-            let counts = count_struct
+        // https://github.com/oxidecomputer/hubris/commit/b6ba19bcf644bba1b22b3ca8e3e88b8e64795eed
+        // added a manual implementation of counters that are an array of
+        // `AtomicU32`s, rather than a struct of `AtomicU32`s. We will likely
+        // hope to support this as a first-class derive option.
+        let result = if let Ok(count_struct) = v.as_struct() {
+            // For now, we first try to see if the counter impl is a struct
+            // containing `AtomicU32`s...
+            count_struct
                 .iter()
                 .map(|(name, value)| {
                     let value = CounterVariant::from_value(value)
                         .with_context(|| format!("failed to read {name}"))?;
                     Ok((name.to_string(), value))
                 })
-                .collect::<Result<IndexMap<_, _>>>()?;
-            Ok(Self { counts })
+                .collect::<Result<IndexMap<_, _>>>()
+                .map(|counts| Self { counts })
         } else if let Ok(arr) = v.as_array() {
-            let counts = arr
-                .iter()
+            // Failing that, we check to see if the counters are instead in an
+            // array shape.
+            arr.iter()
                 .enumerate()
                 .map(|(idx, value)| {
                     let value = CounterVariant::from_value(value)
                         .with_context(|| format!("failed to read {idx}"))?;
                     Ok((idx.to_string(), value))
                 })
-                .collect::<Result<IndexMap<_, _>>>()?;
-            Ok(Self { counts })
+                .collect::<Result<IndexMap<_, _>>>()
+                .map(|counts| Self { counts })
         } else {
-            bail!("uhhh")
-        }
+            // If it's not a struct or array of purely AtomicU32s, then there's
+            // not much we can do. Attempt to provide a helpful error.
+            Err(anyhow::format_err!(
+                "Attempted to load counters, but encountered an unexpected form\
+                that was neither a struct nor an array of AtomicU32s"
+            ))
+        };
+
+        result.with_context(|| "Failed to load counters")
     }
 }
 
@@ -595,15 +609,18 @@ impl humility::reflect::Load for CounterVariant {
             return Ok(Self::Single(0));
         }
 
+        // If the value is directly an AtomicU32, we treat it as a single
+        // counter value.
         if let Ok(counter) = value.as_struct()
             && counter.name().starts_with("AtomicU32")
         {
             let cell = UnsafeCell::<u32>::from_value(&counter["v"])
-                .inspect_err(|_| println!("ohno"))
                 .context("ringbuf count must be a u32")?;
             return Ok(Self::Single(cell.value));
         }
 
+        // If it's not a (single) `AtomicU32`, it may be a struct or array of
+        // `AtomicU32`s, so treat it as nested and attempt to load it as such.
         Ok(Self::Nested(Counters::from_value(value)?))
     }
 }
