@@ -52,7 +52,7 @@ pub enum ImageStateMismatch {
     /// The image contained in the archive is different from the the image on
     /// the target.
     #[error(
-        "image ID in archive ({archive:x?}) does not equal image ID of #target ({target:x?})"
+        "image ID in archive ({archive:x?}) does not equal image ID of target ({target:x?})"
     )]
     FlashArchiveMismatch {
         /// The image ID in the archive
