@@ -2387,6 +2387,34 @@ impl HubrisArchive {
                     }
                 } else if self.ptrtypes.contains_key(&m.goff) {
                     break;
+                } else if let Ok(s) = self.lookup_struct(m.goff)
+                    && let Some(nt) = s.newtype()
+                    && let Some(bt) = self.basetypes.get(&nt)
+                {
+                    // This exists to accomodate the work-in-progress target-
+                    // bitwidth agnosticism.
+                    //
+                    // See https://github.com/oxidecomputer/hubris/issues/2706,
+                    // as well as
+                    // https://github.com/oxidecomputer/hubris/pull/2703 for
+                    // details on what these changes support. We look for EITHER
+                    // a 4-byte primitive (which can be `u32` or `usize`,
+                    // depending on context), OR a newtype `Addr(usize)`, which
+                    // is what the above changes introduce.
+                    //
+                    // THIS part of the code does not **yet** support 8-byte
+                    // primitives like `u64` or `usize`-on-64-bit-targets.
+                    //
+                    // As of 2026-09-29, AJM is not quite sure what the code
+                    // in this conditional block is guarding against, other than
+                    // accidental type confusion? It is from long long ago.
+                    if bt.size != 4 {
+                        return Err(anyhow!(
+                            "expected {} in struct {} ({}) to \
+                            be 4 bytes, found to be {} bytes",
+                            member, structure.name, structure.goff, bt.size
+                        ));
+                    }
                 } else {
                     return Err(anyhow!(
                         "expected {} in struct {} ({}) to \

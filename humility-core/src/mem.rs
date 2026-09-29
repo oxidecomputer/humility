@@ -182,7 +182,7 @@ fn load_registers(r: &[u8]) -> Result<HashMap<ARMRegister, u32>> {
         bail!("bad length {} in registers note", r.len());
     }
     let mut registers = HashMap::new();
-    for (i, chunk) in r.chunks_exact(8).enumerate() {
+    for (i, chunk) in r.as_chunks::<8>().0.iter().enumerate() {
         let (id, val) = chunk.split_at(4);
         // We unwrap here because it can only fail if the length is wrong,
         // but we've explicitly broken a chunk of 8 into two chunks of 4,

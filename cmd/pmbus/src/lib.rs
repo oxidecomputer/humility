@@ -1731,8 +1731,7 @@ impl PmbusWorker for IdolWorker<'_> {
                 &dev.port == harg.port
                     && dev.controller == harg.controller
                     && Some(dev.address) == harg.address
-                    && dev.mux.and_then(|mux| dev.segment.map(|s| (mux, s)))
-                        == harg.mux
+                    && dev.mux.zip(dev.segment) == harg.mux
             })
             .ok_or_else(|| anyhow!("could not find device matching {harg:?}"))?
             .0;
