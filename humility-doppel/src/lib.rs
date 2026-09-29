@@ -520,12 +520,12 @@ impl humility::reflect::Load for Counters {
             // If it's not a struct or array of purely AtomicU32s, then there's
             // not much we can do. Attempt to provide a helpful error.
             Err(anyhow::format_err!(
-                "Attempted to load counters, but encountered an unexpected form\
+                "Attempted to load counters, but encountered an unexpected form \
                 that was neither a struct nor an array of AtomicU32s"
             ))
         };
 
-        result.with_context(|| "Failed to load counters")
+        result.context("failed to load counters")
     }
 }
 
