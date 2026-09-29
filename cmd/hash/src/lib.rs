@@ -245,7 +245,7 @@ fn hash(subargs: HashArgs, context: &mut ExecutionContext) -> Result<()> {
                 _ => None,
             },
         )?;
-        println!("returned results={:?}", &results);
+        println!("returned results={:?}", results);
         match &results[0] {
             Ok(buf) => {
                 print_hash(buf);

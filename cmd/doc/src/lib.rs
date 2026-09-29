@@ -48,7 +48,7 @@ fn doc(subargs: DocArgs, _context: &mut ExecutionContext) -> Result<()> {
     skin.table.align = Alignment::Center;
     skin.code_block.align = Alignment::Center;
     let text = FmtText::from_text(&skin, text, Some(80));
-    println!("{}", &text);
+    println!("{}", text);
 
     if let Some(ref cmd) = subargs.command {
         skin.print_text(&format!(

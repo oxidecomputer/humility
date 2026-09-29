@@ -94,7 +94,7 @@ fn stackmargin(
         |o| u32::from_le_bytes(taskblock[o..o + 4].try_into().unwrap());
 
     let find = |addr| {
-        for (_, region) in regions.iter() {
+        for region in regions.values() {
             if addr > region.base && addr <= region.base + region.size {
                 return Ok(region);
             }

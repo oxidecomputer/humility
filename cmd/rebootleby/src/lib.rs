@@ -198,14 +198,14 @@ impl FlashHack<'_> {
         word_address: u32,
         contents: &[u8; 512],
     ) -> Result<()> {
-        for (i, chunk) in contents.chunks_exact(16).enumerate() {
+        for (i, chunk) in contents.as_chunks::<16>().0.iter().enumerate() {
             debug!(self.log, "writing {word_address:#x?} chunk {i}");
             self.clear_status_flags()?;
             self.set_word_range(i as u32, i as u32)?;
-            for (j, word) in chunk.chunks_exact(4).enumerate() {
+            for (j, word) in chunk.as_chunks::<4>().0.iter().enumerate() {
                 self.poke_and_check(
                     DATAW0 + j as u32 * 4,
-                    u32::from_le_bytes(word.try_into().unwrap()),
+                    u32::from_le_bytes(*word),
                 )?;
             }
 
