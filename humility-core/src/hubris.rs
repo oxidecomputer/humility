@@ -2387,14 +2387,23 @@ impl HubrisArchive {
                     }
                 } else if self.ptrtypes.contains_key(&m.goff) {
                     break;
+                } else if let Ok(s) = self.lookup_struct(m.goff)
+                    && let Some(nt) = s.newtype()
+                    && let Some(bt) = self.basetypes.get(&nt)
+                {
+                    if bt.size != 4 {
+                        return Err(anyhow!(
+                            "expected {} in struct {} ({}) to \
+                            be 4 bytes, found to be {} bytes",
+                            member, structure.name, structure.goff, bt.size
+                        ));
+                    }
                 } else {
-                    // TODO: lol, yolo
-                    //
-                    // return Err(anyhow!(
-                    //     "expected {} in struct {} ({}) to \
-                    //     be 4 byte type, found to be {}",
-                    //     member, structure.name, structure.goff, m.goff
-                    // ));
+                    return Err(anyhow!(
+                        "expected {} in struct {} ({}) to \
+                        be 4 byte type, found to be {}",
+                        member, structure.name, structure.goff, m.goff
+                    ));
                 }
 
                 break;
