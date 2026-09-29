@@ -155,7 +155,9 @@ pub enum SchedState {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Addr {
+    /// A 32-bit target address
     Bits32(u32),
+    /// A 64-bit target address
     Bits64(u64),
 }
 
@@ -170,24 +172,50 @@ impl fmt::LowerHex for Addr {
 
 impl Load for Addr {
     fn from_value(v: &Value) -> Result<Self> {
-        match v {
+        // This exists to accomodate the work-in-progress target-bitwidth
+        // agnosticism.
+        //
+        // See https://github.com/oxidecomputer/hubris/issues/2706, as well as
+        // https://github.com/oxidecomputer/hubris/pull/2703 for details on
+        // what these changes support. We look for EITHER a 4-byte or 8-byte
+        // primitive (which can be any of `u32`, `u64`, or `usize`, depending
+        // on context), OR a newtype `Addr(usize)`, which is what the above
+        // changes introduce.
+        let res = match v {
             Value::Base(base) => match base {
-                Base::U32(b32) => Ok(Self::Bits32(*b32)),
-                Base::U64(b64) => Ok(Self::Bits64(*b64)),
-                _ => todo!(),
+                Base::U32(b32) => Self::Bits32(*b32),
+                Base::U64(b64) => Self::Bits64(*b64),
+                other => {
+                    bail!(
+                        "expected an address to EITHER be a 4-byte or 8-byte \
+                         primitive, instead found {other:?}."
+                    );
+                }
             },
             Value::Tuple(tuple)
                 if tuple.name() == "Addr"
                     && let [single] = tuple.deref() =>
             {
                 match single {
-                    Value::Base(Base::U32(b32)) => Ok(Self::Bits32(*b32)),
-                    Value::Base(Base::U64(b64)) => Ok(Self::Bits64(*b64)),
-                    _ => todo!(),
+                    Value::Base(Base::U32(b32)) => Self::Bits32(*b32),
+                    Value::Base(Base::U64(b64)) => Self::Bits64(*b64),
+                    other => {
+                        bail!(
+                            "expected an `Addr` newtype to contain EITHER a \
+                             4-byte or 8-byte primitive, instead found \
+                             {other:?}."
+                        );
+                    }
                 }
             }
-            _ => todo!(),
-        }
+            other => {
+                bail!(
+                    "Attempted to load an address, but found none of the \
+                     usual suspects, instead found {other:?}."
+                );
+            }
+        };
+        Ok(res)
     }
 }
 
