@@ -483,7 +483,7 @@ fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
 
     match subargs.slot {
         None => info!(log, "Using existing slot settings"),
-        s @ (Some(0) | Some(1)) => {
+        s @ (Some(0) | Some(1) | Some(2)) => {
             let s = s.unwrap();
             info!(log, "Setting slot to {s}");
             context.call::<()>(
