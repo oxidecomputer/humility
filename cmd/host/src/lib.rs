@@ -453,10 +453,12 @@ fn print_panic(d: Vec<u8>, log: &Logger) -> Result<()> {
 
 /// Print a warning message if the archive is not for a `cosmo` board
 fn check_post_code_target(hubris: &HubrisArchive, log: &Logger) {
-    if !hubris.manifest.board.contains("cosmo") {
+    if !hubris.manifest.board.contains("cosmo")
+        && !hubris.manifest.board.contains("metro")
+    {
         warn!(
             log,
-            "POST code buffer is only present on 'cosmo' hardware \
+            "POST code buffer is only present on 'cosmo'/'metro' hardware \
              but this is a '{}'; hiffy may fail and time out",
             hubris.manifest.board,
         )
