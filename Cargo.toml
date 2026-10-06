@@ -88,7 +88,7 @@ resolver = "2"
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.91" # if this changes, edit ci.yaml as well!
+rust-version = "1.98.1" # if this changes, edit ci.yaml as well!
 
 [workspace.dependencies]
 # `git`-based deps

@@ -82,7 +82,7 @@ fn mapcmd(_args: MapArgs, context: &mut ExecutionContext) -> Result<()> {
         "DESC", "LOW", "HIGH", "SIZE", "ATTR", "ID",
     );
 
-    for (_, region) in regions.iter() {
+    for region in regions.values() {
         let name = {
             let mut names = vec![];
 

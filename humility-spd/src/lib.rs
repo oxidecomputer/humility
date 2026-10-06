@@ -61,7 +61,9 @@ pub fn spd_lookup(
             );
         }
         Ok(Some(
-            buf.chunks_exact(GIMLET_SPD_SIZE)
+            buf.as_chunks::<GIMLET_SPD_SIZE>()
+                .0
+                .iter()
                 .map(|chunk| SpdData(chunk.to_vec()))
                 .collect(),
         ))
@@ -94,7 +96,7 @@ pub fn spd_lookup(
                     );
                 }
                 let mut out = Vec::with_capacity(a.len() / GIMLET_SPD_SIZE);
-                for vs in a.chunks_exact(GIMLET_SPD_SIZE) {
+                for vs in a.as_chunks::<GIMLET_SPD_SIZE>().0.iter() {
                     let mut chunk = Vec::with_capacity(GIMLET_SPD_SIZE);
                     for v in vs {
                         let Value::Base(Base::U8(b)) = v else {
