@@ -930,17 +930,7 @@ $ humility gpio -c Output:PushPull:High:None:AF0 -p A:5
 
 ### `humility hash`
 
-Uses the `hash` task to hash sequences. The following are all equivalent:
-
-```console
-$ humility hash --digest -s abc
-$ humility hash --digest -x 61,62,63
-$ echo -n abc > abc.txt ; humility hash --digest -f abc.txt
-$ hash -i --update -s 'a' ; hash --update -s 'bc' ; hash --finalize
-```
-
-Note that `--update` can also take a filename as a parameter.
-
+This is deprecated due to removal of the separate `hash` task.
 
 
 ### `humility hiffy`
