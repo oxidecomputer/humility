@@ -4,7 +4,7 @@
 
 //! ## `humility hash`
 //!
-//! This is deprecated
+//! This is deprecated due to removal of the separate `hash` task.
 
 use anyhow::{Result, bail};
 use clap::{ArgGroup, Parser};

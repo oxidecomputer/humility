@@ -930,7 +930,7 @@ $ humility gpio -c Output:PushPull:High:None:AF0 -p A:5
 
 ### `humility hash`
 
-This is deprecated
+This is deprecated due to removal of the separate `hash` task.
 
 
 ### `humility hiffy`
