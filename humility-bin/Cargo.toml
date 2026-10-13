@@ -35,7 +35,6 @@ humility = { workspace = true }
 humility-cortex = { workspace = true }
 humility-cli = { workspace = true, default-features = false }
 cmd-auxflash = { workspace = true }
-cmd-caboose = { workspace = true }
 cmd-console-proxy = { workspace = true }
 cmd-counters = { workspace = true }
 cmd-dashboard = { workspace = true }
@@ -84,6 +83,7 @@ cmd-validate = { workspace = true }
 cmd-vpd = { workspace = true }
 
 # Subcommand which require the `probes` feature
+cmd-caboose = { workspace = true, optional = true }
 cmd-debugmailbox = { workspace = true, optional = true }
 cmd-flash = { workspace = true, optional = true }
 cmd-lsusb = { workspace = true, optional = true }
@@ -118,6 +118,7 @@ trycmd = { workspace = true }
 default = ["probes"]
 probes = [
     "humility-cli/probes",
+    "cmd-caboose",
     "cmd-debugmailbox",
     "cmd-flash",
     "cmd-lsusb",
