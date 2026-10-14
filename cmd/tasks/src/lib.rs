@@ -222,7 +222,10 @@ pub fn print_tasks(
 
     let task_t = hubris.lookup_struct_byname("Task")?;
     let save = task_t.lookup_member("save")?.offset;
-    let state = hubris.lookup_struct_byname("SavedState")?;
+    let state = match hubris.lookup_struct_byname("SavedState") {
+        Ok(s) => s,
+        Err(_) => hubris.lookup_struct_byname("ArmMSavedState")?,
+    };
     let r4 = save + state.lookup_member("r4")?.offset;
 
     let mut found = false;
