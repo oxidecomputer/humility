@@ -1,0 +1,16 @@
+[package]
+name = "humility-async"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+async-trait = "0.1.89"
+tokio = { version = "1", features = ["full"] }
+humility.workspace = true
+humility-probes-core.workspace = true
+humility-hiffy.workspace = true
+humility-idol.workspace = true
+anyhow.workspace = true
+idol.workspace = true
+thiserror.workspace = true
+slog.workspace = true
