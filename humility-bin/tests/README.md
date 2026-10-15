@@ -36,6 +36,11 @@ Note that this is a sidecar image, so the commands that want Gimlet state
 (`spd`, `host`, and counters naming `gimlet_seq`) are marked as expected
 failures, per "Indicating expected failure" below.
 
+`hubris.core.arm-m-saved-state` was taken from a `grapefruit-a` running
+`b9378fce04c86d5181e70d15211c3b8aafdf706e`, which is after a rename of the
+kernel's `SavedState` was made in
+<https://github.com/oxidecomputer/hubris/pull/2704>.
+
 ## Keeping up with the toolchain
 
 These dumps are frozen:  each one decodes the same way forever, so the suite
@@ -108,4 +113,3 @@ status.code = 1
 
 (It can be helpful to also add a comment to indicate why the command fails
 on the dump.)
-

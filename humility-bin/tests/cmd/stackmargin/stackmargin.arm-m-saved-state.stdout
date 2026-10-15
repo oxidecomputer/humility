@@ -1,0 +1,28 @@
+ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
+ 0 jefe               0x24003000       1536        248       1288
+ 1 sys                0x24020000        896        216        680
+ 2 spi2_driver        0x2403c800        872        440        432
+ 3 i2c_driver         0x24014000       1048        472        576
+ 4 user_leds          0x24022c00        896        280        616
+ 5 packrat            0x24038000       1616        552       1064
+ 6 hiffy              0x24026000       1536        816        720
+ 7 validate           0x24023c00       1024        176        848
+ 8 idle               0x24023000        256        112        144
+ 9 dump_agent         0x24004000       2400       1088       1312
+10 sprot              0x24034000      10240        352       9888
+11 grapefruit_seq     0x24012000       2600        344       2256
+12 spartan7_loader    0x24021000       2600       2368        232
+13 update_server      0x24015000       2048       1304        744
+14 sensor             0x24023800        864        208        656
+15 host_sp_comms      0x24008000       5080        848       4232
+16 control_plane_agent 0x24018000       2904       2664        240
+17 auxflash           0x24016000       3504       3384        120
+18 net                0x20000000       8000       4292       3708
+19 udprpc             0x24041000       3712       2400       1312
+20 udpecho            0x2403f000       4096        392       3704
+21 udpbroadcast       0x2403e000       3552        416       3136
+22 fmc_demo           0x24002000        896        360        536
+23 hf                 0x24030000       4000       1728       2272
+24 snitch             0x24024800        560        352        208
+25 rng_driver         0x24023200        384        296         88
+26 ereportulator      0x24020800        896        280        616
