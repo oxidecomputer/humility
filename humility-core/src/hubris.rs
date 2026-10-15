@@ -38,7 +38,7 @@ pub const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE + 1;
 pub const OXIDE_NT_HUBRIS_REGISTERS: u32 = OXIDE_NT_BASE + 2;
 pub const OXIDE_NT_HUBRIS_TASK: u32 = OXIDE_NT_BASE + 3;
 
-const MAX_HUBRIS_VERSION: u32 = 11;
+const MAX_HUBRIS_VERSION: u32 = 12;
 
 #[derive(Debug, Serialize)]
 pub struct HubrisManifest {
@@ -1721,6 +1721,45 @@ impl HubrisArchive {
         }
     }
 
+    /// Like [`Self::lookup_struct_byname`], but tries multiple names (in the
+    /// order provided), and returns if any item was found. Attempts to include
+    /// error context for all attempted names, in case there is some unexpected
+    /// failure reason.
+    pub fn lookup_struct_byname_any<I, S>(
+        &self,
+        names: I,
+    ) -> Result<&HubrisStruct>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        use anyhow::Context;
+        let names = names
+            .into_iter()
+            .map(|n| n.as_ref().to_string())
+            .collect::<Vec<_>>();
+
+        let mut errs = vec![];
+        for name in names.iter() {
+            let res = self.lookup_struct_byname(name);
+            match res {
+                Ok(s) => return Ok(s),
+                Err(e) => {
+                    errs.push((name, e));
+                }
+            }
+        }
+
+        // We got here, nothing worked.
+        let mut err = Err(anyhow!("Looked for structs named {names:?}"));
+        for (n, e) in errs {
+            err = err.with_context(|| format!("Tried '{n}', got: {e}"));
+        }
+        // This seems repetitive, but the LAST context is what gets shown first,
+        // so put an extra context on here.
+        err.context("Failed to find struct by name.")
+    }
+
     pub fn lookup_basetype_byname(&self, name: &str) -> Result<&HubrisGoff> {
         match self.basetypes_byname.get(name) {
             Some(goff) => Ok(goff),
@@ -2695,7 +2734,8 @@ impl HubrisArchive {
 
         let task = self.lookup_struct_byname("Task")?;
         let save = task.lookup_member("save")?.offset as u32;
-        let state = self.lookup_struct_byname("SavedState")?;
+        let state =
+            self.lookup_struct_byname_any(["ArmMSavedState", "SavedState"])?;
 
         let mut regs: Vec<u8> = vec![];
         regs.resize_with(state.size, Default::default);

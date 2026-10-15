@@ -1,0 +1,327 @@
+humility: ring buffer drv_cosmo_metro_hf::__RINGBUF in hf:
+   TOTAL VARIANT
+   38899 FpgaBusy
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  235        1    38899 FpgaBusy
+humility: ring buffer drv_cosmo_metro_hf::apob::__RINGBUF in hf:
+   TOTAL VARIANT
+       1 GotPersistentData(Meta0)
+       1 GotPersistentData(Meta1)
+       1 ApobSlotEraseStart(Slot0)
+       1 ApobSlotEraseStart(Slot1)
+       1 ApobSlotEraseSkipped(Slot0)
+       1 ApobSlotEraseSkipped(Slot1)
+       1 State(Waiting(Slot0))
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  666        1        1 GotPersistentData { meta: Meta0, data: None }
+   1  666        1        1 GotPersistentData { meta: Meta1, data: None }
+   2  590        1        1 ApobSlotEraseStart { slot: Slot0, size: 0x200000 }
+   3  625        1        1 ApobSlotEraseSkipped { slot: Slot0, time_ms: 0x392 }
+   4  590        1        1 ApobSlotEraseStart { slot: Slot1, size: 0x200000 }
+   5  625        1        1 ApobSlotEraseSkipped { slot: Slot1, time_ms: 0x392 }
+   6  546        1        1 State(Waiting { read_slot: None, write_slot: Slot0 })
+humility: ring buffer drv_grapefruit_seq_server::__RINGBUF in grapefruit_seq:
+humility: ring buffer drv_spartan7_loader::__RINGBUF in spartan7_loader:
+   TOTAL VARIANT
+   10553 ContinueBitstreamLoad
+       1 FpgaInit
+       1 WaitForDone
+       1 Programmed
+ NDX LINE      GEN    COUNT PAYLOAD
+  95  163       50       21 ContinueBitstreamLoad(0x200)
+  96  163       50        1 ContinueBitstreamLoad(0x100)
+  97  163       50       42 ContinueBitstreamLoad(0x200)
+  98  163       50        1 ContinueBitstreamLoad(0x100)
+  99  163       50       21 ContinueBitstreamLoad(0x200)
+ 100  163       50        1 ContinueBitstreamLoad(0x100)
+ 101  163       50       42 ContinueBitstreamLoad(0x200)
+ 102  163       50        1 ContinueBitstreamLoad(0x100)
+ 103  163       50       21 ContinueBitstreamLoad(0x200)
+ 104  163       50        1 ContinueBitstreamLoad(0x100)
+ 105  163       50       42 ContinueBitstreamLoad(0x200)
+ 106  163       50        1 ContinueBitstreamLoad(0x100)
+ 107  163       50       21 ContinueBitstreamLoad(0x200)
+ 108  163       50        1 ContinueBitstreamLoad(0x100)
+ 109  163       50       42 ContinueBitstreamLoad(0x200)
+ 110  163       50        1 ContinueBitstreamLoad(0x100)
+ 111  163       50       21 ContinueBitstreamLoad(0x200)
+ 112  163       50        1 ContinueBitstreamLoad(0x100)
+ 113  163       50       42 ContinueBitstreamLoad(0x200)
+ 114  163       50        1 ContinueBitstreamLoad(0x100)
+ 115  163       50       21 ContinueBitstreamLoad(0x200)
+ 116  163       50        1 ContinueBitstreamLoad(0x100)
+ 117  163       50       42 ContinueBitstreamLoad(0x200)
+ 118  163       50        1 ContinueBitstreamLoad(0x100)
+ 119  163       50       21 ContinueBitstreamLoad(0x200)
+ 120  163       50        1 ContinueBitstreamLoad(0x100)
+ 121  163       50       42 ContinueBitstreamLoad(0x200)
+ 122  163       50        1 ContinueBitstreamLoad(0x100)
+ 123  163       50       21 ContinueBitstreamLoad(0x200)
+ 124  163       50        1 ContinueBitstreamLoad(0x100)
+ 125  163       50       42 ContinueBitstreamLoad(0x200)
+ 126  163       50        1 ContinueBitstreamLoad(0x100)
+ 127  163       50       21 ContinueBitstreamLoad(0x200)
+   0  163       51        1 ContinueBitstreamLoad(0x100)
+   1  163       51       42 ContinueBitstreamLoad(0x200)
+   2  163       51        1 ContinueBitstreamLoad(0x100)
+   3  163       51       21 ContinueBitstreamLoad(0x200)
+   4  163       51        1 ContinueBitstreamLoad(0x100)
+   5  163       51       42 ContinueBitstreamLoad(0x200)
+   6  163       51        1 ContinueBitstreamLoad(0x100)
+   7  163       51       21 ContinueBitstreamLoad(0x200)
+   8  163       51        1 ContinueBitstreamLoad(0x100)
+   9  163       51       42 ContinueBitstreamLoad(0x200)
+  10  163       51        1 ContinueBitstreamLoad(0x100)
+  11  163       51       21 ContinueBitstreamLoad(0x200)
+  12  163       51        1 ContinueBitstreamLoad(0x100)
+  13  163       51       42 ContinueBitstreamLoad(0x200)
+  14  163       51        1 ContinueBitstreamLoad(0x100)
+  15  163       51       21 ContinueBitstreamLoad(0x200)
+  16  163       51        1 ContinueBitstreamLoad(0x100)
+  17  163       51       42 ContinueBitstreamLoad(0x200)
+  18  163       51        1 ContinueBitstreamLoad(0x100)
+  19  163       51       21 ContinueBitstreamLoad(0x200)
+  20  163       51        1 ContinueBitstreamLoad(0x100)
+  21  163       51       42 ContinueBitstreamLoad(0x200)
+  22  163       51        1 ContinueBitstreamLoad(0x100)
+  23  163       51       21 ContinueBitstreamLoad(0x200)
+  24  163       51        1 ContinueBitstreamLoad(0x100)
+  25  163       51       42 ContinueBitstreamLoad(0x200)
+  26  163       51        1 ContinueBitstreamLoad(0x100)
+  27  163       51       21 ContinueBitstreamLoad(0x200)
+  28  163       51        1 ContinueBitstreamLoad(0x100)
+  29  163       51       42 ContinueBitstreamLoad(0x200)
+  30  163       51        1 ContinueBitstreamLoad(0x100)
+  31  163       51       21 ContinueBitstreamLoad(0x200)
+  32  163       51        1 ContinueBitstreamLoad(0x100)
+  33  163       51       42 ContinueBitstreamLoad(0x200)
+  34  163       51        1 ContinueBitstreamLoad(0x100)
+  35  163       51       21 ContinueBitstreamLoad(0x200)
+  36  163       51        1 ContinueBitstreamLoad(0x100)
+  37  163       51       42 ContinueBitstreamLoad(0x200)
+  38  163       51        1 ContinueBitstreamLoad(0x100)
+  39  163       51       21 ContinueBitstreamLoad(0x200)
+  40  163       51        1 ContinueBitstreamLoad(0x100)
+  41  163       51       42 ContinueBitstreamLoad(0x200)
+  42  163       51        1 ContinueBitstreamLoad(0x100)
+  43  163       51       21 ContinueBitstreamLoad(0x200)
+  44  163       51        1 ContinueBitstreamLoad(0x100)
+  45  163       51       42 ContinueBitstreamLoad(0x200)
+  46  163       51        1 ContinueBitstreamLoad(0x100)
+  47  163       51       21 ContinueBitstreamLoad(0x200)
+  48  163       51        1 ContinueBitstreamLoad(0x100)
+  49  163       51       42 ContinueBitstreamLoad(0x200)
+  50  163       51        1 ContinueBitstreamLoad(0x100)
+  51  163       51       21 ContinueBitstreamLoad(0x200)
+  52  163       51        1 ContinueBitstreamLoad(0x100)
+  53  163       51       42 ContinueBitstreamLoad(0x200)
+  54  163       51        1 ContinueBitstreamLoad(0x100)
+  55  163       51       21 ContinueBitstreamLoad(0x200)
+  56  163       51        1 ContinueBitstreamLoad(0x100)
+  57  163       51       42 ContinueBitstreamLoad(0x200)
+  58  163       51        1 ContinueBitstreamLoad(0x100)
+  59  163       51       21 ContinueBitstreamLoad(0x200)
+  60  163       51        1 ContinueBitstreamLoad(0x100)
+  61  163       51       42 ContinueBitstreamLoad(0x200)
+  62  163       51        1 ContinueBitstreamLoad(0x100)
+  63  163       51       21 ContinueBitstreamLoad(0x200)
+  64  163       51        1 ContinueBitstreamLoad(0x100)
+  65  163       51       42 ContinueBitstreamLoad(0x200)
+  66  163       51        1 ContinueBitstreamLoad(0x100)
+  67  163       51       21 ContinueBitstreamLoad(0x200)
+  68  163       51        1 ContinueBitstreamLoad(0x100)
+  69  163       51       42 ContinueBitstreamLoad(0x200)
+  70  163       51        1 ContinueBitstreamLoad(0x100)
+  71  163       51       21 ContinueBitstreamLoad(0x200)
+  72  163       51        1 ContinueBitstreamLoad(0x100)
+  73  163       51       42 ContinueBitstreamLoad(0x200)
+  74  163       51        1 ContinueBitstreamLoad(0x100)
+  75  163       51       21 ContinueBitstreamLoad(0x200)
+  76  163       51        1 ContinueBitstreamLoad(0x100)
+  77  163       51       42 ContinueBitstreamLoad(0x200)
+  78  163       51        1 ContinueBitstreamLoad(0x100)
+  79  163       51       21 ContinueBitstreamLoad(0x200)
+  80  163       51        1 ContinueBitstreamLoad(0x100)
+  81  163       51       42 ContinueBitstreamLoad(0x200)
+  82  163       51        1 ContinueBitstreamLoad(0x100)
+  83  163       51       21 ContinueBitstreamLoad(0x200)
+  84  163       51        1 ContinueBitstreamLoad(0x100)
+  85  163       51       42 ContinueBitstreamLoad(0x200)
+  86  163       51        1 ContinueBitstreamLoad(0x100)
+  87  163       51       21 ContinueBitstreamLoad(0x200)
+  88  163       51        1 ContinueBitstreamLoad(0x100)
+  89  163       51        2 ContinueBitstreamLoad(0x200)
+  90  163       51        1 ContinueBitstreamLoad(0x159)
+  91  163       51       15 ContinueBitstreamLoad(0x80)
+  92  163       51        1 ContinueBitstreamLoad(0x3f)
+  93  177       51        1 WaitForDone
+  94  186       51        1 Programmed { load_time_ms: 0x12d7 }
+humility: ring buffer drv_stm32h7_rng::__RINGBUF in rng_driver:
+   TOTAL VARIANT
+       1 SetRestartId
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  262        1        1 SetRestartId(Ok(()))
+humility: ring buffer drv_stm32h7_spi_server_core::__RINGBUF in spi2_driver:
+   TOTAL VARIANT
+ 3687284 Tx
+ 3687284 Rx
+   10624 Start(write)
+      46 Start(exchange)
+    1227 WaitISR
+ NDX LINE      GEN    COUNT PAYLOAD
+  44  359    22563        1 Start(exchange, (0x2, 0x4))
+  45  469    22563        1 Tx(0x2)
+  46  469    22563        1 Tx(0xcc)
+  47  469    22563        2 Tx(0x0)
+  48  533    22563        1 WaitISR(0x40012)
+  49  533    22563        1 WaitISR(0x42017)
+  50  503    22563        2 Rx(0x0)
+  51  533    22563        1 WaitISR(0x20012)
+  52  503    22563        1 Rx(0xec)
+  53  533    22563        1 WaitISR(0x10012)
+  54  503    22563        1 Rx(0x1)
+  55  359    22563        1 Start(exchange, (0x2, 0x4))
+  56  469    22563        1 Tx(0x5)
+  57  469    22563        1 Tx(0xb0)
+  58  469    22563        2 Tx(0x0)
+  59  533    22563        2 WaitISR(0x40012)
+  60  503    22563        2 Rx(0x0)
+  61  533    22563        1 WaitISR(0x20012)
+  62  503    22563        1 Rx(0x8)
+  63  533    22563        1 WaitISR(0x10012)
+   0  503    22564        1 Rx(0x78)
+   1  359    22564        1 Start(exchange, (0x2, 0x4))
+   2  469    22564        1 Tx(0x5)
+   3  469    22564        1 Tx(0x8c)
+   4  469    22564        2 Tx(0x0)
+   5  533    22564        2 WaitISR(0x40012)
+   6  503    22564        2 Rx(0x0)
+   7  533    22564        1 WaitISR(0x20012)
+   8  503    22564        1 Rx(0x20)
+   9  533    22564        1 WaitISR(0x10012)
+  10  503    22564        1 Rx(0x31)
+  11  359    22564        1 Start(write, (0x4, 0x0))
+  12  469    22564        1 Tx(0x83)
+  13  469    22564        1 Tx(0xc)
+  14  469    22564        1 Tx(0x20)
+  15  469    22564        1 Tx(0x1c)
+  16  533    22564        1 WaitISR(0x40012)
+  17  503    22564        1 Rx(0x0)
+  18  533    22564        1 WaitISR(0x30012)
+  19  503    22564        1 Rx(0x0)
+  20  533    22564        1 WaitISR(0x20012)
+  21  503    22564        1 Rx(0x20)
+  22  533    22564        1 WaitISR(0x10012)
+  23  503    22564        1 Rx(0x31)
+  24  359    22564        1 Start(exchange, (0x2, 0x4))
+  25  469    22564        1 Tx(0x2)
+  26  469    22564        1 Tx(0xf0)
+  27  469    22564        2 Tx(0x0)
+  28  533    22564        2 WaitISR(0x40012)
+  29  503    22564        1 Rx(0x0)
+  30  533    22564        1 WaitISR(0x30012)
+  31  503    22564        2 Rx(0x0)
+  32  533    22564        1 WaitISR(0x10012)
+  33  503    22564        1 Rx(0x40)
+  34  359    22564        1 Start(exchange, (0x2, 0x4))
+  35  469    22564        1 Tx(0x2)
+  36  469    22564        1 Tx(0xcc)
+  37  469    22564        2 Tx(0x0)
+  38  533    22564        2 WaitISR(0x40012)
+  39  503    22564        2 Rx(0x0)
+  40  533    22564        1 WaitISR(0x20012)
+  41  503    22564        1 Rx(0x0)
+  42  533    22564        1 WaitISR(0x10012)
+  43  503    22564        1 Rx(0x0)
+humility: ring buffer drv_stm32h7_spi_server_core::__RINGBUF in sprot:
+humility: ring buffer drv_stm32h7_sprot_server::__RINGBUF in sprot:
+humility: ring buffer drv_stm32xx_i2c::__RINGBUF in i2c_driver:
+humility: ring buffer drv_stm32xx_i2c_server::__RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  670        1        1 Wiggles(0x0)
+humility: ring buffer ksz8463::__RINGBUF in host_sp_comms:
+humility: ring buffer ksz8463::__RINGBUF in net:
+ NDX LINE      GEN    COUNT PAYLOAD
+   5  203        7        1 Read(IADR4, 0x7da)
+   6  203        7        1 Read(P2MBSR, 0x7808)
+   7  203        7        1 Read(P2MBCR, 0x3120)
+   8  217        7        1 Write(IACR, 0x1c20)
+   9  203        7        1 Read(IADR5, 0x4000)
+  10  203        7        1 Read(IADR4, 0x0)
+  11  203        7        1 Read(P1MBSR, 0x782c)
+  12  203        7        1 Read(P1MBCR, 0x3120)
+  13  217        7        1 Write(IACR, 0x1c00)
+  14  203        7        1 Read(IADR5, 0x4000)
+  15  203        7        1 Read(IADR4, 0x1ec)
+   0  203        8        1 Read(P2MBSR, 0x7808)
+   1  203        8        1 Read(P2MBCR, 0x3120)
+   2  217        8        1 Write(IACR, 0x1c20)
+   3  203        8        1 Read(IADR5, 0x4000)
+   4  203        8        1 Read(IADR4, 0x0)
+humility: ring buffer stm32h7_update_server::__RINGBUF in update_server:
+humility: ring buffer task_control_plane_agent::CRITICAL in control_plane_agent:
+humility: ring buffer task_control_plane_agent::__RINGBUF in control_plane_agent:
+humility: ring buffer task_control_plane_agent::update::rot::__RINGBUF in control_plane_agent:
+humility: ring buffer task_dump_agent::__RINGBUF in dump_agent:
+humility: ring buffer task_dump_agent::udp::__RINGBUF in dump_agent:
+humility: ring buffer task_ereportulator::__RINGBUF in ereportulator:
+humility: ring buffer task_ereportulator::ereporter::__EREPORT_RINGBUF in ereportulator:
+humility: ring buffer task_hiffy::stm32h7::__RINGBUF in hiffy:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  569        1        1 Execute((0x0, Push(0x11)))
+   1  569        1        1 Execute((0x2, Push(0xa)))
+   2  569        1        1 Execute((0x4, Push(0x0)))
+   3  569        1        1 Execute((0x6, Push(0x4)))
+   4  569        1        1 Execute((0x8, Call(TargetFunction(0x1))))
+   5  569        1        1 Execute((0xa, DropN(0x4)))
+   6  569        1        1 Execute((0xc, Done))
+   7  573        1        1 Success
+humility: ring buffer task_host_sp_comms::__RINGBUF in host_sp_comms:
+humility: ring buffer task_host_sp_comms::ereporter::__EREPORT_RINGBUF in host_sp_comms:
+humility: ring buffer task_jefe::dump::__RINGBUF in jefe:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0   73        1        1 Initialized
+humility: ring buffer task_jefe::external::__RINGBUF in jefe:
+humility: ring buffer task_net::bsp::__RINGBUF in net:
+   TOTAL VARIANT
+       1 BspConfigured
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  105        1        1 BspConfigured
+   1  112        1        1 Ksz8463Status { port: One, status: 0x7808 }
+   2  121        1        1 Ksz8463Control { port: One, control: 0x3120 }
+   3  130        1        1 Ksz8463Counter { port: One, counter: Count(0x0) }
+   4  112        1        1 Ksz8463Status { port: Two, status: 0x7808 }
+   5  121        1        1 Ksz8463Control { port: Two, control: 0x3120 }
+   6  130        1        1 Ksz8463Counter { port: Two, counter: Count(0x0) }
+   7  112        1        1 Ksz8463Status { port: One, status: 0x782c }
+   8  121        1        1 Ksz8463Control { port: One, control: 0x3120 }
+   9  130        1        1 Ksz8463Counter { port: One, counter: Count(0xc32) }
+  10  112        1        1 Ksz8463Status { port: Two, status: 0x7808 }
+  11  121        1        1 Ksz8463Control { port: Two, control: 0x3120 }
+  12  130        1        1 Ksz8463Counter { port: Two, counter: Count(0x0) }
+  13  112        1        1 Ksz8463Status { port: One, status: 0x782c }
+  14  121        1        1 Ksz8463Control { port: One, control: 0x3120 }
+  15  130        1        1 Ksz8463Counter { port: One, counter: Count(0x84) }
+  16  112        1        1 Ksz8463Status { port: Two, status: 0x7808 }
+  17  121        1        1 Ksz8463Control { port: Two, control: 0x3120 }
+  18  130        1        1 Ksz8463Counter { port: Two, counter: Count(0x0) }
+  19  112        1        1 Ksz8463Status { port: One, status: 0x782c }
+  20  121        1        1 Ksz8463Control { port: One, control: 0x3120 }
+  21  130        1        1 Ksz8463Counter { port: One, counter: Count(0x7da) }
+  22  112        1        1 Ksz8463Status { port: Two, status: 0x7808 }
+  23  121        1        1 Ksz8463Control { port: Two, control: 0x3120 }
+  24  130        1        1 Ksz8463Counter { port: Two, counter: Count(0x0) }
+  25  112        1        1 Ksz8463Status { port: One, status: 0x782c }
+  26  121        1        1 Ksz8463Control { port: One, control: 0x3120 }
+  27  130        1        1 Ksz8463Counter { port: One, counter: Count(0x1ec) }
+  28  112        1        1 Ksz8463Status { port: Two, status: 0x7808 }
+  29  121        1        1 Ksz8463Control { port: Two, control: 0x3120 }
+  30  130        1        1 Ksz8463Counter { port: Two, counter: Count(0x0) }
+humility: ring buffer task_net::server::__RINGBUF in net:
+humility: ring buffer task_packrat::__RINGBUF in packrat:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  308        1        1 MacAddressBlockSet(Set(MacAddressBlock { base_mac: [ 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 ], count: U16<zerocopy::byteorder::LittleEndian>([ 0x0, 0x0 ], PhantomData<zerocopy::byteorder::LittleEndian>), stride: 0x0 }))
+   1  308        1        1 VpdIdentitySet(Set(OxideIdentity { part_number: [ 0x39, 0x31, 0x33, 0x2d, 0x30, 0x30, 0x30, 0x30, 0x30, 0x38, 0x33 ], revision: 0x0, serial: [ 0x47, 0x52, 0x41, 0x50, 0x45, 0x46, 0x52, 0x55, 0x49, 0x54, 0x0 ] }))
+   2  308        1        1 RestartIdSet(Set(0xd9d4cf137a54b8ced2b8ebdbc52d1523))
+humility: ring buffer task_packrat::ereport::__RINGBUF in packrat:
+humility: ring buffer task_validate::__RINGBUF in validate:

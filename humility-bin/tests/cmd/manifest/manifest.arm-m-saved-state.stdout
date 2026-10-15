@@ -1,0 +1,53 @@
+     version => hubris build archive v11
+     git rev => b9378fce04c86d5181e70d15211c3b8aafdf706e
+    image id => [15, f7, 5c, b, b0, 15, 7d, d1]
+       board => grapefruit-a
+        name => grapefruit-a
+       image => default
+      target => thumbv7em-none-eabihf
+    features => dump, measurement-handoff
+  total size => 775K
+ kernel size => 36K
+       tasks => 27
+                ID OBJ TASK                SIZE FEATURES
+                 0  19 net                140.4K h753, vlan, grapefruit
+                 1  10 dump_agent         27.8K net, vlan
+                 2  24 hf                 45.4K 
+                 3   6 packrat            42.0K grapefruit, boot-kmdb, ereport
+                 4  17 control_plane_agent 138.5K auxflash, cosmo, usart1, vlan, baud_rate_3M
+                 5  22 udpbroadcast        6.5K vlan
+                 6  23 fmc_demo           12.4K h753
+                 7  16 host_sp_comms      85.5K stm32h753, baud_rate_3M, vlan, grapefruit, uart8
+                 8   2 sys                 4.6K h753, exti
+                 9  20 udprpc              8.4K vlan
+                10  14 update_server      10.1K 
+                11  13 spartan7_loader    15.4K h753
+                12  18 auxflash           14.2K h753, fast-qspi
+                13  26 rng_driver          5.8K h753, packrat
+                14  12 grapefruit_seq     11.9K h753
+                15  15 sensor              5.0K 
+                16   7 hiffy              60.5K h753, stm32h7, i2c, gpio, qspi, turbo, net, vlan
+                17   8 validate            1.5K 
+                18   9 idle                0.1K 
+                19  25 snitch              4.8K vlan
+                20  11 sprot              49.0K sink_test, use-spi-core, h753, spi4
+                21   1 jefe                9.6K dump, dump, fault-notification
+                22   5 user_leds           1.2K stm32h7
+                23  21 udpecho             7.1K vlan
+                24  27 ereportulator       8.1K 
+                25   3 spi2_driver        11.8K spi2, h753
+                26   4 i2c_driver         11.1K h753
+   i2c buses => 1 controller, 1 bus
+                C PORT MODE NAME          DESCRIPTION
+                1 B    init i2c1          -
+   aux flash => 33554432 bytes (32 MiB), 16 slots (2 MiB/slot)
+     sockets => 8 sockets
+               NAME                 KIND    PORT  RXSIZE OWNER
+               broadcast            udp      997    1024 udpbroadcast
+               echo                 udp        7    1024 udpecho
+               rpc                  udp      998    1024 udprpc
+               control_plane_agent  udp    11111    2048 control_plane_agent
+               dump_agent           udp    11113    1024 dump_agent
+               fmc_test             udp    11114    4096 fmc_demo
+               hiffy                udp    11115    4096 hiffy
+               ereport              udp    57005      35 snitch
