@@ -255,6 +255,10 @@ fn hostinfo_packrat(
         return Ok(None);
     };
 
+    // We do ? the error here, because errors while loading indicate some
+    // kind of transport error.
+    let buf: Value = humility::reflect::read_variable(hubris, core, buf_ty)?;
+
     // Again, it's possible the image DOES have the packrat buf, but NOT this
     // field (either it is older than #2518, or it is a hostless SP), so treat
     // errors here as "no data".
@@ -295,6 +299,10 @@ fn hostinfo_packrat_bsp(
     let Ok(buf_ty) = lookup else {
         return Ok(None);
     };
+    
+    // We do ? the error here, because errors while loading indicate some
+    // kind of transport error.
+    let buf: Value = humility::reflect::read_variable(hubris, core, buf_ty)?;
 
     // Payload is now a ptr, not an inline array (unlike `hostinfo_packrat`)
     let res_payload_ptr: Result<Ptr> =
