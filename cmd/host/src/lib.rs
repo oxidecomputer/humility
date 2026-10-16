@@ -299,7 +299,7 @@ fn hostinfo_packrat_bsp(
     let Ok(buf_ty) = lookup else {
         return Ok(None);
     };
-    
+
     // We do ? the error here, because errors while loading indicate some
     // kind of transport error.
     let buf: Value = humility::reflect::read_variable(hubris, core, buf_ty)?;
