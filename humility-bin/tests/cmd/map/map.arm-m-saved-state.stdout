@@ -1,0 +1,165 @@
+DESC       LOW          HIGH          SIZE ATTR   ID TASK
+-          0x08000000 - 0x080002e7     744 r----- -  kernel
+-          0x080002e8 - 0x0800408f   15KiB r-x--- -  kernel
+-          0x08004090 - 0x08005dcb    7KiB r----- -  kernel
+-          0x08005de0 - 0x08007fff    8KiB r----- -  kernel
+0x080057d8 0x08008000 - 0x0800ffff   32KiB r-x--- 18 net
+0x080057ec 0x08010000 - 0x08017fff   32KiB r-x--- 18 net
+0x08005404 0x08018000 - 0x0801bfff   16KiB r-x--- 9  dump_agent
+0x080059cc 0x0801c000 - 0x0801ffff   16KiB r-x--- 23 hf
+0x080059e0 0x08020000 - 0x08023fff   16KiB r-x--- 23 hf
+0x080059f4 0x08024000 - 0x08025fff    8KiB r-x--- 23 hf
+0x0800529c 0x08026000 - 0x08027fff    8KiB r-x--- 5  packrat
+0x080052b0 0x08028000 - 0x0802ffff   32KiB r-x--- 5  packrat
+0x08005724 0x08030000 - 0x0803ffff   64KiB r-x--- 16 control_plane_agent
+0x08005738 0x08040000 - 0x08047fff   32KiB r-x--- 16 control_plane_agent
+0x0800574c 0x08048000 - 0x0804bfff   16KiB r-x--- 16 control_plane_agent
+0x08005940 0x0804c000 - 0x0804cfff    4KiB r-x--- 21 udpbroadcast
+0x08005954 0x0804d000 - 0x0804d7ff    2KiB r-x--- 21 udpbroadcast
+0x0800597c 0x0804d800 - 0x0804dfff    2KiB r-x--- 22 fmc_demo
+0x08005990 0x0804e000 - 0x0804ffff    8KiB r-x--- 22 fmc_demo
+0x080056c0 0x08050000 - 0x08057fff   32KiB r-x--- 15 host_sp_comms
+0x080056d4 0x08058000 - 0x0805bfff   16KiB r-x--- 15 host_sp_comms
+0x080056e8 0x0805c000 - 0x0805dfff    8KiB r-x--- 15 host_sp_comms
+0x0800515c 0x0805e000 - 0x0805efff    4KiB r-x--- 1  sys
+0x08005850 0x0805f000 - 0x0805ffff    4KiB r-x--- 19 udprpc
+0x08005864 0x08060000 - 0x08060fff    4KiB r-x--- 19 udprpc
+0x080055d0 0x08061000 - 0x08061fff    4KiB r-x--- 13 update_server
+0x080055e4 0x08062000 - 0x08062fff    4KiB r-x--- 13 update_server
+0x080055f8 0x08063000 - 0x080633ff    1KiB r-x--- 13 update_server
+0x0800556c 0x08063400 - 0x080637ff    1KiB r-x--- 12 spartan7_loader
+0x08005580 0x08063800 - 0x08063fff    2KiB r-x--- 12 spartan7_loader
+0x08005594 0x08064000 - 0x08065fff    8KiB r-x--- 12 spartan7_loader
+0x08005774 0x08066000 - 0x08067fff    8KiB r-x--- 17 auxflash
+0x08005788 0x08068000 - 0x08068fff    4KiB r-x--- 17 auxflash
+0x0800579c 0x08069000 - 0x080697ff    2KiB r-x--- 17 auxflash
+0x08005ad0 0x08069a00 - 0x08069bff     512 r-x--- 25 rng_driver
+0x08005ae4 0x08069c00 - 0x08069fff    1KiB r-x--- 25 rng_driver
+0x08005af8 0x0806a000 - 0x0806afff    4KiB r-x--- 25 rng_driver
+0x080054f4 0x0806b000 - 0x0806bfff    4KiB r-x--- 11 grapefruit_seq
+0x08005508 0x0806c000 - 0x0806c7ff    2KiB r-x--- 11 grapefruit_seq
+0x0800551c 0x0806c800 - 0x0806c9ff     512 r-x--- 11 grapefruit_seq
+0x08005648 0x0806cc80 - 0x0806ccff     128 r-x--- 14 sensor
+0x0800565c 0x0806cd00 - 0x0806cdff     256 r-x--- 14 sensor
+0x08005670 0x0806ce00 - 0x0806cfff     512 r-x--- 14 sensor
+0x08005684 0x0806d000 - 0x0806dfff    4KiB r-x--- 14 sensor
+0x08005300 0x0806e000 - 0x0806ffff    8KiB r-x--- 6  hiffy
+0x08005314 0x08070000 - 0x08071fff    8KiB r-x--- 6  hiffy
+0x08005328 0x08072000 - 0x08072fff    4KiB r-x--- 6  hiffy
+0x0800533c 0x08073000 - 0x080737ff    2KiB r-x--- 6  hiffy
+0x0800538c 0x08073800 - 0x080738ff     256 r-x--- 7  validate
+0x080053a0 0x08073900 - 0x080739ff     256 r-x--- 7  validate
+0x080053c8 0x08073a00 - 0x08073a3f      64 r-x--- 8  idle
+0x080053dc 0x08073a40 - 0x08073a5f      32 r-x--- 8  idle
+0x08005a44 0x08073ac0 - 0x08073aff      64 r-x--- 24 snitch
+0x08005a58 0x08073b00 - 0x08073bff     256 r-x--- 24 snitch
+0x08005a6c 0x08073c00 - 0x08073fff    1KiB r-x--- 24 snitch
+0x08005a80 0x08074000 - 0x080747ff    2KiB r-x--- 24 snitch
+0x080054a4 0x08075000 - 0x08075fff    4KiB r-x--- 10 sprot
+0x080054b8 0x08076000 - 0x08077fff    8KiB r-x--- 10 sprot
+0x080054cc 0x08078000 - 0x0807ffff   32KiB r-x--- 10 sprot
+0x080050d0 0x08080000 - 0x08081fff    8KiB r-x--- 0  jefe
+0x080050e4 0x08082000 - 0x080821ff     512 r-x--- 0  jefe
+0x08005224 0x08082200 - 0x080823ff     512 r-x--- 4  user_leds
+0x08005238 0x08082400 - 0x080825ff     512 r-x--- 4  user_leds
+0x0800524c 0x08082600 - 0x0808267f     128 r-x--- 4  user_leds
+0x08005260 0x08082680 - 0x0808269f      32 r-x--- 4  user_leds
+0x080058b4 0x08083000 - 0x08083fff    4KiB r-x--- 20 udpecho
+0x080058c8 0x08084000 - 0x080847ff    2KiB r-x--- 20 udpecho
+0x080058dc 0x08084800 - 0x080849ff     512 r-x--- 20 udpecho
+0x080058f0 0x08084a00 - 0x08084aff     256 r-x--- 20 udpecho
+0x08005b20 0x08085000 - 0x08085fff    4KiB r-x--- 26 ereportulator
+0x08005b34 0x08086000 - 0x080867ff    2KiB r-x--- 26 ereportulator
+0x08005b48 0x08086800 - 0x08086bff    1KiB r-x--- 26 ereportulator
+0x08005b5c 0x08086c00 - 0x08086c7f     128 r-x--- 26 ereportulator
+0x08005198 0x08087600 - 0x080877ff     512 r-x--- 2  spi2_driver
+0x080051ac 0x08087800 - 0x08087fff    2KiB r-x--- 2  spi2_driver
+0x080051c0 0x08088000 - 0x08089fff    8KiB r-x--- 2  spi2_driver
+0x080051e8 0x0808a000 - 0x0808bfff    8KiB r-x--- 3  i2c_driver
+0x080051fc 0x0808c000 - 0x0808c1ff     512 r-x--- 3  i2c_driver
+0x08004edc 0x0808c200 - 0x0808c2ff     256 r----- 5  packrat, control_plane_agent
+0x080055bc 0x08100000 - 0x081fffff 1024KiB rw--me 13 [bank2] update_server
+0x0800506c 0x1ff00000 - 0x1ff1ffff  128KiB rw-d-- 1  [system_flash] sys
+0x080057b0 0x20000000 - 0x2000ffff   64KiB rw---- 18 net
+0x080057c4 0x20010000 - 0x20013fff   16KiB rw---- 18 net
+-          0x24000000 - 0x240003ff    1KiB rw---- -  kernel
+-          0x24000400 - 0x2400040b      12 rw---- -  kernel
+-          0x24000410 - 0x24001fff    6KiB rw---- -  kernel
+0x08005968 0x24002000 - 0x24002fff    4KiB rw---- 22 fmc_demo
+0x080050bc 0x24003000 - 0x24003fff    4KiB rw---- 0  jefe
+0x080053f0 0x24004000 - 0x24007fff   16KiB rw---- 9  dump_agent
+0x08005698 0x24008000 - 0x2400ffff   32KiB rw---- 15 host_sp_comms
+0x080056ac 0x24010000 - 0x24011fff    8KiB rw---- 15 host_sp_comms
+0x080054e0 0x24012000 - 0x24013fff    8KiB rw---- 11 grapefruit_seq
+0x080051d4 0x24014000 - 0x24014fff    4KiB rw---- 3  i2c_driver
+0x080055a8 0x24015000 - 0x24015fff    4KiB rw---- 13 update_server
+0x08005760 0x24016000 - 0x24016fff    4KiB rw---- 17 auxflash
+0x080056fc 0x24017000 - 0x24017fff    4KiB rw---- 16 control_plane_agent
+0x08005710 0x24018000 - 0x2401ffff   32KiB rw---- 16 control_plane_agent
+0x08005148 0x24020000 - 0x240207ff    2KiB rw---- 1  sys
+0x08005b0c 0x24020800 - 0x24020fff    2KiB rw---- 26 ereportulator
+0x08005530 0x24021000 - 0x24021fff    4KiB rw---- 12 spartan7_loader
+0x08005544 0x24022000 - 0x240227ff    2KiB rw---- 12 spartan7_loader
+0x08005558 0x24022800 - 0x24022bff    1KiB rw---- 12 spartan7_loader
+0x08005210 0x24022c00 - 0x24022fff    1KiB rw---- 4  user_leds
+0x080053b4 0x24023000 - 0x240230ff     256 rw---- 8  idle
+0x08005a94 0x24023180 - 0x240231ff     128 rw---- 25 rng_driver
+0x08005aa8 0x24023200 - 0x240233ff     512 rw---- 25 rng_driver
+0x08005abc 0x24023400 - 0x240235ff     512 rw---- 25 rng_driver
+0x0800560c 0x24023760 - 0x2402377f      32 rw---- 14 sensor
+0x08005620 0x24023780 - 0x240237ff     128 rw---- 14 sensor
+0x08005634 0x24023800 - 0x24023bff    1KiB rw---- 14 sensor
+0x08005350 0x24023c00 - 0x24023fff    1KiB rw---- 7  validate
+0x08005364 0x24024000 - 0x240243ff    1KiB rw---- 7  validate
+0x08005378 0x24024400 - 0x2402441f      32 rw---- 7  validate
+0x08005a08 0x24024580 - 0x240245ff     128 rw---- 24 snitch
+0x08005a1c 0x24024600 - 0x240247ff     512 rw---- 24 snitch
+0x08005a30 0x24024800 - 0x24024fff    2KiB rw---- 24 snitch
+0x080052c4 0x24025e00 - 0x24025fff     512 rw---- 6  hiffy
+0x080052d8 0x24026000 - 0x24027fff    8KiB rw---- 6  hiffy
+0x080052ec 0x24028000 - 0x2402ffff   32KiB rw---- 6  hiffy
+0x080059a4 0x24030000 - 0x24031fff    8KiB rw---- 23 hf
+0x080059b8 0x24032000 - 0x240327ff    2KiB rw---- 23 hf
+0x08005468 0x24032800 - 0x24032fff    2KiB rw---- 10 sprot
+0x0800547c 0x24033000 - 0x24033fff    4KiB rw---- 10 sprot
+0x08005490 0x24034000 - 0x24037fff   16KiB rw---- 10 sprot
+0x08005274 0x24038000 - 0x2403bfff   16KiB rw---- 5  packrat
+0x08005288 0x2403c000 - 0x2403c7ff    2KiB rw---- 5  packrat
+0x08005170 0x2403c800 - 0x2403cfff    2KiB rw---- 2  spi2_driver
+0x08005184 0x2403d000 - 0x2403d07f     128 rw---- 2  spi2_driver
+0x08005904 0x2403dde0 - 0x2403ddff      32 rw---- 21 udpbroadcast
+0x08005918 0x2403de00 - 0x2403dfff     512 rw---- 21 udpbroadcast
+0x0800592c 0x2403e000 - 0x2403efff    4KiB rw---- 21 udpbroadcast
+0x08005878 0x2403f000 - 0x2403ffff    4KiB rw---- 20 udpecho
+0x0800588c 0x24040000 - 0x240400ff     256 rw---- 20 udpecho
+0x080058a0 0x24040100 - 0x2404017f     128 rw---- 20 udpecho
+0x08005814 0x24040e80 - 0x24040eff     128 rw---- 19 udprpc
+0x08005828 0x24040f00 - 0x24040fff     256 rw---- 19 udprpc
+0x0800583c 0x24041000 - 0x24041fff    4KiB rw---- 19 udprpc
+0x08005800 0x30000000 - 0x30003fff   16KiB rw--m- 18 net
+0x080050f8 0x30010000 - 0x3001ffff   64KiB rw--me 0  [sram1] jefe, dump_agent
+0x0800510c 0x30020000 - 0x3003ffff  128KiB rw--me 0  [sram2] jefe, dump_agent
+0x08005120 0x30040000 - 0x30047fff   32KiB rw--me 0  [sram3] jefe, dump_agent
+0x08005134 0x38000000 - 0x3800ffff   64KiB rw--me 0  [sram4] jefe, dump_agent
+0x08005030 0x40003800 - 0x40003bff    1KiB rw-d-- 2  [spi2] spi2_driver
+0x08004f54 0x40005400 - 0x400057ff    1KiB rw-d-- 3  [i2c1] i2c_driver
+0x08004f68 0x40005800 - 0x40005bff    1KiB rw-d-- 3  [i2c2] i2c_driver
+0x08004f7c 0x40005c00 - 0x40005fff    1KiB rw-d-- 3  [i2c3] i2c_driver
+0x08005094 0x40007c00 - 0x40007fff    1KiB rw-d-- 15 [uart8] host_sp_comms
+0x080050a8 0x40011000 - 0x400113ff    1KiB rw-d-- 16 [usart1] control_plane_agent
+0x08005044 0x40013400 - 0x400137ff    1KiB rw-d-- 10 [spi4] sprot
+0x08005080 0x40014400 - 0x400147ff    1KiB rw-d-- 18 [tim16] net
+0x08004f04 0x40028000 - 0x40029fff    8KiB rw-d-- 18 [eth] net
+0x0800501c 0x48021800 - 0x480227ff    4KiB rw-d-- 25 [rng] rng_driver
+0x08004f2c 0x52002000 - 0x52003fff    8KiB rw-d-- 13 [flash_controller] update_server
+0x08004ff4 0x52005000 - 0x52005fff    4KiB rw-d-- 17 [quadspi] auxflash
+0x08004f18 0x58000000 - 0x580003ff    1KiB rw-d-- 1  [exti] sys
+0x08005058 0x58000400 - 0x580007ff    1KiB rw-d-- 1  [syscfg] sys
+0x08004f90 0x58001c00 - 0x58001fff    1KiB rw-d-- 3  [i2c4] i2c_driver
+0x08004f40 0x58020000 - 0x58023fff   16KiB rw-d-- 1  [gpios] sys
+0x08005008 0x58024400 - 0x580247ff    1KiB rw-d-- 1  [rcc] sys
+0x08004ef0 0x5c001000 - 0x5c00107f     128 rw-d-- 15 [dbgmcu] host_sp_comms
+0x08004fa4 0xc0000000 - 0xc000001f      32 rw-d-- 22 [mmio_base] fmc_demo, hf
+0x08004fe0 0xc0000100 - 0xc000013f      64 rw-d-- 22 [mmio_spi_nor] fmc_demo, hf
+0x08004fcc 0xc0000200 - 0xc000021f      32 rw-d-- 11 [mmio_sgpio] grapefruit_seq, fmc_demo
+0x08004fb8 0xc0008000 - 0xc000ffff   32KiB rw-d-- 11 [mmio_espi] grapefruit_seq, fmc_demo

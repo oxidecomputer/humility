@@ -1,0 +1,29 @@
+system time = 22264
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: fault timer(T+36)
+ 1 sys                          0   1 recv, notif: exti-wildcard-irq(irq6/irq7/irq8/irq9/irq10/irq23/irq40)
+ 2 spi2_driver                  0   2 recv
+ 3 i2c_driver                   0   2 recv
+ 4 user_leds                    0   5 recv, notif: timer
+ 5 packrat                      0   1 recv, notif: task-faulted
+ 6 hiffy                        0   7 notif: timer(T+186) socket
+ 7 validate                     0   3 recv
+ 8 idle                         0  10 RUNNING
+ 9 dump_agent                   0   6 recv, notif: socket
+10 sprot                        0   5 recv
+11 grapefruit_seq               0   7 recv
+12 spartan7_loader              0   4 recv
+13 update_server                0   3 recv
+14 sensor                       0   4 recv
+15 host_sp_comms                0   9 recv, notif: jefe-state-change usart-irq(irq83) multitimer control-plane-agent
+16 control_plane_agent          0   8 recv, notif: usart-irq(irq37) socket timer
+17 auxflash                     0   3 recv
+18 net                          0   3 recv, notif: eth-irq(irq61) wake-timer(T+3494)
+19 udprpc                       0   6 notif: socket
+20 udpecho                      0   4 notif: socket
+21 udpbroadcast                 0   6 notif: bit31(T+468)
+22 fmc_demo                     0   4 recv, notif: socket
+23 hf                           0   5 recv, notif: timer
+24 snitch                       0   4 notif: socket
+25 rng_driver                   0   6 recv
+26 ereportulator                0   6 recv
