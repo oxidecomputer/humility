@@ -38,8 +38,8 @@ pub fn spd_lookup(
     hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
 ) -> Result<Option<Vec<SpdData>>> {
-    // Compute sleds have SPD data
-    const SPD_HAVERS: &[&str] = &["cosmo", "gimlet", "metro"];
+    // Compute sleds have SPD data.
+    const SPD_HAVERS: &[&str] = &["cosmo-", "gimlet-", "metro-"];
 
     // Return Ok(None) if this isn't an SPD-having board.
     if !SPD_HAVERS.iter().any(|pat| hubris.manifest.board.contains(pat)) {
@@ -72,7 +72,7 @@ pub fn spd_lookup_packrat_v1(
     static PACKRAT_BUF_NAME: &str = "task_packrat::main::BUFS";
 
     let Ok(var) = hubris.lookup_qualified_variable(PACKRAT_BUF_NAME) else {
-        bail!("");
+        bail!("Failed to find '{PACKRAT_BUF_NAME}'");
     };
     let packrat_bufs = reflect::read_variable::<
         doppel::ClaimOnceCell<reflect::Struct>,
@@ -132,7 +132,7 @@ pub fn spd_lookup_packrat_v2(
     static PACKRAT_BUF_NAME2: &str = "PACKRAT_SERVER_IMPL";
 
     let Ok(var) = hubris.lookup_qualified_variable(PACKRAT_BUF_NAME2) else {
-        bail!("");
+        bail!("Failed to find '{PACKRAT_BUF_NAME2}'");
     };
     let packrat_bufs = reflect::read_variable::<
         doppel::ClaimOnceCell<reflect::Struct>,
