@@ -137,28 +137,30 @@ pub fn spd_lookup_packrat_v2(
         bail!("Failed to find '{PACKRAT_BUF_NAME2}'");
     };
     let packrat_bufs = reflect::read_variable::<
-        doppel::ClaimOnceCell<reflect::Struct>,
+        doppel::ClaimOnceCell<doppel::MaybeUninit<reflect::Struct>>,
     >(hubris, core, var)?
     .cell
+    .value
     .value;
-    let Ok(Value::Struct(compute_sled_bufs)) = packrat_bufs
-        .get("gimlet_bufs")
-        .or_else(|_e| packrat_bufs.get("sp5_bufs"))
-    else {
-        bail!("could not find `gimlet_bufs` or `sp5_bufs`");
-    };
-    let spd_data = compute_sled_bufs
-        .get("spd_data")
-        .context("could not find `spd_data` in sled-specific packrat bufs")?;
 
-    // in newer firmwares, it's a nested struct that contains a
-    // `[[u8; DATA_SIZE]; DIMM_COUNT]`.
-    if let Value::Struct(s) = spd_data {
-        let out = s.field::<Vec<Vec<u8>>>("spd_data")?;
-        Ok(out.into_iter().map(SpdData).collect())
-    } else {
-        bail!("expected `spd_data` to be an array or struct");
-    }
+    // PACKRAT_SERVER_IMPL has a `bsp` field
+    let Ok(Value::Struct(compute_sled_bufs)) = packrat_bufs.get("bsp") else {
+        bail!("could not find `bsp`");
+    };
+    // `bsp` has a `&'static mut SpdData` field (deref it)
+    let Ok(Value::Ptr(data_ptr)) = compute_sled_bufs.get("spd_data") else {
+        bail!("could not find `spd_data`");
+    };
+    // `SpdData` is a struct
+    let Ok(Value::Struct(spd_data_struct)) = data_ptr.load_from(hubris, core)
+    else {
+        bail!("could not find `bspx`");
+    };
+
+    // SpdData is a nested struct that contains a field called `spd_data` that
+    // is `[[u8; DATA_SIZE]; DIMM_COUNT]`.
+    let out = spd_data_struct.field::<Vec<Vec<u8>>>("spd_data")?;
+    Ok(out.into_iter().map(SpdData).collect())
 }
 
 /// Before https://github.com/oxidecomputer/hubris/pull/2518
