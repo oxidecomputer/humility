@@ -161,10 +161,10 @@ static HOST_STATE_BUF_NAME_1: &str =
 static HOST_STATE_BUF_NAME_2: &str =
     "<task_host_sp_comms::ServerImpl>::claim_static_resources::BUFS";
 
-// Post-2518
+// After https://github.com/oxidecomputer/hubris/pull/2518
 static PACKRAT_BUF_NAME1: &str = "task_packrat::main::BUFS";
 
-// Post-2724
+// After https://github.com/oxidecomputer/hubris/pull/2724
 static PACKRAT_BUF_NAME2: &str = "PACKRAT_SERVER_IMPL";
 
 /// Mirror type of the internal buf struct in `host_sp_comms`. Must be kept in

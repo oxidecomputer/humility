@@ -68,7 +68,8 @@ pub fn spd_lookup_packrat_v1(
     hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
 ) -> Result<Vec<SpdData>> {
-    /// Name of the packrat buffer which contains SPD data, post-2518
+    /// Name of the packrat buffer which contains SPD data, post
+    /// https://github.com/oxidecomputer/hubris/pull/2518
     static PACKRAT_BUF_NAME: &str = "task_packrat::main::BUFS";
 
     let Ok(var) = hubris.lookup_qualified_variable(PACKRAT_BUF_NAME) else {
@@ -128,7 +129,8 @@ pub fn spd_lookup_packrat_v2(
     hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
 ) -> Result<Vec<SpdData>> {
-    /// Name of the packrat buffer which contains SPD data, post-2724
+    /// Name of the packrat buffer which contains SPD data, post
+    /// https://github.com/oxidecomputer/hubris/pull/2724
     static PACKRAT_BUF_NAME2: &str = "PACKRAT_SERVER_IMPL";
 
     let Ok(var) = hubris.lookup_qualified_variable(PACKRAT_BUF_NAME2) else {
@@ -159,6 +161,7 @@ pub fn spd_lookup_packrat_v2(
     }
 }
 
+/// Before https://github.com/oxidecomputer/hubris/pull/2518
 pub fn spd_lookup_static(
     hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
