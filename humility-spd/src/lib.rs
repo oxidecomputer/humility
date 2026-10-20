@@ -154,7 +154,7 @@ pub fn spd_lookup_packrat_v2(
     // `SpdData` is a struct
     let Ok(Value::Struct(spd_data_struct)) = data_ptr.load_from(hubris, core)
     else {
-        bail!("could not find `bspx`");
+        bail!("could not dereference `spd_data`");
     };
 
     // SpdData is a nested struct that contains a field called `spd_data` that
