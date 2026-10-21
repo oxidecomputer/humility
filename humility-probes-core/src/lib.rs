@@ -18,7 +18,7 @@ use anyhow::{Result, anyhow, bail};
 
 mod probe_rs;
 
-pub use probe_rs::{LoadError, ProgressBars, ProbeCore};
+pub use probe_rs::{LoadError, ProbeCore, ProgressBars};
 
 fn parse_probe(probe: &str) -> (&str, Option<usize>) {
     if probe.contains('-') {
