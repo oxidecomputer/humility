@@ -1,0 +1,15 @@
+[package]
+name = "humility-cmd-mass-erase"
+version = "0.1.0"
+edition.workspace = true
+description = "Mass erase a flash chip"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+indicatif.workspace = true
+
+humility.workspace = true
+humility-cli.workspace = true
+humility-probes-core.workspace = true
+probe-rs.workspace = true

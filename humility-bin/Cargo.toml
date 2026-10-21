@@ -18,7 +18,7 @@
 [package]
 name = "humility-bin"
 edition.workspace = true
-version = "0.13.12"
+version = "0.13.13"
 license = "MPL-2.0"
 
 [build-dependencies]
@@ -88,6 +88,7 @@ cmd-debugmailbox = { workspace = true, optional = true }
 cmd-flash = { workspace = true, optional = true }
 cmd-lsusb = { workspace = true, optional = true }
 cmd-probe = { workspace = true, optional = true }
+cmd-mass-erase = { workspace = true, optional = true }
 cmd-rebootleby = { workspace = true, optional = true }
 cmd-reset = { workspace = true, optional = true }
 cmd-stmsecure = { workspace = true, optional = true }
@@ -127,6 +128,7 @@ probes = [
     "cmd-reset",
     "cmd-stmsecure",
     "cmd-writeword",
+    "cmd-mass-erase",
 ]
 
 [[bin]]

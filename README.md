@@ -259,6 +259,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility lsusb](#humility-lsusb): List all USB devices visible to Humility
 - [humility manifest](#humility-manifest): print archive manifest
 - [humility map](#humility-map): print memory map, with association of regions to tasks
+- [humility mass-erase](#humility-mass-erase): Mass erase a flash chip
 - [humility monorail](#humility-monorail): Management network control and debugging
 - [humility mwocp](#humility-mwocp): Murata power shelf operations
 - [humility net](#humility-net): Management network device-side control and debugging
@@ -1578,6 +1579,17 @@ DESC       LOW          HIGH          SIZE ATTR   ID TASK
 
 (In this case, task 7, `oh_no`, has overflowed its stack -- which
 we can see from the `map` output has been sized to only 256 bytes.)
+
+
+### `humility mass-erase`
+
+Erase all nonvolatile memory on the attached target. What qualifies
+as "nonvolatile" is going to vary from target to target but the
+expectation is that after running this command there will be no
+running hubris image on target.
+
+Note that a hubris archive is required to determine the specific
+chip to erase.
 
 
 ### `humility monorail`

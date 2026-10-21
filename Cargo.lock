@@ -1885,7 +1885,7 @@ dependencies = [
 
 [[package]]
 name = "humility-bin"
-version = "0.13.12"
+version = "0.13.13"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -1924,6 +1924,7 @@ dependencies = [
  "humility-cmd-lsusb",
  "humility-cmd-manifest",
  "humility-cmd-map",
+ "humility-cmd-mass-erase",
  "humility-cmd-monorail",
  "humility-cmd-mwocp",
  "humility-cmd-net",
@@ -2388,6 +2389,19 @@ dependencies = [
  "clap",
  "humility-cli",
  "humility-core",
+]
+
+[[package]]
+name = "humility-cmd-mass-erase"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "humility-cli",
+ "humility-core",
+ "humility-probes-core",
+ "indicatif",
+ "probe-rs",
 ]
 
 [[package]]
