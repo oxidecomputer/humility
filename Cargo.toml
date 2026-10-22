@@ -56,6 +56,7 @@ members = [
     "cmd/lsusb",
     "cmd/manifest",
     "cmd/map",
+    "cmd/mass-erase",
     "cmd/monorail",
     "cmd/mwocp",
     "cmd/net",
@@ -179,6 +180,7 @@ cmd-lpc55gpio = { path = "./cmd/lpc55gpio", package = "humility-cmd-lpc55gpio" }
 cmd-lsusb = { path = "./cmd/lsusb", package = "humility-cmd-lsusb" }
 cmd-manifest = { path = "./cmd/manifest", package = "humility-cmd-manifest" }
 cmd-map = { path = "./cmd/map", package = "humility-cmd-map" }
+cmd-mass-erase = { path = "./cmd/mass-erase", package = "humility-cmd-mass-erase" }
 cmd-monorail = { path = "./cmd/monorail", package = "humility-cmd-monorail" }
 cmd-mwocp = { path = "./cmd/mwocp", package = "humility-cmd-mwocp" }
 cmd-net = { path = "./cmd/net", package = "humility-cmd-net" }
