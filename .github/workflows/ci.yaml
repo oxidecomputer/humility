@@ -65,6 +65,32 @@ jobs:
         with:
           command: check
           args: --profile=ci
+
+  check-noprobes:
+    name: Check No Probes
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        include:
+          - os: ubuntu-latest
+            deps: sudo apt-get update
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install dependencies
+        run: '${{ matrix.deps }}'
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: Swatinem/rust-cache@v1
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --profile=ci --no-default-features
   test:
     name: Test
     strategy:
