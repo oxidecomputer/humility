@@ -58,6 +58,7 @@ cmd-jefe = { workspace = true }
 cmd-lpc55gpio = { workspace = true }
 cmd-manifest = { workspace = true }
 cmd-map = { workspace = true }
+cmd-nprpc = { workspace = true }
 cmd-monorail = { workspace = true }
 cmd-mwocp = { workspace = true }
 cmd-net = { workspace = true }

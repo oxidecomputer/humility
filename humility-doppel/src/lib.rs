@@ -509,6 +509,9 @@ pub struct RpcHeader {
     pub nbytes: U16<LittleEndian>,
 }
 
+/// Double of the `nprpc::flat` types
+pub mod nprpc_schema;
+
 /// Double of the RPC types from `hiffy` (with the `net` feature enabled)
 pub mod hiffy {
     use super::*;

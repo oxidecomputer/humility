@@ -60,6 +60,7 @@ members = [
     "cmd/monorail",
     "cmd/mwocp",
     "cmd/net",
+    "cmd/nprpc",
     "cmd/pmbus",
     "cmd/power",
     "cmd/probe",
@@ -180,6 +181,7 @@ cmd-lpc55gpio = { path = "./cmd/lpc55gpio", package = "humility-cmd-lpc55gpio" }
 cmd-lsusb = { path = "./cmd/lsusb", package = "humility-cmd-lsusb" }
 cmd-manifest = { path = "./cmd/manifest", package = "humility-cmd-manifest" }
 cmd-map = { path = "./cmd/map", package = "humility-cmd-map" }
+cmd-nprpc = { path = "./cmd/nprpc", package = "humility-cmd-nprpc" }
 cmd-mass-erase = { path = "./cmd/mass-erase", package = "humility-cmd-mass-erase" }
 cmd-monorail = { path = "./cmd/monorail", package = "humility-cmd-monorail" }
 cmd-mwocp = { path = "./cmd/mwocp", package = "humility-cmd-mwocp" }
@@ -243,12 +245,15 @@ lazy_static = "1.4.0"
 libc = "0.2"
 lzss = "0.9"
 multimap = "0.10.1"
+nprpc = "2.1.1"
+nprpc-udp = "2.1.0"
 num-derive = "0.4"
 num-traits = "0.2"
 parse-size = { version = "1.0", features = ["std"]}
 parse_int = "0.9.0"
 paste = "1.0.15"
 postcard = "0.7.0"
+postcard-dyn-ng = "0.4.0"
 pretty-hex = "0.4"
 proc-macro2 = "1.0"
 quote = "1.0"
