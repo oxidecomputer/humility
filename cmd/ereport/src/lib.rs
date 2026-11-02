@@ -5,7 +5,7 @@
 //! ## `humility ereport`
 //! `humility ereport` lets you examine the ereport buffer in an image.
 
-use humility::reflect::Value;
+use humility::reflect::{Ptr, Value};
 use humility::{
     core::Core,
     hubris::{HubrisArchive, HubrisTask},
@@ -74,6 +74,62 @@ pub struct Ereport {
     contents: ciborium::Value,
 }
 
+// Pre https://github.com/oxidecomputer/hubris/pull/2724
+fn get_ereports_storage_v1(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+) -> Result<Value> {
+    static PACKRAT_BUF_NAME: &str = "task_packrat::main::BUFS";
+    let buf_ty = hubris
+        .lookup_qualified_variable(PACKRAT_BUF_NAME)
+        .with_context(|| format!("could not find `{PACKRAT_BUF_NAME}`"))?;
+
+    let buf: Value = humility::reflect::read_variable(hubris, core, buf_ty)?;
+    let outer_storage: Value = buf.field("cell.value.ereport_bufs.storage")?;
+    Ok(outer_storage)
+}
+
+// post https://github.com/oxidecomputer/hubris/pull/2724
+fn get_ereports_storage_v2(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+) -> Result<Value> {
+    static PACKRAT_BUF_NAME: &str = "PACKRAT_SERVER_IMPL";
+    let buf_ty = hubris
+        .lookup_qualified_variable(PACKRAT_BUF_NAME)
+        .with_context(|| format!("could not find `{PACKRAT_BUF_NAME}`"))?;
+
+    let buf: Value = humility::reflect::read_variable(hubris, core, buf_ty)?;
+    // This is a static mut ref instead of an owned item, we need to deref it
+    let outer_storage_ptr: Ptr =
+        buf.field("cell.value.value.ereports.storage")?;
+    let outer_storage: Value = outer_storage_ptr.load_from(hubris, core)?;
+    Ok(outer_storage)
+}
+
+// Try any available method to get ereports data from packrat, keep error
+// context for each attempt in case none were successful.
+fn get_ereports_storage(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+) -> Result<Value> {
+    let methods = [get_ereports_storage_v1, get_ereports_storage_v2];
+    let mut errs = vec![];
+    for method in methods {
+        match method(hubris, core) {
+            Ok(os) => return Ok(os),
+            Err(e) => errs.push(e),
+        }
+    }
+
+    // No luck, try to give the best error we can
+    let mut err = Err(anyhow!("Failed to find ereports data"));
+    for e in errs {
+        err = err.context(e);
+    }
+    err.with_context(|| "Failed to find ereports data using any known method")
+}
+
 /// Read ereports from the given system
 ///
 /// If `recover` is `true`, then we attempt to recover ereports from outside the
@@ -85,13 +141,7 @@ pub fn ereport_dump(
     recover: bool,
     log: &Logger,
 ) -> Result<Vec<Ereport>> {
-    static PACKRAT_BUF_NAME: &str = "task_packrat::main::BUFS";
-    let buf_ty = hubris
-        .lookup_qualified_variable(PACKRAT_BUF_NAME)
-        .with_context(|| format!("could not find `{PACKRAT_BUF_NAME}`"))?;
-
-    let buf: Value = humility::reflect::read_variable(hubris, core, buf_ty)?;
-    let outer_storage: Value = buf.field("cell.value.ereport_bufs.storage")?;
+    let outer_storage = get_ereports_storage(hubris, core)?;
     let inner_storage: Value = outer_storage.field("storage")?;
     let array: Vec<humility_doppel::MaybeUninit<u8>> =
         inner_storage.field("buffer")?;
