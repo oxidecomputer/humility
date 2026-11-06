@@ -1848,17 +1848,16 @@ TYPES (sbirpc/all_rpcs)
 
 `humility nprpc call` calls a method over the network. This uses the
 schema information from the archive to convert the JSON `--arg` into a
-request, and the response back into JSON. `--port` is used to point
-to the UDP port of the device to send requests to. Use `--ip` on the top
-level to specify the address of the device.
+request, and the response back into JSON. Use `--ip` on the top
+level to specify the address of the device. Providing `--task` will
+automatically select the correct port, or a specific port can be provided
+using `--port`.
 
 ```console
 $ humility \
     -a build-gimlet-f-dev-image-default.zip \
     --ip 'fe80::c1d:7dff:feef:9f1d%eth0' \
-    nprpc call \
-        --port 5501 \
-        sp3_sb_rmi/read_cclk_freq_limit
+    nprpc call --task 'sbirpc' sp3_sb_rmi/read_cclk_freq_limit
 {
   "Ok": 3700
 }

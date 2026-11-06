@@ -25,17 +25,16 @@
 //!
 //! `humility nprpc call` calls a method over the network. This uses the
 //! schema information from the archive to convert the JSON `--arg` into a
-//! request, and the response back into JSON. `--port` is used to point
-//! to the UDP port of the device to send requests to. Use `--ip` on the top
-//! level to specify the address of the device.
+//! request, and the response back into JSON. Use `--ip` on the top
+//! level to specify the address of the device. Providing `--task` will
+//! automatically select the correct port, or a specific port can be provided
+//! using `--port`.
 //!
 //! ```console
 //! $ humility \
 //!     -a build-gimlet-f-dev-image-default.zip \
 //!     --ip 'fe80::c1d:7dff:feef:9f1d%eth0' \
-//!     nprpc call \
-//!         --port 5501 \
-//!         sp3_sb_rmi/read_cclk_freq_limit
+//!     nprpc call --task 'sbirpc' sp3_sb_rmi/read_cclk_freq_limit
 //! {
 //!   "Ok": 3700
 //! }
@@ -86,7 +85,7 @@ enum NprpcCmd {
 
         /// the server's socket, e.g. `5501`
         #[clap(long)]
-        port: u16,
+        port: Option<u16>,
 
         /// request body, as JSON. Can be omitted for methods that take `()` as
         /// an argument.
@@ -113,10 +112,25 @@ fn nprpccmd(subargs: NprpcArgs, context: &mut ExecutionContext) -> Result<()> {
             let Some(ip_res) = context.cli.ip.as_ref().cloned() else {
                 bail!("missing target IP, specify with `--ip`");
             };
-
-            // Get port from `humility nprpc call --port`, combine
             let ScopedV6Addr { ip, scopeid } =
                 ip_res.0.context("failed to parse IP address for nprpc")?;
+
+            // Get port from `humility nprpc call --port`, OR if `--task` is
+            // provided, then use that instead.
+            let port = match (port, subargs.task) {
+                // If `port` is provided, then use that.
+                (Some(p), _) => p,
+                (None, Some(t)) => {
+                    hubris
+                        .manifest
+                        .get_socket_by_task(&t)
+                        .with_context(|| {
+                            format!("failed to get socket for task {t}")
+                        })?
+                        .port
+                }
+                (None, None) => bail!("must provide `--port` or `--task`!"),
+            };
             let target = SocketAddrV6::new(ip, port, 0, scopeid).into();
 
             let method = find_method(&ifaces, &call)?;
