@@ -263,6 +263,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility monorail](#humility-monorail): Management network control and debugging
 - [humility mwocp](#humility-mwocp): Murata power shelf operations
 - [humility net](#humility-net): Management network device-side control and debugging
+- [humility nprpc](#humility-nprpc): list and call nprpc interfaces
 - [humility pmbus](#humility-pmbus): scan for and read PMBus devices
 - [humility power](#humility-power): show power-related information
 - [humility powershelf](#humility-powershelf): inspect powershelf over the management network
@@ -1822,6 +1823,51 @@ This subcommand shows the internal counters on the management network links.
 It is only functional on the fully supported boards listed above.  In
 addition, the MAC-side counters are only supported on the VSC8562, not the
 VSC8552; this is indicated with `--` in the relevant table positions.
+
+
+### `humility nprpc`
+
+`humility nprpc` works with the `nprpc` interfaces that tasks expose with
+`nprpc_net::expose_interface!`. The schemas are read from a debug-only
+INFO section of the archive.
+
+`humility nprpc list` lists methods and types from exposed interfaces.
+
+```console
+$ humility -a build-gimlet-f-dev-image-default.zip nprpc list
+TASK         INTERFACE    KEY              METHOD
+sbirpc       all_rpcs     0c8ae9f8fb4d8025 sp3_raw_sb_rmi/smm_read_word
+                                           rqst: u8
+                                           resp: enum Result<T, E> { Ok(u32), Err(SbRmiCallError) }
+...
+
+TYPES (sbirpc/all_rpcs)
+    enum SbRmiCallError { I2cError { code: u32 }, Timeout, ... }
+    ...
+```
+
+`humility nprpc call` calls a method over the network. This uses the
+schema information from the archive to convert the JSON `--arg` into a
+request, and the response back into JSON. Use `--ip` on the top
+level to specify the address of the device. Providing `--task` will
+automatically select the correct port, or a specific port can be provided
+using `--port`.
+
+```console
+$ humility \
+    -a build-gimlet-f-dev-image-default.zip \
+    --ip 'fe80::c1d:7dff:feef:9f1d%eth0' \
+    nprpc call --task 'sbirpc' sp3_sb_rmi/read_cclk_freq_limit
+{
+  "Ok": 3700
+}
+```
+
+`--arg` defaults to `null`, which is suitable for methods that take `()`.
+Enums use serde's default JSON representation, e.g. `"Timeout"` or
+`{"I2cError": {"code": 3}}`.
+
+Use `-t` to select the interfaces of a specific task.
 
 
 ### `humility pmbus`

@@ -619,6 +619,15 @@ checksum = "3f88a43d011fc4a6876cb7344703e297c71dda42494fee094d5f7c76bf13f746"
 
 [[package]]
 name = "cobs"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fa961b519f0b462e3a3b4a34b64d119eeaca1d59af726fe450bbba07a9fc0a1"
+dependencies = [
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "cobs"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd93fd2c1b27acd030440c9dbd9d14c1122aad622374fe05a670b67a4bc034be"
@@ -639,7 +648,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1310,6 +1319,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 
 [[package]]
+name = "embedded-io"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef1a6892d9eef45c8fa6b9e0086428a2cca8491aca8f787c534a3d6d0bcb3ced"
+
+[[package]]
+name = "embedded-io"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edd0f118536f44f5ccd48bcb8b111bdc3de888b58c74639dfb034a357d0f206d"
+
+[[package]]
 name = "encode_unicode"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1790,7 +1811,7 @@ version = "0.3.1"
 source = "git+https://github.com/oxidecomputer/hif#0e9a9d0774afe3c4eca5cb147fb64ad05d0bfcd8"
 dependencies = [
  "pkg-version",
- "postcard",
+ "postcard 0.7.3",
  "serde",
 ]
 
@@ -1928,6 +1949,7 @@ dependencies = [
  "humility-cmd-monorail",
  "humility-cmd-mwocp",
  "humility-cmd-net",
+ "humility-cmd-nprpc",
  "humility-cmd-pmbus",
  "humility-cmd-power",
  "humility-cmd-powershelf",
@@ -2461,6 +2483,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "humility-cmd-nprpc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "humility-cli",
+ "humility-core",
+ "humility-doppel",
+ "humility-net",
+ "nprpc",
+ "nprpc-udp",
+ "postcard-dyn-ng",
+ "serde_json",
+]
+
+[[package]]
 name = "humility-cmd-pmbus"
 version = "0.1.0"
 dependencies = [
@@ -2921,6 +2959,7 @@ dependencies = [
  "anyhow",
  "humility-core",
  "indexmap 2.14.0",
+ "nprpc",
  "serde",
  "zerocopy",
 ]
@@ -2984,7 +3023,7 @@ dependencies = [
  "humility-doppel",
  "humility-idol",
  "idol",
- "postcard",
+ "postcard 0.7.3",
  "strum 0.28.0",
  "strum_macros 0.28.0",
  "thiserror 2.0.18",
@@ -3958,6 +3997,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61807f77802ff30975e01f4f071c8ba10c022052f98b3294119f3e615d13e5be"
 
 [[package]]
+name = "nprpc"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30963552a1c90a961d6d66920747b205bd118bf3d81b83e27e26ef85d14f5fa5"
+dependencies = [
+ "postcard 1.1.3",
+ "postcard-schema-ng",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "nprpc-udp"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ce6bbc8a4457eeee1b482ceb201b818fe86936766630352d98e8e1b41d97090"
+dependencies = [
+ "nprpc",
+]
+
+[[package]]
 name = "nu-ansi-term"
 version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4131,7 +4191,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
 dependencies = [
  "libc",
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4452,10 +4512,63 @@ dependencies = [
 ]
 
 [[package]]
+name = "postcard"
+version = "1.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6764c3b5dd454e283a30e6dfe78e9b31096d9e32036b5d1eaac7a6119ccb9a24"
+dependencies = [
+ "cobs 0.3.0",
+ "embedded-io 0.4.0",
+ "embedded-io 0.6.1",
+ "heapless 0.7.17",
+ "serde",
+]
+
+[[package]]
 name = "postcard-cobs"
 version = "0.1.5-pre"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c68cb38ed13fd7bc9dd5db8f165b7c8d9c1a315104083a2b10f11354c2af97f"
+
+[[package]]
+name = "postcard-core"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf7737a8bb36950c96cf9ab4b3a1580d348cfc832f923f3d4b294b7427ea28e3"
+
+[[package]]
+name = "postcard-derive-ng"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d1a994c510de8fb63c74f8985fab1d670637904f84469f9780dea879111f9dff"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "postcard-dyn-ng"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2e080617d486b71e0d4f0d827085dba3a7bdaf4b9b659904fa4acff1dff370a"
+dependencies = [
+ "postcard 1.1.3",
+ "postcard-schema-ng",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "postcard-schema-ng"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "984ce98c9990724b6ff8280271f7f9a222277140ffe869f94d30f60584ed45fd"
+dependencies = [
+ "postcard-core",
+ "postcard-derive-ng",
+ "serde",
+]
 
 [[package]]
 name = "potential_utf"
@@ -4507,7 +4620,7 @@ dependencies = [
  "bincode",
  "bitfield",
  "bitvec",
- "cobs",
+ "cobs 0.5.1",
  "docsplay",
  "dunce",
  "espflash",
@@ -5025,9 +5138,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.228"
+version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
+checksum = "4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba"
 dependencies = [
  "serde_core",
  "serde_derive",
@@ -5067,22 +5180,22 @@ dependencies = [
 
 [[package]]
 name = "serde_core"
-version = "1.0.228"
+version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41d385c7d4ca58e59fc732af25c3983b67ac852c1a25000afe1175de458b67ad"
+checksum = "67dca2c9c51e58a4791a4b1ed58308b39c64224d349a935ab5039aa360942a48"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.228"
+version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
+checksum = "e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 3.0.9",
 ]
 
 [[package]]
@@ -5467,6 +5580,17 @@ name = "syn"
 version = "2.0.117"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e665b8803e7b1d2a727f4023456bbbbe74da67099c585258af0ad9c5013b9b99"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
+name = "syn"
+version = "3.0.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d78c8dee4c7bf0e14673097256fed6142ce9d3b85a408189d07482442145823b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6066,7 +6190,7 @@ version = "0.1.0"
 source = "git+https://github.com/oxidecomputer/vsc7448.git#a9e71588498885e9a77282186f2bb576812f1af2"
 dependencies = [
  "lazy_static",
- "postcard",
+ "postcard 0.7.3",
  "regex",
  "serde",
  "thiserror 1.0.69",
@@ -6316,7 +6440,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

@@ -3810,6 +3810,13 @@ struct HubrisObjectLoader {
 
     // Definitions: name to goff
     definitions: MultiMap<String, HubrisGoff>,
+
+    // nprpc schemas: linkage names and raw contents, without the `goff` data
+    // from DWARF yet.
+    nprpc_raw_schemas: HashMap<String, Vec<u8>>,
+
+    // nprpc schemas found in DWARF, with their `goff` type information.
+    nprpc_schemas: Vec<HubrisNprpcSchema>,
 }
 
 impl HubrisObjectLoader {
@@ -3844,6 +3851,8 @@ impl HubrisObjectLoader {
             structs_byname: MultiMap::new(),
             subprograms: HashMap::new(),
             syscall_pushes: HashMap::new(),
+            nprpc_raw_schemas: HashMap::new(),
+            nprpc_schemas: vec![],
         }
     }
 
@@ -4119,8 +4128,20 @@ impl HubrisObjectLoader {
             self.loaded.insert(region.base, region);
         }
 
+        // Find the nprpc symbols first so we can extract their task-specific
+        // type info (`goff`) from DWARF in the next step.
+        self.nprpc_raw_schemas = Self::nprpc_schema_symbols(buffer, &elf)?;
+
         self.load_object_dwarf(task, buffer, &elf)
             .with_context(|| format!("{}: failed to load DWARF", object))?;
+
+        // `load_object_dwarf` should have found all "raw" schemas when loading
+        // variables, and converted them into `HubrisNprpcSchema`s. Any items
+        // still remaining at this point weren't found in dwarf.
+        for sym in std::mem::take(&mut self.nprpc_raw_schemas).keys() {
+            warn!(self.log, "{object}: no DWARF for nprpc schema {sym}");
+        }
+        let nprpc_schemas = std::mem::take(&mut self.nprpc_schemas);
 
         self.load_object_frames(task, buffer, &elf).with_context(|| {
             format!("{}: failed to load debug frames", object)
@@ -4139,6 +4160,7 @@ impl HubrisObjectLoader {
                 heapbss,
                 task,
                 iface,
+                nprpc_schemas,
             },
         );
 
@@ -4457,6 +4479,53 @@ impl HubrisObjectLoader {
         self.frames.insert(task, buf.to_vec());
 
         Ok(())
+    }
+
+    /// Returns each symbol in the `.nprpc_schema` section as a map of linkage
+    /// names to raw symbol contents.
+    fn nprpc_schema_symbols(
+        buffer: &[u8],
+        elf: &goblin::elf::Elf,
+    ) -> Result<HashMap<String, Vec<u8>>> {
+        let mut out = HashMap::new();
+
+        // Do we have an `nprpc` schema section at all?
+        let Some((shndx, shdr)) =
+            elf.section_headers.iter().enumerate().find(|(_, sh)| {
+                elf.shdr_strtab.get_at(sh.sh_name) == Some(NPRPC_SCHEMA_SECTION)
+            })
+        else {
+            return Ok(out);
+        };
+
+        // Collect all the symbols of the nprpc schema section
+        for sym in elf.syms.iter() {
+            if sym.st_shndx != shndx || sym.st_size == 0 {
+                continue;
+            }
+            let Some(name) = elf.strtab.get_at(sym.st_name) else {
+                continue;
+            };
+
+            // 'contents' are the `FlatInterface` structs placed in the nprpc
+            // schema section as `static`s. These will later be interpreted
+            // using `humility-doppel`.
+            //
+            // https://docs.rs/nprpc/latest/nprpc/flat/struct.FlatInterface.html
+            let contents = sym
+                .st_value
+                .checked_sub(shdr.sh_addr)
+                .filter(|o| o + sym.st_size <= shdr.sh_size)
+                .and_then(|o| {
+                    let start = (shdr.sh_offset + o) as usize;
+                    buffer.get(start..start + sym.st_size as usize)
+                })
+                .ok_or_else(|| anyhow!("bad offset/size for {name}"))?;
+
+            out.insert(name.to_string(), contents.to_vec());
+        }
+
+        Ok(out)
     }
 
     fn load_object_idolatry(
@@ -5533,6 +5602,18 @@ impl HubrisObjectLoader {
         if let (Some(name), Some(tgoff)) = (name, tgoff) {
             let linkage = linkage_name.as_ref().unwrap_or(&name);
 
+            // If this is an nprpc symbol, take it out of the raw map, and
+            // add the name, contents, and goff (specific type info) to the
+            // list of found schemas.
+            if let Some(contents) = self.nprpc_raw_schemas.remove(linkage) {
+                self.nprpc_schemas.push(HubrisNprpcSchema {
+                    name: format!("{:#}", rustc_demangle::demangle(linkage)),
+                    goff: tgoff,
+                    contents,
+                });
+                return Ok(());
+            }
+
             if let Some(syms) = self.esyms_byname.get_vec(linkage) {
                 for &(addr, size) in syms {
                     if let btree_map::Entry::Vacant(e) = self.dsyms.entry(addr)
@@ -6380,6 +6461,25 @@ pub struct HubrisModule {
     pub memsize: u32,
     pub heapbss: (Option<u32>, Option<u32>),
     pub iface: Option<Interface>,
+    pub nprpc_schemas: Vec<HubrisNprpcSchema>,
+}
+
+/// Section containing `nprpc` interface schemas, see
+/// `nprpc_net::expose_interface!` in Hubris.
+pub const NPRPC_SCHEMA_SECTION: &str = ".nprpc_schema";
+
+/// A static in the `.nprpc_schema` section of a module
+///
+/// The schemas are not loaded to the target, and are read from the archive
+/// instead.
+#[derive(Clone, Debug)]
+pub struct HubrisNprpcSchema {
+    /// Demangled name of the static
+    pub name: String,
+    /// Type of the static
+    pub goff: HubrisGoff,
+    /// Contents of the static
+    pub contents: Vec<u8>,
 }
 
 impl HubrisModule {
