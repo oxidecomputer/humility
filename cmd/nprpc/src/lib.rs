@@ -115,19 +115,33 @@ fn nprpccmd(subargs: NprpcArgs, context: &mut ExecutionContext) -> Result<()> {
             let ScopedV6Addr { ip, scopeid } =
                 ip_res.0.context("failed to parse IP address for nprpc")?;
 
+            let get_socket = |t: &str| -> Result<u16> {
+                Ok(hubris
+                    .manifest
+                    .get_socket_by_task(t)
+                    .with_context(|| {
+                        format!("failed to get socket for task {t}")
+                    })?
+                    .port)
+            };
+
             // Get port from `humility nprpc call --port`, OR if `--task` is
             // provided, then use that instead.
             let port = match (port, subargs.task) {
-                // If `port` is provided, then use that.
-                (Some(p), _) => p,
-                (None, Some(t)) => {
-                    hubris
-                        .manifest
-                        .get_socket_by_task(&t)
-                        .with_context(|| {
-                            format!("failed to get socket for task {t}")
-                        })?
-                        .port
+                // If ONLY `port` is provided, use that.
+                (Some(p), None) => p,
+                // If ONLY `task` is provided, attempt to use that.
+                (None, Some(t)) => get_socket(&t)?,
+                // if BOTH `task` AND `port` are provided, make sure they match.
+                (Some(p), Some(t)) => {
+                    let tp = get_socket(&t)?;
+                    if p != tp {
+                        bail!(
+                            "`--task` detected {tp} \
+                            but `--port` specified {p}, refusing to continue"
+                        );
+                    }
+                    p
                 }
                 (None, None) => bail!("must provide `--port` or `--task`!"),
             };
