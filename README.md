@@ -263,7 +263,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility monorail](#humility-monorail): Management network control and debugging
 - [humility mwocp](#humility-mwocp): Murata power shelf operations
 - [humility net](#humility-net): Management network device-side control and debugging
-- [humility nprpc](#humility-nprpc): list nprpc interfaces
+- [humility nprpc](#humility-nprpc): list and call nprpc interfaces
 - [humility pmbus](#humility-pmbus): scan for and read PMBus devices
 - [humility power](#humility-power): show power-related information
 - [humility powershelf](#humility-powershelf): inspect powershelf over the management network
@@ -1848,13 +1848,17 @@ TYPES (sbirpc/all_rpcs)
 
 `humility nprpc call` calls a method over the network. This uses the
 schema information from the archive to convert the JSON `--arg` into a
-request, and the response back into JSON. `--target` is used to point
-to the UDP socket of the device to send requests to.
+request, and the response back into JSON. `--port` is used to point
+to the UDP port of the device to send requests to. Use `--ip` on the top
+level to specify the address of the device.
 
 ```console
-$ humility -a build-gimlet-f-dev-image-default.zip nprpc call \
-    --target '[fe80::c1d:7dff:feef:9f1d%eth0]:5501' \
-    -c sp3_sb_rmi/read_cclk_freq_limit
+$ humility \
+    -a build-gimlet-f-dev-image-default.zip \
+    --ip 'fe80::c1d:7dff:feef:9f1d%eth0' \
+    nprpc call \
+        --port 5501 \
+        sp3_sb_rmi/read_cclk_freq_limit
 {
   "Ok": 3700
 }

@@ -7,6 +7,11 @@
 //!
 //! These are loaded from the archive's DWARF, converted into the `nprpc`
 //! types, and decoded by `nprpc` itself into owned schemas.
+//!
+//! Like other types in `doppel`, we are building duplicate versions of these
+//! types to be able to implement the `Load` trait, and it would not be
+//! reasonable for `nprpc` to depend on `humility-core` to implement/derive the
+//! `Load` trait on the upstream types.
 
 use anyhow::{Context, Result, bail};
 use humility::hubris::{HubrisArchive, HubrisModule};

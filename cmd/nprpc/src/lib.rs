@@ -25,13 +25,17 @@
 //!
 //! `humility nprpc call` calls a method over the network. This uses the
 //! schema information from the archive to convert the JSON `--arg` into a
-//! request, and the response back into JSON. `--target` is used to point
-//! to the UDP socket of the device to send requests to.
+//! request, and the response back into JSON. `--port` is used to point
+//! to the UDP port of the device to send requests to. Use `--ip` on the top
+//! level to specify the address of the device.
 //!
 //! ```console
-//! $ humility -a build-gimlet-f-dev-image-default.zip nprpc call \
-//!     --target '[fe80::c1d:7dff:feef:9f1d%eth0]:5501' \
-//!     -c sp3_sb_rmi/read_cclk_freq_limit
+//! $ humility \
+//!     -a build-gimlet-f-dev-image-default.zip \
+//!     --ip 'fe80::c1d:7dff:feef:9f1d%eth0' \
+//!     nprpc call \
+//!         --port 5501 \
+//!         sp3_sb_rmi/read_cclk_freq_limit
 //! {
 //!   "Ok": 3700
 //! }
@@ -56,7 +60,7 @@ use humility_doppel::nprpc_schema::{
 };
 use humility_net::ScopedV6Addr;
 use nprpc::io::client::Backend;
-use nprpc::wire::{HEADER_LEN, WireError};
+use nprpc::wire::HEADER_LEN;
 use nprpc::{ClientError, ClientIoError};
 use nprpc_udp::{MAX_UDP_PAYLOAD, UdpClient, VecStorage};
 
@@ -77,13 +81,12 @@ enum NprpcCmd {
     List,
     /// call a method over the network
     Call {
-        /// address of the server's socket, e.g. `[fe80::1%eth0]:5501`
-        #[clap(long, value_parser = parse_target)]
-        target: SocketAddr,
-
         /// full name of the method to call, e.g. `iface/method`
-        #[clap(long, short)]
         call: String,
+
+        /// the server's socket, e.g. `5501`
+        #[clap(long)]
+        port: u16,
 
         /// request body, as JSON. Can be omitted for methods that take `()` as
         /// an argument.
@@ -105,7 +108,17 @@ fn nprpccmd(subargs: NprpcArgs, context: &mut ExecutionContext) -> Result<()> {
             list(&ifaces);
             Ok(())
         }
-        NprpcCmd::Call { target, call, arg, timeout_ms } => {
+        NprpcCmd::Call { port, call, arg, timeout_ms } => {
+            // Get IP addr from `humility --ip`
+            let Some(ip_res) = context.cli.ip.as_ref().cloned() else {
+                bail!("missing target IP, specify with `--ip`");
+            };
+
+            // Get port from `humility nprpc call --port`, combine
+            let ScopedV6Addr { ip, scopeid } =
+                ip_res.0.context("failed to parse IP address for nprpc")?;
+            let target = SocketAddrV6::new(ip, port, 0, scopeid).into();
+
             let method = find_method(&ifaces, &call)?;
             let arg = serde_json::from_str(&arg)
                 .with_context(|| format!("parsing --arg as JSON: {arg}"))?;
@@ -169,7 +182,20 @@ fn list(ifaces: &[(String, OwnedInterfaceInfo)]) {
             .filter(|ty| match ty {
                 OwnedDataModelType::Struct { .. } => true,
                 // Skip top level `Option` and `Result` as unique types, they
-                // are shown in the method listing with their T/E types.
+                // are shown in the method listing, and non-primitve T/E types
+                // are also listed as used types. `postcard-schema-ng`'s impls
+                // of `Schema` for these types use the names `Result<T, E>` and
+                // `Option<T>` specifically. This avoids a bunch of repetition
+                // such as:
+                //
+                // ```
+                // TYPES (sbirpc/all_rpcs)
+                //   enum Result<T, E> { Ok(()), Err(u32) }
+                //   enum Result<T, E> { Ok(f32), Err(u32) }
+                //   enum Result<T, E> { Ok(u32), Err(SbRmiCallError) }
+                //   enum Result<T, E> { Ok(u8), Err(u32) }
+                //   enum SbRmiCallError { ... }
+                // ```
                 OwnedDataModelType::Enum { name, .. } => {
                     !matches!(&**name, "Option<T>" | "Result<T, E>")
                 }
@@ -223,67 +249,36 @@ fn call_method(
     timeout_ms: u64,
 ) -> Result<serde_json::Value> {
     let body = postcard_dyn_ng::to_stdvec_dyn(&method.req_schema, arg)
-        .map_err(|e| {
-            anyhow!(
-                "--arg doesn't match the request type {}: {e:?}",
+        .with_context(|| {
+            format!(
+                "--arg doesn't match the request schema {}",
                 method.req_schema
             )
         })?;
 
     let mut client = connect(target, timeout_ms, body.len())?;
-    let resp = match client.send_then_receive_raw(method.key, &body) {
-        Ok(resp) => resp,
-        Err(ClientIoError::Io(e)) if nprpc_udp::is_timeout(&e) => {
-            bail!("no response from {target} within {timeout_ms}ms");
-        }
-        Err(ClientIoError::Io(e)) => {
-            return Err(e).with_context(|| format!("calling {target}"));
-        }
-        Err(ClientIoError::Client(ClientError::Server(e))) => {
-            bail!("server rejected the request: {}", wire_error(&e));
-        }
-        Err(e) => bail!("calling {}: {e:?}", method.name),
-    };
+    let resp =
+        client.send_then_receive_raw(method.key, &body).map_err(|e| {
+            let context = match &e {
+                ClientIoError::Io(io) if nprpc_udp::is_timeout(io) => {
+                    format!("no response from {target} within {timeout_ms}ms")
+                }
+                ClientIoError::Io(_) => format!("calling {target}"),
+                ClientIoError::Client(ClientError::Server(_)) => {
+                    "server rejected the request".to_string()
+                }
+                _ => format!("calling {}", method.name),
+            };
+            anyhow::Error::new(e).context(context)
+        })?;
 
-    postcard_dyn_ng::from_slice_dyn(&method.resp_schema, resp.body).map_err(
-        |e| {
-            anyhow!(
-                "response doesn't match the response type {}: {e:?}",
+    postcard_dyn_ng::from_slice_dyn(&method.resp_schema, resp.body)
+        .with_context(|| {
+            format!(
+                "response doesn't match the response schema {}",
                 method.resp_schema
             )
-        },
-    )
-}
-
-/// Describes an error returned by the server.
-fn wire_error(e: &WireError) -> String {
-    let what = match *e {
-        WireError::SERVER_BAD_HEADER => "bad header",
-        WireError::SERVER_UNEXPECTED_METHOD => "unexpected operation",
-        WireError::SERVER_VERSION_MISMATCH => "wire version mismatch",
-        WireError::SERVER_UNKNOWN_METHOD => {
-            "unknown method; does the archive match the target?"
-        }
-        WireError::SERVER_BAD_BODY => "bad request body",
-        WireError::SERVER_RESPOND_FAILED => "failed to respond",
-        _ => "unknown error",
-    };
-    format!("{what} ({})", e.0)
-}
-
-/// Parses a socket address, also allowing the IPv6 scope to be an interface
-/// name, e.g. `[fe80::1%eth0]:5501`.
-fn parse_target(s: &str) -> Result<SocketAddr> {
-    if let Ok(addr) = s.parse() {
-        return Ok(addr);
-    }
-    let (ip, port) =
-        s.strip_prefix('[').and_then(|s| s.split_once("]:")).ok_or_else(
-            || anyhow!("expected an address like [fe80::1%eth0]:5501"),
-        )?;
-    let ScopedV6Addr { ip, scopeid } = ip.parse()?;
-    let port = port.parse().with_context(|| format!("bad port {port}"))?;
-    Ok(SocketAddrV6::new(ip, port, 0, scopeid).into())
+        })
 }
 
 /// Connects to the server at `target`, with room for a request body of

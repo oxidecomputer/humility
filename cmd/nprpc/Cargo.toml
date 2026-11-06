@@ -2,7 +2,7 @@
 name = "humility-cmd-nprpc"
 version = "0.1.0"
 edition.workspace = true
-description = "list nprpc interfaces"
+description = "list and call nprpc interfaces"
 
 [dependencies]
 anyhow = { workspace = true }
