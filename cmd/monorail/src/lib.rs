@@ -171,10 +171,12 @@ use std::convert::TryInto;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::log::{info, warn};
-use humility::reflect::*;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::HiffyContext;
-use humility_idol::{HubrisIdol, IdolArgument, IdolDecodeError, IdolError};
+use humility_idol::{HubrisIdol, IdolArgument};
+use humility_monorail::{
+    LinkStatus, Mode, PhyConfiguration, PortConfiguration,
+};
 
 use anyhow::{Result, anyhow};
 
@@ -617,182 +619,80 @@ fn monorail_status(
     context: &mut HiffyContext,
     ports: &[u8],
 ) -> Result<()> {
-    // We're going to get the status of *every* port, then just print the ones
-    // that are specified by the caller; the time it takes to poll a single
-    // port is dwarfed by the Hiffy call overhead, so no need to optimize.
-    const NUM_PORTS: u8 = 53;
-    let results = {
-        let op_port = hubris.get_idol_command("Monorail.get_port_status")?;
-        let op_phy = hubris.get_idol_command("Monorail.get_phy_status")?;
-        use hif::*;
-        let send = context.get_function("Send", 4)?;
-        let mut ops = vec![];
-
-        let label = Target(0);
-
-        // We run two hiffy loops back to back, which have the same form:
-        // - Monorail.get_port_status for every port
-        // - Monorail.get_phy_status for every port
-        //
-        // They're placed back-to-back in Hiffy code, so we'll call the two
-        // loops one after the other (i.e. values are not interleaved!)
-        for op in [&op_port, &op_phy] {
-            assert_eq!(op.args.unwrap().members.len(), 1); // Sanity-check!
-            let ret_size = hubris.typesize(op.ok)? as u32;
-
-            // Here we go!
-            ops.push(Op::Push32(op.task.task())); // Task id
-            ops.push(Op::Push16(op.code)); // opcode
-            ops.push(Op::Push(0)); // port (payload)
-            ops.push(Op::Push(NUM_PORTS)); // comparison target (dummy)
-            ops.push(Op::Label(label));
-            {
-                ops.push(Op::Drop); // Drop comparison target
-                ops.push(Op::Push(1)); // Payload length
-                ops.push(Op::Push32(ret_size)); // Return size
-                ops.push(Op::Call(send.id));
-                ops.push(Op::DropN(2)); // Drop payload and return size
-                ops.push(Op::Push(1)); // Increment by one
-                ops.push(Op::Add); // port = port + 1
-                ops.push(Op::Push(NUM_PORTS)); // Comparison target
-                ops.push(Op::BranchGreaterThan(label)); // Jump to loop start
-            }
-            ops.push(Op::DropN(4)); // Cleanup
-        }
-        ops.push(Op::Done); // Finish
-
-        let mut results = context.run(core, ops.as_slice(), None)?;
-        let phy_results = results.split_off(NUM_PORTS as usize);
-        let port_results = results;
-        assert_eq!(port_results.len(), NUM_PORTS as usize);
-        assert_eq!(phy_results.len(), NUM_PORTS as usize);
-
-        let port_results = port_results
-            .into_iter()
-            .map(move |r| op_port.decode::<humility::reflect::Struct>(&r))
-            .collect::<Vec<_>>();
-        let phy_results = phy_results
-            .into_iter()
-            .map(move |r| op_phy.decode::<humility::reflect::Struct>(&r))
-            .collect::<Vec<_>>();
-
-        // Decode the port and phy status values into reflect::Value
-        port_results.into_iter().zip(phy_results).collect::<Vec<_>>()
-    };
-
     // Convert ports in a lookup-friendly structure
     let ports = ports.iter().collect::<BTreeSet<_>>();
 
-    // Helper functions:
-    let decode_mode = |value: &Value| match value {
-        Value::Enum(m) => {
-            let mode = m.disc().to_uppercase();
-            let speed = m.contents().and_then(|speed| match speed {
-                Value::Tuple(t) => t.first().map(|t| match t {
-                    Value::Enum(t) => t.disc().replace("Speed", ""),
-                    v => panic!("Expected enum, got {:?}", v),
-                }),
-                v => panic!("Expected tuple, got {:?}", v),
-            });
-            (mode, speed.unwrap_or_else(|| "--".to_owned()))
-        }
-        v => panic!("Expected enum, got {:?}", v),
-    };
-    // Extracts a device name from a reflected value, e.g. "DEV1G_0"
-    let decode_dev = |dev: &Tuple| -> Result<_> {
-        let d = dev.field::<Enum>(0)?;
-        let n = dev.field::<u8>(1)?;
-        Ok(format!("{}_{}", d.disc().to_uppercase(), n))
-    };
-
-    let fmt_link = |v: &Value| match v {
-        Value::Base(Base::Bool(b)) => {
-            if *b {
-                "up".to_owned().green()
-            } else {
-                "down".to_owned().red()
-            }
-        }
-        Value::Enum(e) => match e.disc() {
-            "Up" => "up".to_owned().green(),
-            "Down" => "down".to_owned().red(),
-            "Error" => "err".to_owned().yellow(),
-            s => panic!("Unknown LinkStatus variant {s:?}"),
-        },
-        b => panic!("Could not get bool or enum from {b:?}"),
-    };
-
+    let status = humility_monorail::monorail_status(hubris, core, context)?;
     println!("{}", "PORT | MODE    SPEED  DEV     SERDES  LINK |   PHY    MAC LINK  MEDIA LINK".bold());
     println!("{}", "-----|-------------------------------------|-------------------------------".bold());
-    for (port, (port_value, phy_value)) in (0..NUM_PORTS).zip(results) {
+    for (port, s) in status.iter() {
         if !ports.is_empty() && !ports.contains(&port) {
             continue;
         }
+        let port_value = &s.port;
+        let phy_value = &s.phy;
         print!(" {:<3} | ", port);
+
         match port_value {
-            Ok(s) => {
-                assert_eq!(s.name(), "PortStatus");
-                let (dev, serdes, mode, speed) = {
-                    let cfg = s.field::<Struct>("cfg")?;
-                    assert_eq!(cfg.name(), "PortConfig");
-                    let dev = decode_dev(&cfg.field("dev")?)?;
-                    let serdes = decode_dev(&cfg.field("serdes")?)?;
-                    let (mode, speed) = decode_mode(&cfg["mode"]);
-                    (
-                        dev.replace("DEV", ""),
-                        serdes.replace("SERDES", ""),
-                        mode,
-                        speed,
-                    )
+            PortConfiguration::PortConfigured(s) => {
+                let (fmt_mode, speed) = match s.cfg.mode {
+                    Mode::Sgmii(s) => ("SGMII".cyan(), format!("{s}")),
+                    Mode::Qsgmii(s) => ("QSGMII".blue(), format!("{s}")),
+                    Mode::Sfi => ("SFI".magenta(), "--".to_string()),
+                    Mode::BaseKr => ("BASEKR".magenta(), "--".to_string()),
                 };
-                let fmt_mode = match mode.as_str() {
-                    "SGMII" => mode.cyan(),
-                    "QSGMII" => mode.blue(),
-                    "SFI" | "BASEKR" => mode.magenta(),
-                    v => v.into(),
+
+                let fmt_link = match s.link_up {
+                    LinkStatus::Up => "up".to_owned().green(),
+                    LinkStatus::Down => "down".to_owned().red(),
+                    LinkStatus::Error => "err".to_owned().yellow(),
                 };
 
                 print!(
                     "{:<6}  {:<5}  {:<6}  {:<6}  {:<4}",
                     fmt_mode,
                     speed,
-                    dev,
-                    serdes,
-                    fmt_link(&s["link_up"]),
-                )
+                    // Manually format these for backwards compatibility with
+                    // the originaly `monorail status` command.
+                    format!("{}_{}", s.cfg.dev.dev, s.cfg.dev.num),
+                    format!("{}_{}", s.cfg.serdes.serdes, s.cfg.serdes.num),
+                    fmt_link,
+                );
             }
-            Err(e) => {
-                if let IdolDecodeError::Idol(IdolError::Named(e)) = &e
-                    && e == "UnconfiguredPort"
-                {
-                    print!(
-                        "{}",
-                        "--      --     --      --      --  ".dimmed()
-                    );
-                } else {
-                    println!("Got unexpected error {e}");
-                }
+            PortConfiguration::Unconfigured => {
+                print!("{}", "--      --     --      --      --  ".dimmed());
+            }
+            PortConfiguration::Other(e) => {
+                println!("Got unexpected error {e}");
             }
         }
         print!(" | ");
         match phy_value {
-            Ok(s) => {
-                assert_eq!(s.name(), "PhyStatus");
+            PhyConfiguration::PhyConfigured(s) => {
+                let fmt_mac_link = match s.mac_link_up {
+                    LinkStatus::Up => "up".to_owned().green(),
+                    LinkStatus::Down => "down".to_owned().red(),
+                    LinkStatus::Error => "err".to_owned().yellow(),
+                };
+
+                let fmt_media_link = match s.media_link_up {
+                    LinkStatus::Up => "up".to_owned().green(),
+                    LinkStatus::Down => "down".to_owned().red(),
+                    LinkStatus::Error => "err".to_owned().yellow(),
+                };
+
                 println!(
                     "{:<6}  {:<8}  {:<10}",
-                    s.field::<Enum>("ty")?.disc().to_uppercase(),
-                    fmt_link(&s["mac_link_up"]),
-                    fmt_link(&s["media_link_up"]),
-                )
+                    format!("{}", s.ty),
+                    fmt_mac_link,
+                    fmt_media_link,
+                );
             }
-            Err(e) => {
-                if let IdolDecodeError::Idol(IdolError::Named(e)) = &e
-                    && (e == "UnconfiguredPort" || e == "NoPhy")
-                {
-                    println!("{}", "--       --         --".dimmed());
-                } else {
-                    println!("Got unexpected error {e}");
-                }
+            PhyConfiguration::Unconfigured => {
+                println!("{}", "--       --         --".dimmed());
+            }
+            PhyConfiguration::Other(e) => {
+                println!("Got unexpected error {e}");
             }
         }
     }

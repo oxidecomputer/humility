@@ -21,6 +21,7 @@ members = [
     "humility-idol",
     "humility-jefe",
     "humility-log",
+    "humility-monorail",
     "humility-net",
     "humility-pmbus",
     "humility-probes-core",
@@ -146,6 +147,7 @@ humility-idol = { path = "./humility-idol" }
 humility-jefe = { path = "./humility-jefe" }
 humility-log = { path = "./humility-log" }
 humility_load_derive = { path = "./load_derive" }
+humility-monorail = { path = "./humility-monorail" }
 humility-net = { path = "./humility-net" }
 humility-pmbus = { path = "./humility-pmbus" }
 humility-probes-core = { path = "./humility-probes-core" }

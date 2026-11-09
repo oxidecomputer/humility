@@ -1906,7 +1906,7 @@ dependencies = [
 
 [[package]]
 name = "humility-bin"
-version = "0.13.13"
+version = "0.13.14"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -2438,6 +2438,7 @@ dependencies = [
  "humility-core",
  "humility-hiffy",
  "humility-idol",
+ "humility-monorail",
  "idol",
  "parse_int",
  "regex",
@@ -3066,6 +3067,18 @@ version = "0.1.0"
 dependencies = [
  "colored",
  "slog",
+]
+
+[[package]]
+name = "humility-monorail"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hif",
+ "humility-core",
+ "humility-hiffy",
+ "humility-idol",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
