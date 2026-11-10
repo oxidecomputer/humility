@@ -38,7 +38,7 @@ pub const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE + 1;
 pub const OXIDE_NT_HUBRIS_REGISTERS: u32 = OXIDE_NT_BASE + 2;
 pub const OXIDE_NT_HUBRIS_TASK: u32 = OXIDE_NT_BASE + 3;
 
-const MAX_HUBRIS_VERSION: u32 = 13;
+const MAX_HUBRIS_VERSION: u32 = 14;
 
 #[derive(Debug, Serialize)]
 pub struct HubrisManifest {
@@ -2511,10 +2511,11 @@ impl HubrisArchive {
                 let regions = tdesc.lookup_member("regions")?;
                 let roffs = regions.offset;
 
-                //
                 // We expect this to be an array of either indices or references
-                // into the RegionDesc table
-                //
+                // into the RegionDesc table, or a wrapper struct containing an
+                // array of references.  The switch from plain array to wrapper
+                // struct occurred in hubris#2760, to guarantee that regions are
+                // sorted by base address.
                 let (count, size) = match self.lookup_type(regions.goff)? {
                     HubrisType::Array(a) => {
                         let size = self.lookup_type(a.goff)?.size(self)?;
@@ -2524,8 +2525,29 @@ impl HubrisArchive {
                         }
                         (a.count, size)
                     }
+                    // Single-element wrapper struct
+                    HubrisType::Struct(s) if s.members.len() == 1 => {
+                        let HubrisType::Array(a) =
+                            self.lookup_type(s.members[0].goff)?
+                        else {
+                            bail!("expected array for TaskDesc.regions.0");
+                        };
+                        // The wrapper struct only contains references,
+                        // so we don't allow `size == 1` here
+                        let size = self.lookup_type(a.goff)?.size(self)?;
+                        if size != 4 {
+                            bail!(
+                                "expected array of references for \
+                                 TaskDesc.regions.0"
+                            );
+                        }
+                        (a.count, size)
+                    }
                     _ => {
-                        bail!("expected array for TaskDesc.regions");
+                        bail!(
+                            "expected either array or single-member \
+                             wrapper struct for TaskDesc.regions"
+                        );
                     }
                 };
 
