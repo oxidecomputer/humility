@@ -201,10 +201,14 @@ pub fn attach_to_chip(
 
             info!(
                 log,
-                "attached via {:x}:{:x}:{:?} {}",
+                "attached via {:x}:{:x}{} {}",
                 probe_info.vendor_id,
                 probe_info.product_id,
-                probe_info.serial_number,
+                if let Some(sn) = &probe_info.serial_number {
+                    format!(":{sn}")
+                } else {
+                    "".to_string()
+                },
                 probe_info.identifier
             );
 
