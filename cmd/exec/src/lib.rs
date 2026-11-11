@@ -18,7 +18,7 @@
 //!
 //! To list available commands, use the `--list` option.
 //!
-//! For more details, see the Humliity documenation on environments.
+//! For more details, see the Humility documentation on environments.
 //!
 
 use anyhow::{Result, bail};
