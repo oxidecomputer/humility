@@ -682,7 +682,7 @@ impl humility::reflect::Load for CounterVariant {
         // `Atomic<N>`.
         //
         // See https://github.com/rust-lang/rust/pull/153015 for details.
-        let is_atomic_u32 = |name| {
+        let is_atomic_u32 = |name: &str| {
             // Pre-hubris#2775
             let legacy = name.starts_with("AtomicU32");
             // Post-hubris#2775
