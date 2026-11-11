@@ -324,6 +324,7 @@ fn ringbuf(subargs: RingbufArgs, context: &mut ExecutionContext) -> Result<()> {
     }
 
     let core = &mut *context.cli.attach_live_or_dump_match(hubris)?;
+    let mut show_hint = false;
     for (v, def) in ringbufs {
         // Try not to use `?` here, because it causes one bad ringbuf to make
         // them all unavailable.
@@ -337,12 +338,23 @@ fn ringbuf(subargs: RingbufArgs, context: &mut ExecutionContext) -> Result<()> {
                 if subargs.verbose {
                     info!(log, "ringbuf dump failed: {e:?}");
                 } else {
+                    show_hint = true;
                     info!(log, "ringbuf dump failed: {e}");
                 }
             }
         } else {
             info!(log, "could not look up type: {:?}", v.1.goff);
         }
+    }
+
+    // If any decoding failed, show a hint that rerunning with -v will show the
+    // whole error chain.
+    if show_hint {
+        info!(
+            log,
+            "one or more ringbufs failed to load. Rerun with `-v` to show more \
+            details.",
+        );
     }
 
     Ok(())
