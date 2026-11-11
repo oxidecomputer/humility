@@ -675,7 +675,7 @@ $ humility -e /path/to/env.json -t my-target exec power.on
 
 To list available commands, use the `--list` option.
 
-For more details, see the Humliity documenation on environments.
+For more details, see the Humility documentation on environments.
 
 
 
@@ -3422,6 +3422,5 @@ humility: attached via ST-Link V3
             \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
 0x24047800 | aa 00 00 00 bb 00 00 00 cc 00 00 00 dd 00 00 00 | ................
 ```
-
 
 
