@@ -678,10 +678,22 @@ impl humility::reflect::Load for CounterVariant {
             return Ok(Self::Single(0));
         }
 
+        // Starting in Rust 1.96, `Atomic` types now are aliases of
+        // `Atomic<N>`.
+        //
+        // See https://github.com/rust-lang/rust/pull/153015 for details.
+        let is_atomic_u32 = |name| {
+            // Pre-hubris#2775
+            let legacy = name.starts_with("AtomicU32");
+            // Post-hubris#2775
+            let generic = name == "Atomic<u32>";
+            legacy || generic
+        };
+
         // If the value is directly an AtomicU32, we treat it as a single
         // counter value.
         if let Ok(counter) = value.as_struct()
-            && counter.name().starts_with("AtomicU32")
+            && is_atomic_u32(counter.name())
         {
             let cell = UnsafeCell::<u32>::from_value(&counter["v"])
                 .context("ringbuf count must be a u32")?;
