@@ -234,6 +234,7 @@ a specified target.  (In the above example, one could execute `humility
 
 - [humility auxflash](#humility-auxflash): manipulate auxiliary flash
 - [humility caboose](#humility-caboose): read from the caboose
+- [humility check](#humility-check): TODO: Add help text
 - [humility console-proxy](#humility-console-proxy): SP/host console uart proxy
 - [humility counters](#humility-counters): display event counters
 - [humility dashboard](#humility-dashboard): dashboard for Hubris sensor data
@@ -301,6 +302,11 @@ program auxiliary flash when needed.
 ### `humility caboose`
 
 Tools to read from the caboose (without an archive)
+
+
+### `humility check`
+
+TODO: Add docs
 
 
 ### `humility console-proxy`

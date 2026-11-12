@@ -1920,6 +1920,7 @@ dependencies = [
  "humility-cli",
  "humility-cmd-auxflash",
  "humility-cmd-caboose",
+ "humility-cmd-check",
  "humility-cmd-console-proxy",
  "humility-cmd-counters",
  "humility-cmd-dashboard",
@@ -2051,6 +2052,19 @@ dependencies = [
  "humility-cli",
  "humility-probes-core",
  "tlvc-text",
+]
+
+[[package]]
+name = "humility-cmd-check"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "humility-cli",
+ "humility-cmd-counters",
+ "humility-cmd-ringbuf",
+ "humility-core",
+ "humility-doppel",
 ]
 
 [[package]]

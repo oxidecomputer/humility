@@ -31,6 +31,7 @@ members = [
     "humility-vpd-lib",
     "cmd/auxflash",
     "cmd/caboose",
+    "cmd/check",
     "cmd/console-proxy",
     "cmd/counters",
     "cmd/dashboard",
@@ -157,6 +158,7 @@ humility-validate = { path = "./humility-validate" }
 humility-vpd-lib = { path = "./humility-vpd-lib" }
 cmd-auxflash = { path = "./cmd/auxflash", package = "humility-cmd-auxflash" }
 cmd-caboose = { path = "./cmd/caboose", package = "humility-cmd-caboose" }
+cmd-check = { path = "./cmd/check", package = "humility-cmd-check" }
 cmd-console-proxy = { path = "./cmd/console-proxy", package = "humility-cmd-console-proxy" }
 cmd-counters = { path = "./cmd/counters", package = "humility-cmd-counters" }
 cmd-dashboard = { path = "./cmd/dashboard", package = "humility-cmd-dashboard" }

@@ -323,22 +323,11 @@ enum Output {
 const LIST_HINT: &str = "use `humility counters list` to list all \
     available counters";
 
-fn counters(
-    subargs: CountersArgs,
-    context: &mut ExecutionContext,
-) -> Result<()> {
-    let hubris = &context.cli.archive()?;
-    let log = context.log();
-
-    if let Some(Subcmd::Ipc(ipc)) = subargs.command {
-        let core = &mut *context.cli.attach_live_or_dump_match(hubris)?;
-        return ipc.ipc_counter_dump(hubris, core, log);
-    }
-    let name = subargs.name();
-
-    // map of counters by task, sorted by task name.
-    let mut counters: BTreeMap<&str, Vec<_>> = BTreeMap::new();
-
+/// TODO: Add docs
+pub fn counter_variables(
+    hubris: &HubrisArchive,
+) -> Vec<((&str, &HubrisVariable), Option<&HubrisStruct>)> {
+    let mut out = vec![];
     for (varname, var) in hubris.qualified_variables() {
         let def = match hubris.lookup_struct(var.goff) {
             Ok(s) => {
@@ -361,6 +350,28 @@ fn counters(
                 }
             }
         };
+        out.push(((varname, var), def));
+    }
+    out
+}
+
+fn counters(
+    subargs: CountersArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
+    let hubris = &context.cli.archive()?;
+    let log = context.log();
+
+    if let Some(Subcmd::Ipc(ipc)) = subargs.command {
+        let core = &mut *context.cli.attach_live_or_dump_match(hubris)?;
+        return ipc.ipc_counter_dump(hubris, core, log);
+    }
+    let name = subargs.name();
+
+    // map of counters by task, sorted by task name.
+    let mut counters: BTreeMap<&str, Vec<_>> = BTreeMap::new();
+
+    for ((varname, var), def) in counter_variables(hubris) {
         let t = taskname(hubris, var)?;
         if let Some(ref name) = name {
             if varname.contains(name) || t.contains(name) {
@@ -612,7 +623,16 @@ fn load_counters(
     core.read_bulk(var.addr, buf.as_mut_slice())?;
     core.run()?;
 
-    let val: Value = Value::Struct(reflect::load_struct(hubris, &buf, def, 0)?);
+    decode_counters(hubris, def, &buf)
+}
+
+/// TODO: Add docs
+pub fn decode_counters(
+    hubris: &HubrisArchive,
+    def: &HubrisStruct,
+    buf: &[u8],
+) -> Result<Counters> {
+    let val: Value = Value::Struct(reflect::load_struct(hubris, buf, def, 0)?);
 
     // Counters may either be a standalone counters variable or a counted
     // ringbuf. We'll try to interpret the var as either one.

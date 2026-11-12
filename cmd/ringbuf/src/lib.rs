@@ -114,7 +114,7 @@ struct TotalsOptions {
     no_totals: bool,
 }
 
-type LoadedRingbuf = (Option<Ringbuf>, Option<Counters>);
+pub type LoadedRingbuf = (Option<Ringbuf>, Option<Counters>);
 type RingbufLoader = fn(&Value) -> Result<LoadedRingbuf>;
 
 // There are three possible shapes of ringbufs, depending on the age of the
@@ -126,7 +126,7 @@ type RingbufLoader = fn(&Value) -> Result<LoadedRingbuf>;
 //
 // Here we will attempt to handle all three, keeping all the error context of
 // all of them if none of them succeed.
-fn load_ringbuf(ringbuf_val: &Value) -> Result<LoadedRingbuf> {
+pub fn load_ringbuf(ringbuf_val: &Value) -> Result<LoadedRingbuf> {
     // Pre-hubris#219
     fn raw(v: &Value) -> Result<LoadedRingbuf> {
         Ok((Some(Ringbuf::from_value(v)?), None))
@@ -163,6 +163,18 @@ fn load_ringbuf(ringbuf_val: &Value) -> Result<LoadedRingbuf> {
     err.context("Failed to load ringbuf using any known layout")
 }
 
+/// TODO: Add docs
+pub fn decode_ringbuf(
+    hubris: &HubrisArchive,
+    definition: &HubrisStruct,
+    buf: &[u8],
+) -> Result<LoadedRingbuf> {
+    let ringbuf_val: Value =
+        Value::Struct(reflect::load_struct(hubris, buf, definition, 0)?);
+
+    load_ringbuf(&ringbuf_val)
+}
+
 fn ringbuf_dump(
     subargs: &RingbufArgs,
     hubris: &HubrisArchive,
@@ -178,10 +190,7 @@ fn ringbuf_dump(
     core.read_bulk(ringbuf_var.addr, buf.as_mut_slice())?;
     core.run()?;
 
-    let ringbuf_val: Value =
-        Value::Struct(reflect::load_struct(hubris, &buf, definition, 0)?);
-
-    let (ringbuf, counters) = load_ringbuf(&ringbuf_val)?;
+    let (ringbuf, counters) = decode_ringbuf(hubris, definition, &buf)?;
 
     if let (Some(mut counters), false) = (counters, no_totals) {
         const TOTAL_WIDTH: usize = 8;
@@ -255,22 +264,18 @@ fn ringbuf_dump(
     Ok(())
 }
 
-fn taskname<'a>(
+pub fn taskname<'a>(
     hubris: &'a HubrisArchive,
     variable: &'a HubrisVariable,
 ) -> Result<&'a str> {
     Ok(&hubris.lookup_module(HubrisTask::from(variable.goff))?.name)
 }
 
-// this allow is meant for the header println! in the body but you cannot apply
-// an attribute to a macro invoction, so we have to put it here instead.
-#[allow(clippy::print_literal)]
-fn ringbuf(subargs: RingbufArgs, context: &mut ExecutionContext) -> Result<()> {
-    let hubris = &context.cli.archive()?;
-    let log = context.log();
-
-    let mut ringbufs = vec![];
-
+/// TODO: Add docs
+pub fn ringbuf_variables(
+    hubris: &HubrisArchive,
+) -> Vec<((&str, &HubrisVariable), Option<&HubrisStruct>)> {
+    let mut out = vec![];
     for v in hubris.qualified_variables() {
         let def = match hubris.lookup_struct(v.1.goff) {
             Ok(s) => {
@@ -291,7 +296,21 @@ fn ringbuf(subargs: RingbufArgs, context: &mut ExecutionContext) -> Result<()> {
                 }
             }
         };
+        out.push((v, def));
+    }
+    out
+}
 
+// this allow is meant for the header println! in the body but you cannot apply
+// an attribute to a macro invoction, so we have to put it here instead.
+#[allow(clippy::print_literal)]
+fn ringbuf(subargs: RingbufArgs, context: &mut ExecutionContext) -> Result<()> {
+    let hubris = &context.cli.archive()?;
+    let log = context.log();
+
+    let mut ringbufs = vec![];
+
+    for (v, def) in ringbuf_variables(hubris) {
         if let Some(ref name) = subargs.name {
             if v.0.contains(name) || taskname(hubris, v.1)?.contains(name) {
                 ringbufs.push((v, def));
