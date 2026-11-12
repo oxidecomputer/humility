@@ -202,11 +202,17 @@ fn fill(
             }
         }
         HubrisType::Enum(e) => {
-            if e.variants.is_empty() {
+            let mut variants = vec![];
+            for v in &e.variants {
+                if v.goff.map_or(Ok(true), |g| inhabited(hubris, g))? {
+                    variants.push(v);
+                }
+            }
+            if variants.is_empty() {
                 return Ok(needed);
             }
-            needed = e.variants.len();
-            let v = &e.variants[pass % e.variants.len()];
+            needed = variants.len();
+            let v = variants[pass % variants.len()];
             if let Some(g) = v.goff {
                 let n = fill(hubris, g, pass, buf, offset + v.offset)?;
                 needed = needed.max(n);
@@ -221,6 +227,31 @@ fn fill(
         }
     }
     Ok(needed)
+}
+
+/// TODO: Add docs
+fn inhabited(hubris: &HubrisArchive, goff: HubrisGoff) -> Result<bool> {
+    Ok(match hubris.lookup_type(goff)? {
+        HubrisType::Base(_) | HubrisType::Ptr(_) => true,
+        HubrisType::Struct(s) => {
+            for m in &s.members {
+                if !inhabited(hubris, m.goff)? {
+                    return Ok(false);
+                }
+            }
+            true
+        }
+        HubrisType::Array(a) => a.count == 0 || inhabited(hubris, a.goff)?,
+        HubrisType::Union(_) => true,
+        HubrisType::Enum(e) => {
+            for v in &e.variants {
+                if v.goff.map_or(Ok(true), |g| inhabited(hubris, g))? {
+                    return Ok(true);
+                }
+            }
+            false
+        }
+    })
 }
 
 /// TODO: Add docs
