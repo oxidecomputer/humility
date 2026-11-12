@@ -13,6 +13,8 @@ use humility::mem::InMemoryCore;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_doppel::Task;
 
+use cmd_sensors::SensorReader;
+
 #[derive(Parser, Debug)]
 #[clap(name = "check", about = env!("CARGO_PKG_DESCRIPTION"))]
 pub struct CheckArgs {
@@ -38,6 +40,7 @@ fn check(subargs: CheckArgs, context: &mut ExecutionContext) -> Result<()> {
 
     let mut outcomes = vec![check_regions(hubris)];
     outcomes.extend(check_tasks(hubris));
+    outcomes.extend(check_sensors(hubris));
     for ((name, var), def) in cmd_ringbuf::ringbuf_variables(hubris) {
         outcomes.push(check_variable(
             hubris,
@@ -45,9 +48,9 @@ fn check(subargs: CheckArgs, context: &mut ExecutionContext) -> Result<()> {
             name,
             var,
             def,
-            |buf| {
+            |bufs| {
                 let def = def.unwrap();
-                cmd_ringbuf::decode_ringbuf(hubris, def, buf).map(|_| ())
+                cmd_ringbuf::decode_ringbuf(hubris, def, &bufs[0]).map(|_| ())
             },
         ));
     }
@@ -58,9 +61,9 @@ fn check(subargs: CheckArgs, context: &mut ExecutionContext) -> Result<()> {
             name,
             var,
             def,
-            |buf| {
+            |bufs| {
                 let def = def.unwrap();
-                cmd_counters::decode_counters(hubris, def, buf).map(|_| ())
+                cmd_counters::decode_counters(hubris, def, &bufs[0]).map(|_| ())
             },
         ));
     }
@@ -105,10 +108,8 @@ fn check_regions(hubris: &HubrisArchive) -> Outcome {
 /// TODO: Add docs
 fn check_tasks(hubris: &HubrisArchive) -> Option<Outcome> {
     let var = hubris.lookup_variable("HUBRIS_TASK_TABLE_SPACE").ok()?;
-    let (passes, error) = run_passes(hubris, var.goff, var.size, |buf| {
-        let mut core = InMemoryCore::from_archive(hubris)?;
-        core.add_ram_region(var.addr, buf.to_vec())
-            .map_err(|e| anyhow!("could not add RAM region: {e:?}"))?;
+    let (passes, error) = run_passes(hubris, &[var], |bufs| {
+        let mut core = synthetic_core(hubris, &[var], bufs)?;
         let (base, count) = hubris.task_table(&mut core)?;
         let task_t = hubris.lookup_struct_byname("Task")?;
         Task::load_tcbs(hubris, &mut core, base, count as usize, task_t)?;
@@ -124,17 +125,60 @@ fn check_tasks(hubris: &HubrisArchive) -> Option<Outcome> {
 }
 
 /// TODO: Add docs
+fn check_sensors(hubris: &HubrisArchive) -> Option<Outcome> {
+    if hubris.manifest.sensors.is_empty() {
+        return None;
+    }
+    let sensors: Vec<_> =
+        hubris.manifest.sensors.iter().cloned().enumerate().collect();
+    let (passes, error) =
+        match cmd_sensors::RamSensorReader::new(hubris, &sensors) {
+            Ok(mut reader) => {
+                let vars =
+                    [reader.last_reading, reader.data_value, reader.nerrors];
+                let vars: Vec<&HubrisVariable> = vars.iter().collect();
+                run_passes(hubris, &vars, |bufs| {
+                    let mut core = synthetic_core(hubris, &vars, bufs)?;
+                    reader.run(hubris, &mut core).map(|_| ())
+                })
+            }
+            Err(e) => (0, Some(e)),
+        };
+    Some(Outcome {
+        kind: "sensors",
+        module: "sensor".to_owned(),
+        name: "RamSensorReader".to_owned(),
+        passes,
+        error,
+    })
+}
+
+/// TODO: Add docs
+fn synthetic_core(
+    hubris: &HubrisArchive,
+    vars: &[&HubrisVariable],
+    bufs: &[Vec<u8>],
+) -> Result<InMemoryCore> {
+    let mut core = InMemoryCore::from_archive(hubris)?;
+    for (var, buf) in vars.iter().zip(bufs) {
+        core.add_ram_region(var.addr, buf.clone())
+            .map_err(|e| anyhow!("could not add RAM region: {e:?}"))?;
+    }
+    Ok(core)
+}
+
+/// TODO: Add docs
 fn check_variable(
     hubris: &HubrisArchive,
     kind: &'static str,
     name: &str,
     var: &HubrisVariable,
     def: Option<&HubrisStruct>,
-    decode: impl FnMut(&[u8]) -> Result<()>,
+    decode: impl FnMut(&[Vec<u8>]) -> Result<()>,
 ) -> Outcome {
     let module = cmd_ringbuf::taskname(hubris, var).unwrap_or("???").to_owned();
     let (passes, error) = if def.is_some() {
-        run_passes(hubris, var.goff, var.size, decode)
+        run_passes(hubris, &[var], decode)
     } else {
         (0, Some(anyhow!("could not look up type: {:?}", var.goff)))
     };
@@ -144,19 +188,23 @@ fn check_variable(
 /// TODO: Add docs
 fn run_passes(
     hubris: &HubrisArchive,
-    goff: HubrisGoff,
-    size: usize,
-    mut decode: impl FnMut(&[u8]) -> Result<()>,
+    vars: &[&HubrisVariable],
+    mut decode: impl FnMut(&[Vec<u8>]) -> Result<()>,
 ) -> (usize, Option<Error>) {
     let mut pass = 0;
     let mut needed = 1;
     while pass < needed.min(MAX_PASSES) {
-        let mut buf = vec![0u8; size];
-        match fill(hubris, goff, pass, &mut buf, 0) {
-            Ok(n) => needed = n,
-            Err(e) => return (pass, Some(e.context("could not fill"))),
+        let mut bufs = vec![];
+        needed = 1;
+        for var in vars {
+            let mut buf = vec![0u8; var.size];
+            match fill(hubris, var.goff, pass, &mut buf, 0) {
+                Ok(n) => needed = needed.max(n),
+                Err(e) => return (pass, Some(e.context("could not fill"))),
+            }
+            bufs.push(buf);
         }
-        if let Err(e) = decode(&buf) {
+        if let Err(e) = decode(&bufs) {
             return (pass + 1, Some(e.context(format!("pass {pass}"))));
         }
         pass += 1;

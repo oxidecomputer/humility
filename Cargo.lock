@@ -2063,6 +2063,7 @@ dependencies = [
  "humility-cli",
  "humility-cmd-counters",
  "humility-cmd-ringbuf",
+ "humility-cmd-sensors",
  "humility-core",
  "humility-doppel",
 ]

@@ -13,3 +13,4 @@ humility-cli.workspace = true
 humility-doppel.workspace = true
 cmd-counters.workspace = true
 cmd-ringbuf.workspace = true
+cmd-sensors.workspace = true

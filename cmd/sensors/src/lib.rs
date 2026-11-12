@@ -208,7 +208,7 @@ fn list(hubris: &HubrisArchive, spec: &SensorSpecification) -> Result<()> {
     Ok(())
 }
 
-struct SensorData {
+pub struct SensorData {
     /// Last reading value (from `Sensor.get`), or `None` if it was an error
     values: Vec<Option<f32>>,
 
@@ -216,7 +216,7 @@ struct SensorData {
     errors: Vec<Option<u32>>,
 }
 
-trait SensorReader {
+pub trait SensorReader {
     /// Reads sensor data, returning a tuple of `values, errors`
     fn run(
         &mut self,
@@ -334,15 +334,15 @@ impl SensorReader for HiffySensorReader<'_> {
 }
 
 /// Reader for sensor data that pulls it out of RAM directly
-struct RamSensorReader {
+pub struct RamSensorReader {
     /// Position of `LAST_READING` in global RAM
-    last_reading: HubrisVariable,
+    pub last_reading: HubrisVariable,
 
     /// Position of `DATA_VALUE` in global RAM
-    data_value: HubrisVariable,
+    pub data_value: HubrisVariable,
 
     /// Position of `NERRORS` in global RAM
-    nerrors: HubrisVariable,
+    pub nerrors: HubrisVariable,
 
     /// Indexes of sensors that we care about
     ///
@@ -360,7 +360,7 @@ enum LastReading {
 }
 
 impl RamSensorReader {
-    fn new(
+    pub fn new(
         hubris: &HubrisArchive,
         sensors: &[(usize, HubrisSensor)],
     ) -> Result<Self> {
