@@ -1924,6 +1924,7 @@ dependencies = [
  "humility-cmd-console-proxy",
  "humility-cmd-counters",
  "humility-cmd-dashboard",
+ "humility-cmd-debuginfo",
  "humility-cmd-debugmailbox",
  "humility-cmd-diagnose",
  "humility-cmd-discover",
@@ -2113,6 +2114,19 @@ dependencies = [
  "idol",
  "parse_int",
  "ratatui",
+]
+
+[[package]]
+name = "humility-cmd-debuginfo"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "gimli 0.33.0",
+ "goblin",
+ "humility-cli",
+ "humility-core",
+ "similar",
 ]
 
 [[package]]

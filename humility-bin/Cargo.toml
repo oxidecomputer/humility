@@ -38,6 +38,7 @@ cmd-auxflash = { workspace = true }
 cmd-check = { workspace = true }
 cmd-console-proxy = { workspace = true }
 cmd-counters = { workspace = true }
+cmd-debuginfo = { workspace = true }
 cmd-dashboard = { workspace = true }
 cmd-diagnose = { workspace = true }
 cmd-discover = { workspace = true }

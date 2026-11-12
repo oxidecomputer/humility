@@ -34,6 +34,7 @@ members = [
     "cmd/check",
     "cmd/console-proxy",
     "cmd/counters",
+    "cmd/debuginfo",
     "cmd/dashboard",
     "cmd/debugmailbox",
     "cmd/diagnose",
@@ -161,6 +162,7 @@ cmd-caboose = { path = "./cmd/caboose", package = "humility-cmd-caboose" }
 cmd-check = { path = "./cmd/check", package = "humility-cmd-check" }
 cmd-console-proxy = { path = "./cmd/console-proxy", package = "humility-cmd-console-proxy" }
 cmd-counters = { path = "./cmd/counters", package = "humility-cmd-counters" }
+cmd-debuginfo = { path = "./cmd/debuginfo", package = "humility-cmd-debuginfo" }
 cmd-dashboard = { path = "./cmd/dashboard", package = "humility-cmd-dashboard" }
 cmd-diagnose = { path = "./cmd/diagnose", package = "humility-cmd-diagnose" }
 cmd-debugmailbox = { path = "./cmd/debugmailbox", package = "humility-cmd-debugmailbox" }
@@ -273,6 +275,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0"
 serde-xml-rs = "0.8.2"
 sha2 = "0.11.0"
+similar = "2.7.0"
 slog = "2.8.2"
 splitty = "1.0.2"
 strum = "0.28"

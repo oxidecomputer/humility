@@ -238,6 +238,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility console-proxy](#humility-console-proxy): SP/host console uart proxy
 - [humility counters](#humility-counters): display event counters
 - [humility dashboard](#humility-dashboard): dashboard for Hubris sensor data
+- [humility debuginfo](#humility-debuginfo): TODO: Add help text
 - [humility debugmailbox](#humility-debugmailbox): interact with the debug mailbox on the LPC55
 - [humility diagnose](#humility-diagnose): analyze a system to detect common problems
 - [humility discover](#humility-discover): listen for compatible SPs on a network
@@ -521,6 +522,11 @@ Provides a captive dashboard that graphs sensor values over time.  (The
 If `-o` is provided, it specifies an output file for any raw sensor data
 graphed by the dashboard.
 
+
+
+### `humility debuginfo`
+
+TODO: Add docs
 
 
 ### `humility debugmailbox`

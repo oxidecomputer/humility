@@ -1,0 +1,15 @@
+[package]
+name = "humility-cmd-debuginfo"
+version = "0.1.0"
+edition.workspace = true
+description = "TODO: Add help text"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+gimli.workspace = true
+goblin.workspace = true
+similar.workspace = true
+
+humility.workspace = true
+humility-cli.workspace = true
