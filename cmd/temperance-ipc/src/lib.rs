@@ -283,6 +283,17 @@ fn encode_request(
             )
         })?;
 
+    // TODO: Discuss why oversized requests are refused here.
+    if let Some(max) = method.req_schema.max_size()
+        && body.len() > max
+    {
+        bail!(
+            "request body is {} bytes, but {} accepts at most {max}",
+            body.len(),
+            method.name
+        );
+    }
+
     let mut frame = vec![0u8; HEADER_LEN];
     Header {
         version: WIRE_VERSION,
@@ -428,6 +439,18 @@ mod tests {
                 Op::DropN(5),
                 Op::Done,
             ]
+        );
+    }
+
+    #[test]
+    fn oversized_request() {
+        let m = OwnedMethodInfo {
+            req_schema: Ty::ByteArray { max_len: Some(4) },
+            ..method()
+        };
+        assert!(encode_request(&m, &serde_json::json!([1, 2, 3, 4])).is_ok());
+        assert!(
+            encode_request(&m, &serde_json::json!([1, 2, 3, 4, 5])).is_err()
         );
     }
 
