@@ -62,6 +62,7 @@ members = [
     "cmd/mwocp",
     "cmd/net",
     "cmd/nprpc",
+    "cmd/temperance-ipc",
     "cmd/pmbus",
     "cmd/power",
     "cmd/probe",
@@ -184,6 +185,7 @@ cmd-lsusb = { path = "./cmd/lsusb", package = "humility-cmd-lsusb" }
 cmd-manifest = { path = "./cmd/manifest", package = "humility-cmd-manifest" }
 cmd-map = { path = "./cmd/map", package = "humility-cmd-map" }
 cmd-nprpc = { path = "./cmd/nprpc", package = "humility-cmd-nprpc" }
+cmd-temperance-ipc = { path = "./cmd/temperance-ipc", package = "humility-cmd-temperance-ipc" }
 cmd-mass-erase = { path = "./cmd/mass-erase", package = "humility-cmd-mass-erase" }
 cmd-monorail = { path = "./cmd/monorail", package = "humility-cmd-monorail" }
 cmd-mwocp = { path = "./cmd/mwocp", package = "humility-cmd-mwocp" }
@@ -256,6 +258,7 @@ parse_int = "0.9.0"
 paste = "1.0.15"
 postcard = "0.7.0"
 postcard-dyn-ng = "0.4.1"
+postcard-schema-ng = "0.4.1"
 pretty-hex = "0.4"
 proc-macro2 = "1.0"
 quote = "1.0"

@@ -1,0 +1,20 @@
+[package]
+name = "humility-cmd-temperance-ipc"
+version = "0.1.0"
+edition.workspace = true
+description = "TODO: Add help text"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+hif = { workspace = true }
+humility = { workspace = true }
+humility-cli = { workspace = true }
+humility-doppel = { workspace = true }
+humility-hiffy = { workspace = true }
+humility-idol = { workspace = true }
+nprpc = { workspace = true }
+parse_int = { workspace = true }
+postcard-dyn-ng = { workspace = true }
+postcard-schema-ng = { workspace = true }
+serde_json = { workspace = true }

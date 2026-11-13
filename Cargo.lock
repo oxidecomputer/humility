@@ -1971,6 +1971,7 @@ dependencies = [
  "humility-cmd-stackmargin",
  "humility-cmd-stmsecure",
  "humility-cmd-tasks",
+ "humility-cmd-temperance-ipc",
  "humility-cmd-test",
  "humility-cmd-tofino-eeprom",
  "humility-cmd-validate",
@@ -2816,6 +2817,25 @@ dependencies = [
  "humility-stack",
  "num-traits",
  "parse_int",
+]
+
+[[package]]
+name = "humility-cmd-temperance-ipc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hif",
+ "humility-cli",
+ "humility-core",
+ "humility-doppel",
+ "humility-hiffy",
+ "humility-idol",
+ "nprpc",
+ "parse_int",
+ "postcard-dyn-ng",
+ "postcard-schema-ng",
+ "serde_json",
 ]
 
 [[package]]

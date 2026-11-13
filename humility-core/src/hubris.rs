@@ -3835,7 +3835,7 @@ struct HubrisObjectLoader {
 
     // nprpc schemas: linkage names and raw contents, without the `goff` data
     // from DWARF yet.
-    nprpc_raw_schemas: HashMap<String, Vec<u8>>,
+    nprpc_raw_schemas: HashMap<String, (Vec<u8>, SchemaSection)>,
 
     // nprpc schemas found in DWARF, with their `goff` type information.
     nprpc_schemas: Vec<HubrisNprpcSchema>,
@@ -4508,16 +4508,28 @@ impl HubrisObjectLoader {
     fn nprpc_schema_symbols(
         buffer: &[u8],
         elf: &goblin::elf::Elf,
-    ) -> Result<HashMap<String, Vec<u8>>> {
+    ) -> Result<HashMap<String, (Vec<u8>, SchemaSection)>> {
         let mut out = HashMap::new();
+        for section in [SchemaSection::Nprpc, SchemaSection::TemperanceIpc] {
+            Self::schema_section_symbols(buffer, elf, section, &mut out)?;
+        }
+        Ok(out)
+    }
 
+    /// TODO: Add docs
+    fn schema_section_symbols(
+        buffer: &[u8],
+        elf: &goblin::elf::Elf,
+        section: SchemaSection,
+        out: &mut HashMap<String, (Vec<u8>, SchemaSection)>,
+    ) -> Result<()> {
         // Do we have an `nprpc` schema section at all?
         let Some((shndx, shdr)) =
             elf.section_headers.iter().enumerate().find(|(_, sh)| {
-                elf.shdr_strtab.get_at(sh.sh_name) == Some(NPRPC_SCHEMA_SECTION)
+                elf.shdr_strtab.get_at(sh.sh_name) == Some(section.name())
             })
         else {
-            return Ok(out);
+            return Ok(());
         };
 
         // Collect all the symbols of the nprpc schema section
@@ -4544,10 +4556,10 @@ impl HubrisObjectLoader {
                 })
                 .ok_or_else(|| anyhow!("bad offset/size for {name}"))?;
 
-            out.insert(name.to_string(), contents.to_vec());
+            out.insert(name.to_string(), (contents.to_vec(), section));
         }
 
-        Ok(out)
+        Ok(())
     }
 
     fn load_object_idolatry(
@@ -5627,11 +5639,14 @@ impl HubrisObjectLoader {
             // If this is an nprpc symbol, take it out of the raw map, and
             // add the name, contents, and goff (specific type info) to the
             // list of found schemas.
-            if let Some(contents) = self.nprpc_raw_schemas.remove(linkage) {
+            if let Some((contents, section)) =
+                self.nprpc_raw_schemas.remove(linkage)
+            {
                 self.nprpc_schemas.push(HubrisNprpcSchema {
                     name: format!("{:#}", rustc_demangle::demangle(linkage)),
                     goff: tgoff,
                     contents,
+                    section,
                 });
                 return Ok(());
             }
@@ -6490,6 +6505,28 @@ pub struct HubrisModule {
 /// `nprpc_net::expose_interface!` in Hubris.
 pub const NPRPC_SCHEMA_SECTION: &str = ".nprpc_schema";
 
+/// TODO: Add docs
+pub const TEMPERANCE_IPC_SCHEMA_SECTION: &str = ".temperance_ipc_schema";
+
+/// TODO: Add docs
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum SchemaSection {
+    /// TODO: Add docs
+    Nprpc,
+    /// TODO: Add docs
+    TemperanceIpc,
+}
+
+impl SchemaSection {
+    /// TODO: Add docs
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Nprpc => NPRPC_SCHEMA_SECTION,
+            Self::TemperanceIpc => TEMPERANCE_IPC_SCHEMA_SECTION,
+        }
+    }
+}
+
 /// A static in the `.nprpc_schema` section of a module
 ///
 /// The schemas are not loaded to the target, and are read from the archive
@@ -6502,6 +6539,8 @@ pub struct HubrisNprpcSchema {
     pub goff: HubrisGoff,
     /// Contents of the static
     pub contents: Vec<u8>,
+    /// TODO: Add docs
+    pub section: SchemaSection,
 }
 
 impl HubrisModule {

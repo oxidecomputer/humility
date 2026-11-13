@@ -285,6 +285,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility stackmargin](#humility-stackmargin): calculate and print stack margins by task
 - [humility stmsecure](#humility-stmsecure): change secure region settings on the stm32h7
 - [humility tasks](#humility-tasks): list Hubris tasks
+- [humility temperance-ipc](#humility-temperance-ipc): TODO: Add help text
 - [humility test](#humility-test): run Hubristest suite and parse results
 - [humility tofino-eeprom](#humility-tofino-eeprom): read and write to the Tofino SPI EEPROM
 - [humility validate](#humility-validate): validate presence and operation of devices
@@ -3202,6 +3203,11 @@ ID TASK                 GEN PRI STATE
 
 These options can naturally be combined, e.g. `humility tasks -slvr`.
 
+
+
+### `humility temperance-ipc`
+
+TODO: Add docs
 
 
 ### `humility test`

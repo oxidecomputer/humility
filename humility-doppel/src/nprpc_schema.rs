@@ -14,7 +14,7 @@
 //! `Load` trait on the upstream types.
 
 use anyhow::{Context, Result, bail};
-use humility::hubris::{HubrisArchive, HubrisModule};
+use humility::hubris::{HubrisArchive, HubrisModule, SchemaSection};
 use humility::reflect::{self, Load};
 use nprpc::flat;
 
@@ -191,9 +191,26 @@ pub fn load_interfaces(
     hubris: &HubrisArchive,
     module: &HubrisModule,
 ) -> Result<Vec<OwnedInterfaceInfo>> {
+    load_section_interfaces(hubris, module, SchemaSection::Nprpc)
+}
+
+/// TODO: Add docs
+pub fn load_ipc_interfaces(
+    hubris: &HubrisArchive,
+    module: &HubrisModule,
+) -> Result<Vec<OwnedInterfaceInfo>> {
+    load_section_interfaces(hubris, module, SchemaSection::TemperanceIpc)
+}
+
+fn load_section_interfaces(
+    hubris: &HubrisArchive,
+    module: &HubrisModule,
+    section: SchemaSection,
+) -> Result<Vec<OwnedInterfaceInfo>> {
     module
         .nprpc_schemas
         .iter()
+        .filter(|schema| schema.section == section)
         .map(|schema| {
             let ty = hubris.lookup_type(schema.goff)?;
             let flat: FlatInterface =
