@@ -1,2 +1,8 @@
 humility: attached to dump
-humility spd failed: read of 8192 bytes failed: could not find addr 0x24004380 in memory
+humility spd failed: Failed to find SPD using any known method.
+
+Caused by:
+    0: Failed to find 'PACKRAT_SERVER_IMPL'
+    1: Failed to find 'task_packrat::main::BUFS'
+    2: read of 8192 bytes failed: could not find addr 0x24004380 in memory
+    3: Failed to find SPD data for gimlet-c

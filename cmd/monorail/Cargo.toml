@@ -20,3 +20,4 @@ humility.workspace = true
 humility-cli.workspace = true
 humility-hiffy.workspace = true
 humility-idol.workspace = true
+humility-monorail.workspace = true

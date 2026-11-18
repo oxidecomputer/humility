@@ -1,2 +1,2 @@
 humility: attached to dump
-humility spd failed: could not find `gimlet_bufs` or `cosmo_bufs`
+humility spd failed: no bus specified and no SPD_DATA found

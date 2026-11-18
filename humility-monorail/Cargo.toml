@@ -1,0 +1,13 @@
+[package]
+name = "humility-monorail"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+# anyhow is only for compatibility
+anyhow.workspace = true
+hif.workspace = true
+humility-hiffy.workspace = true
+humility-idol.workspace = true
+humility.workspace = true
+thiserror.workspace = true

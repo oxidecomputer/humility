@@ -962,7 +962,19 @@ pub fn load_enum(
 /// That extra level is why images built by the newer toolchains stopped
 /// decoding. We peel all of these, so the payload can be presented the same way
 /// whichever toolchain built the image.
-const TRANSPARENT_WRAPPERS: &[&str] = &["ManuallyDrop", "MaybeDangling"];
+const TRANSPARENT_WRAPPERS: &[&str] = &[
+    "ManuallyDrop",
+    "MaybeDangling",
+    // Starting in Rust 1.96, `Atomic` types now are aliases and have an
+    // inner private `Align*` type.
+    //
+    // See https://github.com/rust-lang/rust/pull/153015 for details.
+    "Align1",
+    "Align2",
+    "Align4",
+    "Align8",
+    "Align16",
+];
 
 /// Returns true if `name` names one of the [`TRANSPARENT_WRAPPERS`].
 ///

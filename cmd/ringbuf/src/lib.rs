@@ -62,14 +62,16 @@
 //! See the [`ringbuf`
 //! documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/src/lib.rs) for more details.
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::log::info;
 use humility::reflect::{self, Format, Load, Value};
 use humility_cli::{ExecutionContext, humility_cmd};
-use humility_doppel::{CountedRingbuf, CounterVariant, Ringbuf, StaticCell};
+use humility_doppel::{
+    CountedRingbuf, CounterVariant, Counters, Ringbuf, StaticCell,
+};
 
 #[derive(Parser, Debug)]
 #[clap(name = "ringbuf", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -112,6 +114,55 @@ struct TotalsOptions {
     no_totals: bool,
 }
 
+type LoadedRingbuf = (Option<Ringbuf>, Option<Counters>);
+type RingbufLoader = fn(&Value) -> Result<LoadedRingbuf>;
+
+// There are three possible shapes of ringbufs, depending on the age of the
+// firmware.
+// - Raw Ringbuf that is not wrapped by anything.
+// - Safe Ringbuf that is inside a StaticCell.
+// - CountedRingbuf, which consists of a `StaticCell<Ringbuf>` and a set of
+//   entry counters.
+//
+// Here we will attempt to handle all three, keeping all the error context of
+// all of them if none of them succeed.
+fn load_ringbuf(ringbuf_val: &Value) -> Result<LoadedRingbuf> {
+    // Pre-hubris#219
+    fn raw(v: &Value) -> Result<LoadedRingbuf> {
+        Ok((Some(Ringbuf::from_value(v)?), None))
+    }
+    // Post-hubris#219
+    fn static_cell(v: &Value) -> Result<LoadedRingbuf> {
+        let cell: StaticCell<Ringbuf> = StaticCell::from_value(v)?;
+        Ok((Some(cell.cell.value), None))
+    }
+    // Post-hubris#1621
+    fn counted(v: &Value) -> Result<LoadedRingbuf> {
+        let CountedRingbuf { ringbuf, counters } =
+            CountedRingbuf::from_value(v)?;
+        Ok((ringbuf, Some(counters)))
+    }
+
+    let methods: [(&str, RingbufLoader); 3] = [
+        ("CountedRingbuf", counted),
+        ("Ringbuf", raw),
+        ("StaticCell<Ringbuf>", static_cell),
+    ];
+    let mut errs = vec![];
+    for (name, method) in methods {
+        match method(ringbuf_val) {
+            Ok(r) => return Ok(r),
+            Err(e) => errs.push((name, e)),
+        }
+    }
+
+    let mut err = Err(anyhow!("Failed to load ringbuf"));
+    for (name, e) in errs {
+        err = err.with_context(|| format!("Tried '{name}', got: {e:#}"));
+    }
+    err.context("Failed to load ringbuf using any known layout")
+}
+
 fn ringbuf_dump(
     subargs: &RingbufArgs,
     hubris: &HubrisArchive,
@@ -127,28 +178,10 @@ fn ringbuf_dump(
     core.read_bulk(ringbuf_var.addr, buf.as_mut_slice())?;
     core.run()?;
 
-    // There are three possible shapes of ringbufs, depending on the age of the
-    // firmware.
-    // - Raw Ringbuf that is not wrapped by anything.
-    // - Safe Ringbuf that is inside a StaticCell.
-    // - CountedRingbuf, which consists of a `StaticCell<Ringbuf>` and a set of
-    //   entry counters.
-    //
-    // Here we will attempt to handle all three -- first the counted ringbuf,
-    // then raw, then fallback.
     let ringbuf_val: Value =
         Value::Struct(reflect::load_struct(hubris, &buf, definition, 0)?);
 
-    let (ringbuf, counters) = CountedRingbuf::from_value(&ringbuf_val)
-        .map(|CountedRingbuf { ringbuf, counters }| (ringbuf, Some(counters)))
-        .or_else(|_e| {
-            Ringbuf::from_value(&ringbuf_val).map(|r| (Some(r), None))
-        })
-        .or_else(|_e| {
-            let cell: StaticCell<Ringbuf> =
-                StaticCell::from_value(&ringbuf_val)?;
-            Ok::<_, anyhow::Error>((Some(cell.cell.value), None))
-        })?;
+    let (ringbuf, counters) = load_ringbuf(&ringbuf_val)?;
 
     if let (Some(mut counters), false) = (counters, no_totals) {
         const TOTAL_WIDTH: usize = 8;
@@ -291,6 +324,7 @@ fn ringbuf(subargs: RingbufArgs, context: &mut ExecutionContext) -> Result<()> {
     }
 
     let core = &mut *context.cli.attach_live_or_dump_match(hubris)?;
+    let mut show_hint = false;
     for (v, def) in ringbufs {
         // Try not to use `?` here, because it causes one bad ringbuf to make
         // them all unavailable.
@@ -304,12 +338,23 @@ fn ringbuf(subargs: RingbufArgs, context: &mut ExecutionContext) -> Result<()> {
                 if subargs.verbose {
                     info!(log, "ringbuf dump failed: {e:?}");
                 } else {
+                    show_hint = true;
                     info!(log, "ringbuf dump failed: {e}");
                 }
             }
         } else {
             info!(log, "could not look up type: {:?}", v.1.goff);
         }
+    }
+
+    // If any decoding failed, show a hint that rerunning with -v will show the
+    // whole error chain.
+    if show_hint {
+        info!(
+            log,
+            "one or more ringbufs failed to load. Rerun with `-v` to show more \
+            details.",
+        );
     }
 
     Ok(())

@@ -3,3 +3,4 @@ humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::
 humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<drv_stm32xx_i2c::Trace, 48>> at address 0x0
 humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<drv_stm32xx_i2c::Trace, 48>> at address 0x0
 humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<drv_stm32xx_i2c_server::Trace, 8>> at address 0x0
+humility: one or more ringbufs failed to load. Rerun with `-v` to show more details.

@@ -1,0 +1,17 @@
+[package]
+name = "humility-cmd-nprpc"
+version = "0.1.0"
+edition.workspace = true
+description = "list and call nprpc interfaces"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+humility = { workspace = true }
+humility-cli = { workspace = true }
+humility-doppel = { workspace = true }
+humility-net = { workspace = true }
+nprpc = { workspace = true }
+nprpc-udp = { workspace = true }
+postcard-dyn-ng = { workspace = true }
+serde_json = { workspace = true }

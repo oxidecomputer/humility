@@ -9,10 +9,7 @@ use humility::{
 };
 use humility_doppel as doppel;
 
-use anyhow::{Context, Result, bail};
-
-/// Name of the packrat buffer which contains SPD data
-static PACKRAT_BUF_NAME: &str = "task_packrat::main::BUFS";
+use anyhow::{Context, Result, anyhow, bail};
 
 /// Raw data read from a single SPD
 pub struct SpdData(Vec<u8>);
@@ -41,83 +38,164 @@ pub fn spd_lookup(
     hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
 ) -> Result<Option<Vec<SpdData>>> {
-    if let Ok(variables) = hubris.lookup_variables("SPD_DATA") {
-        if variables.len() > 1 {
-            bail!("more than one SPD_DATA?");
-        }
+    // Compute sleds have SPD data.
+    const SPD_HAVERS: &[&str] = &["cosmo-", "gimlet-", "metro-"];
 
-        let var = variables[0];
-        let mut buf: Vec<u8> = vec![0u8; var.size];
-
-        core.halt()?;
-        core.read_bulk(var.addr, &mut buf)?;
-        core.run()?;
-
-        if !buf.len().is_multiple_of(GIMLET_SPD_SIZE) {
-            bail!(
-                "SPD_DATA is {} bytes; expected even multiple \
-                 of {GIMLET_SPD_SIZE}",
-                buf.len(),
-            );
-        }
-        Ok(Some(
-            buf.as_chunks::<GIMLET_SPD_SIZE>()
-                .0
-                .iter()
-                .map(|chunk| SpdData(chunk.to_vec()))
-                .collect(),
-        ))
-    } else if let Ok(var) = hubris.lookup_qualified_variable(PACKRAT_BUF_NAME) {
-        let packrat_bufs = reflect::read_variable::<
-            doppel::ClaimOnceCell<reflect::Struct>,
-        >(hubris, core, var)?
-        .cell
-        .value;
-        let Ok(Value::Struct(compute_sled_bufs)) = packrat_bufs
-            .get("gimlet_bufs")
-            .or_else(|_e| packrat_bufs.get("cosmo_bufs"))
-        else {
-            bail!("could not find `gimlet_bufs` or `cosmo_bufs`");
-        };
-        let spd_data = compute_sled_bufs.get("spd_data").context(
-            "could not find `spd_data` in sled-specific packrat bufs",
-        )?;
-
-        // We have multiple versions of SPD data.  In older firmwares (Gimlet
-        // only), it's a single `[u8; 8192]` buffer; in newer firmwares, it's a
-        // nested struct that contains a `[[u8; DATA_SIZE]; DIMM_COUNT]`.
-        let spd_bufs = match spd_data {
-            Value::Array(a) => {
-                if a.len() % GIMLET_SPD_SIZE != 0 {
-                    bail!(
-                        "SPD data in {PACKRAT_BUF_NAME} is {} bytes;
-                         expected even multiple of {GIMLET_SPD_SIZE}",
-                        a.len(),
-                    );
-                }
-                let mut out = Vec::with_capacity(a.len() / GIMLET_SPD_SIZE);
-                for vs in a.as_chunks::<GIMLET_SPD_SIZE>().0.iter() {
-                    let mut chunk = Vec::with_capacity(GIMLET_SPD_SIZE);
-                    for v in vs {
-                        let Value::Base(Base::U8(b)) = v else {
-                            bail!("expected `u8` array");
-                        };
-                        chunk.push(*b);
-                    }
-                    out.push(SpdData(chunk))
-                }
-                out
-            }
-            Value::Struct(s) => {
-                let out = s.field::<Vec<Vec<u8>>>("spd_data")?;
-                out.into_iter().map(SpdData).collect()
-            }
-            _ => bail!("expected `spd_data` to be an array or struct"),
-        };
-        Ok(Some(spd_bufs))
-    } else {
-        Ok(None)
+    // Return Ok(None) if this isn't an SPD-having board.
+    if !SPD_HAVERS.iter().any(|pat| hubris.manifest.board.contains(pat)) {
+        return Ok(None);
     }
+
+    // Try each of these until they fail
+    let methods =
+        [spd_lookup_static, spd_lookup_packrat_v1, spd_lookup_packrat_v2];
+    let mut errs = vec![];
+    for method in methods {
+        match method(hubris, core) {
+            Ok(spd) => return Ok(Some(spd)),
+            Err(e) => errs.push(e),
+        }
+    }
+    let mut err =
+        Err(anyhow!("Failed to find SPD data for {}", hubris.manifest.board));
+    for e in errs {
+        err = err.context(e);
+    }
+    err.with_context(|| "Failed to find SPD using any known method.")
+}
+
+pub fn spd_lookup_packrat_v1(
+    hubris: &HubrisArchive,
+    core: &mut dyn humility::core::Core,
+) -> Result<Vec<SpdData>> {
+    /// Name of the packrat buffer which contains SPD data, post
+    /// https://github.com/oxidecomputer/hubris/pull/2518
+    static PACKRAT_BUF_NAME: &str = "task_packrat::main::BUFS";
+
+    let Ok(var) = hubris.lookup_qualified_variable(PACKRAT_BUF_NAME) else {
+        bail!("Failed to find '{PACKRAT_BUF_NAME}'");
+    };
+    let packrat_bufs = reflect::read_variable::<
+        doppel::ClaimOnceCell<reflect::Struct>,
+    >(hubris, core, var)?
+    .cell
+    .value;
+    let Ok(Value::Struct(compute_sled_bufs)) = packrat_bufs
+        .get("gimlet_bufs")
+        .or_else(|_e| packrat_bufs.get("cosmo_bufs"))
+        .or_else(|_e| packrat_bufs.get("sp5_bufs"))
+    else {
+        bail!("could not find `gimlet_bufs`, `cosmo_bufs`, or `sp5_bufs`");
+    };
+    let spd_data = compute_sled_bufs
+        .get("spd_data")
+        .context("could not find `spd_data` in sled-specific packrat bufs")?;
+
+    // We have multiple versions of SPD data.  In older firmwares (Gimlet
+    // only), it's a single `[u8; 8192]` buffer; in newer firmwares, it's a
+    // nested struct that contains a `[[u8; DATA_SIZE]; DIMM_COUNT]`.
+    let spd_bufs = match spd_data {
+        Value::Array(a) => {
+            if a.len() % GIMLET_SPD_SIZE != 0 {
+                bail!(
+                    "SPD data in {PACKRAT_BUF_NAME} is {} bytes;
+                         expected even multiple of {GIMLET_SPD_SIZE}",
+                    a.len(),
+                );
+            }
+            let mut out = Vec::with_capacity(a.len() / GIMLET_SPD_SIZE);
+            for vs in a.as_chunks::<GIMLET_SPD_SIZE>().0.iter() {
+                let mut chunk = Vec::with_capacity(GIMLET_SPD_SIZE);
+                for v in vs {
+                    let Value::Base(Base::U8(b)) = v else {
+                        bail!("expected `u8` array");
+                    };
+                    chunk.push(*b);
+                }
+                out.push(SpdData(chunk))
+            }
+            out
+        }
+        Value::Struct(s) => {
+            let out = s.field::<Vec<Vec<u8>>>("spd_data")?;
+            out.into_iter().map(SpdData).collect()
+        }
+        _ => bail!("expected `spd_data` to be an array or struct"),
+    };
+    Ok(spd_bufs)
+}
+
+pub fn spd_lookup_packrat_v2(
+    hubris: &HubrisArchive,
+    core: &mut dyn humility::core::Core,
+) -> Result<Vec<SpdData>> {
+    /// Name of the packrat buffer which contains SPD data, post
+    /// https://github.com/oxidecomputer/hubris/pull/2724
+    static PACKRAT_BUF_NAME2: &str = "PACKRAT_SERVER_IMPL";
+
+    let Ok(var) = hubris.lookup_qualified_variable(PACKRAT_BUF_NAME2) else {
+        bail!("Failed to find '{PACKRAT_BUF_NAME2}'");
+    };
+    let packrat_bufs = reflect::read_variable::<
+        doppel::ClaimOnceCell<doppel::MaybeUninit<reflect::Struct>>,
+    >(hubris, core, var)?
+    .cell
+    .value
+    .value;
+
+    // PACKRAT_SERVER_IMPL has a `bsp` field
+    let Ok(Value::Struct(compute_sled_bufs)) = packrat_bufs.get("bsp") else {
+        bail!("could not find `bsp`");
+    };
+    // `bsp` has a `&'static mut SpdData` field (deref it)
+    let Ok(Value::Ptr(data_ptr)) = compute_sled_bufs.get("spd_data") else {
+        bail!("could not find `spd_data`");
+    };
+    // `SpdData` is a struct
+    let Ok(Value::Struct(spd_data_struct)) = data_ptr.load_from(hubris, core)
+    else {
+        bail!("could not dereference `spd_data`");
+    };
+
+    // SpdData is a nested struct that contains a field called `spd_data` that
+    // is `[[u8; DATA_SIZE]; DIMM_COUNT]`.
+    let out = spd_data_struct.field::<Vec<Vec<u8>>>("spd_data")?;
+    Ok(out.into_iter().map(SpdData).collect())
+}
+
+/// Before https://github.com/oxidecomputer/hubris/pull/2518
+pub fn spd_lookup_static(
+    hubris: &HubrisArchive,
+    core: &mut dyn humility::core::Core,
+) -> Result<Vec<SpdData>> {
+    let Ok(variables) = hubris.lookup_variables("SPD_DATA") else {
+        bail!("Didn't find SPD_DATA");
+    };
+
+    if variables.len() > 1 {
+        bail!("more than one SPD_DATA?");
+    }
+
+    let var = variables[0];
+    let mut buf: Vec<u8> = vec![0u8; var.size];
+
+    core.halt()?;
+    core.read_bulk(var.addr, &mut buf)?;
+    core.run()?;
+
+    if !buf.len().is_multiple_of(GIMLET_SPD_SIZE) {
+        bail!(
+            "SPD_DATA is {} bytes; expected even multiple \
+             of {GIMLET_SPD_SIZE}",
+            buf.len(),
+        );
+    }
+    Ok(buf
+        .as_chunks::<GIMLET_SPD_SIZE>()
+        .0
+        .iter()
+        .map(|chunk| SpdData(chunk.to_vec()))
+        .collect())
 }
 
 /// Returns true if any non-empty SPD devices are present

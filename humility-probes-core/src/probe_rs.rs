@@ -134,7 +134,7 @@ impl ProbeCore {
 // This is based on what probe-rs was doing for its internal tooling
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-enum Operation {
+pub enum Operation {
     /// Reading back flash contents to restore erased regions that should be kept unchanged.
     Fill,
 
@@ -165,7 +165,7 @@ pub struct ProgressBars {
 }
 
 impl ProgressBars {
-    fn get_mut<T: Into<Operation>>(
+    pub fn get_mut<T: Into<Operation>>(
         &mut self,
         operation: T,
     ) -> &mut ProgressBarGroup {

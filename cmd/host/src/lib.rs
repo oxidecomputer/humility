@@ -108,7 +108,7 @@ use humility::{
     core::Core,
     hubris::HubrisArchive,
     log::{Logger, info, warn},
-    reflect::{self, Load, Value},
+    reflect::{self, Load, Ptr, Value},
 };
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_doppel as doppel;
@@ -161,13 +161,11 @@ static HOST_STATE_BUF_NAME_1: &str =
 static HOST_STATE_BUF_NAME_2: &str =
     "<task_host_sp_comms::ServerImpl>::claim_static_resources::BUFS";
 
-static PACKRAT_BUF_NAME: &str = "task_packrat::main::BUFS";
+// After https://github.com/oxidecomputer/hubris/pull/2518
+static PACKRAT_BUF_NAME1: &str = "task_packrat::main::BUFS";
 
-// packrat field names
-const PACKRAT_LAST_PANIC_PAYLOAD: &str = "cell.value.host_info.panic_payload";
-const PACKRAT_LAST_PANIC_STATE: &str = "cell.value.host_info.panic_state";
-const PACKRAT_BOOT_FAIL_PAYLOAD: &str = "cell.value.host_info.panic_payload";
-const PACKRAT_BOOT_FAIL_STATE: &str = "cell.value.host_info.panic_state";
+// After https://github.com/oxidecomputer/hubris/pull/2724
+static PACKRAT_BUF_NAME2: &str = "PACKRAT_SERVER_IMPL";
 
 /// Mirror type of the internal buf struct in `host_sp_comms`. Must be kept in
 /// (partial) sync with that structure (fields that are present need to match,
@@ -243,7 +241,7 @@ fn print_escaped_ascii(mut bytes: &[u8]) {
 
 /// Try getting last panic/boot fail from packrat, where it moved to in
 /// https://github.com/oxidecomputer/hubris/pull/2518.
-fn host_bootinfo_packrat(
+fn hostinfo_packrat(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     payload: &str,
@@ -252,7 +250,7 @@ fn host_bootinfo_packrat(
     // If this variable doesn't exist, we're probably on a REALLY old version
     // of hubris, but don't return the error here, as it means we'll still want
     // to check the host-sp-comms's vars.
-    let lookup = hubris.lookup_qualified_variable(PACKRAT_BUF_NAME);
+    let lookup = hubris.lookup_qualified_variable(PACKRAT_BUF_NAME1);
     let Ok(buf_ty) = lookup else {
         return Ok(None);
     };
@@ -264,8 +262,55 @@ fn host_bootinfo_packrat(
     // Again, it's possible the image DOES have the packrat buf, but NOT this
     // field (either it is older than #2518, or it is a hostless SP), so treat
     // errors here as "no data".
-    let res_payload: Result<Vec<u8>> = buf.field(payload);
-    let res_state: Result<Option<Value>> = buf.field(state);
+    let res_payload: Result<Vec<u8>> =
+        buf.field(&format!("cell.value.host_info.{payload}"));
+    let res_state: Result<Option<Value>> =
+        buf.field(&format!("cell.value.host_info.{state}"));
+
+    let (Ok(mut payload), Ok(state)) = (res_payload, res_state) else {
+        return Ok(None);
+    };
+
+    // Cool, cool, we have the fields! Now check if the state is in a place
+    // where there is something reasonable to extract. If the variables DO
+    // exist, but DON'T have data, return an empty vec.
+    let Some(state) = state else {
+        return Ok(Some(vec![]));
+    };
+
+    let total: u32 = state.field("total_length")?;
+    payload.truncate(total as usize);
+
+    Ok(Some(payload))
+}
+
+/// Try getting last panic/boot fail from packrat, where it moved to in
+/// https://github.com/oxidecomputer/hubris/pull/2518.
+fn hostinfo_packrat_bsp(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    payload: &str,
+    state: &str,
+) -> Result<Option<Vec<u8>>> {
+    // If this variable doesn't exist, we're probably on a REALLY old version
+    // of hubris, but don't return the error here, as it means we'll still want
+    // to check the host-sp-comms's vars.
+    let lookup = hubris.lookup_qualified_variable(PACKRAT_BUF_NAME2);
+    let Ok(buf_ty) = lookup else {
+        return Ok(None);
+    };
+
+    // We do ? the error here, because errors while loading indicate some
+    // kind of transport error.
+    let buf: Value = humility::reflect::read_variable(hubris, core, buf_ty)?;
+
+    // Payload is now a ptr, not an inline array (unlike `hostinfo_packrat`)
+    let res_payload_ptr: Result<Ptr> =
+        buf.field(&format!("cell.value.value.bsp.host_info.{payload}"));
+    let res_payload: Result<Vec<u8>> =
+        res_payload_ptr.and_then(|p| p.load_from(hubris, core));
+    let res_state: Result<Option<Value>> =
+        buf.field(&format!("cell.value.value.bsp.host_info.{state}"));
 
     let (Ok(mut payload), Ok(state)) = (res_payload, res_state) else {
         return Ok(None);
@@ -306,14 +351,8 @@ fn host_boot_fail_spcomms_new(
 fn host_boot_fail(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
     // Work through the different places "boot fail" info could be hiding
     let sources: [fn(&HubrisArchive, &mut dyn Core) -> _; _] = [
-        |h, c| {
-            host_bootinfo_packrat(
-                h,
-                c,
-                PACKRAT_BOOT_FAIL_PAYLOAD,
-                PACKRAT_BOOT_FAIL_STATE,
-            )
-        },
+        |h, c| hostinfo_packrat_bsp(h, c, "bootfail_payload", "bootfail_state"),
+        |h, c| hostinfo_packrat(h, c, "bootfail_payload", "bootfail_state"),
         host_boot_fail_spcomms_old,
         |h, c| host_boot_fail_spcomms_new(h, c, HOST_STATE_BUF_NAME_1),
         |h, c| host_boot_fail_spcomms_new(h, c, HOST_STATE_BUF_NAME_2),
@@ -359,14 +398,8 @@ fn host_last_panic(
 ) -> Result<()> {
     // Work through the different places "last panic" info could be hiding
     let sources: [fn(&HubrisArchive, &mut dyn Core) -> _; _] = [
-        |h, c| {
-            host_bootinfo_packrat(
-                h,
-                c,
-                PACKRAT_LAST_PANIC_PAYLOAD,
-                PACKRAT_LAST_PANIC_STATE,
-            )
-        },
+        |h, c| hostinfo_packrat_bsp(h, c, "panic_payload", "panic_state"),
+        |h, c| hostinfo_packrat(h, c, "panic_payload", "panic_state"),
         host_last_panic_spcomms_old,
         |h, c| host_last_panic_spcomms_new(h, c, HOST_STATE_BUF_NAME_1),
         |h, c| host_last_panic_spcomms_new(h, c, HOST_STATE_BUF_NAME_2),
