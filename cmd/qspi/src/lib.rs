@@ -452,7 +452,9 @@ fn write(
             Op::Done,
         ];
 
-        let results = context.run(core, ops.as_slice(), Some(&buf))?;
+        // Send only the pages this run programs.
+        let used = len.next_multiple_of(device.block_size) as usize;
+        let results = context.run(core, ops.as_slice(), Some(&buf[..used]))?;
 
         for (i, block_result) in results.iter().enumerate() {
             if let Err(err) = block_result {
