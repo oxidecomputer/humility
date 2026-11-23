@@ -1682,7 +1682,9 @@ impl<'a, 'b> HiffyWrite<'a, 'b> {
                     Var::Text => vars.text.addr,
                     Var::Data => vars.data.addr,
                 };
-                core.write_8(addr, data)
+                // `HIFFY_TEXT` and `HIFFY_DATA` are plain RAM, so bulk writes
+                // are safe to use.
+                core.write_bulk(addr, data)
             }
             HiffyWrite::Net { image_id, buf_size, ops, errs } => {
                 let op = match v {
