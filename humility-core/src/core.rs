@@ -38,7 +38,7 @@ pub trait Core {
 
     /// Like write_8, but allowed to use wider (e.g. 32-bit) accesses where
     /// alignment permits.
-    /// 
+    ///
     /// Only use this for plain memory where access width has no side effects.
     fn write_bulk(&mut self, addr: u32, data: &[u8]) -> Result<()> {
         self.write_8(addr, data)
