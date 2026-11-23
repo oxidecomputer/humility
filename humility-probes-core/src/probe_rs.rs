@@ -341,6 +341,12 @@ impl Core for ProbeCore {
         Ok(())
     }
 
+    fn write_bulk(&mut self, addr: u32, data: &[u8]) -> Result<()> {
+        let mut core = self.session.core(0)?;
+        core.write(addr.into(), data)?;
+        Ok(())
+    }
+
     fn halt(&mut self) -> Result<PreviousCpuState> {
         let prev = if self.halted {
             PreviousCpuState::Halted

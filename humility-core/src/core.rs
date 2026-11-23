@@ -36,6 +36,14 @@ pub trait Core {
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()>;
     fn write_8(&mut self, addr: u32, data: &[u8]) -> Result<()>;
 
+    /// Like write_8, but allowed to use wider (e.g. 32-bit) accesses where
+    /// alignment permits.
+    ///
+    /// Only use this for plain memory where access width has no side effects.
+    fn write_bulk(&mut self, addr: u32, data: &[u8]) -> Result<()> {
+        self.write_8(addr, data)
+    }
+
     fn halt(&mut self) -> Result<PreviousCpuState>;
     fn run(&mut self) -> Result<PreviousCpuState>;
     fn is_memory_core(&self) -> bool {
