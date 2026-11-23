@@ -347,6 +347,24 @@ impl Core for ProbeCore {
         Ok(())
     }
 
+    fn read_bulk_unhalted(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
+        if data.len() > CORE_MAX_READSIZE {
+            bail!(
+                "read of {} bytes at {addr:#x} exceeds max of \
+                 {CORE_MAX_READSIZE}",
+                data.len()
+            );
+        }
+        let mut core = self.session.core(0)?;
+        core.read(addr.into(), data).with_context(|| {
+            format!(
+                "failed to perform unhalted read at address {addr:#x} for \
+                 length {}",
+                data.len()
+            )
+        })
+    }
+
     fn halt(&mut self) -> Result<PreviousCpuState> {
         let prev = if self.halted {
             PreviousCpuState::Halted
