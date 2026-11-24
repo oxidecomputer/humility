@@ -40,6 +40,9 @@ pub struct HiffyContext<'a> {
     state: State,
     functions: HiffyFunctions,
     hiffy: HiffyImpl<'a>,
+    /// Set once `has_task_started` has succeeded, so later runs skip checking
+    /// it. Storing this helps avoid repeated polling.
+    task_started: bool,
     pub log: Logger,
 }
 
@@ -377,6 +380,7 @@ impl<'a> HiffyContext<'a> {
             timeout,
             state: State::Initialized,
             functions,
+            task_started: false,
             log: log.clone(),
         })
     }
@@ -1103,7 +1107,9 @@ impl<'a> HiffyContext<'a> {
             }
         });
 
-        let mut syscall_observed = false;
+        // Remember if we've seen a syscall in a prior invocation
+        let mut syscall_observed = self.task_started;
+
         if hiffy_task.is_none() {
             warn!(
                 self.log,
@@ -1151,6 +1157,9 @@ impl<'a> HiffyContext<'a> {
         if !ready {
             bail!("HIF execution facility unavailable");
         }
+
+        // If we make it here, we've seen a syscall, so remember that.
+        self.task_started = true;
 
         let buf = &mut text.as_mut_slice();
         let mut current = 0;
@@ -1354,10 +1363,9 @@ impl<'a> HiffyContext<'a> {
             bail!("invalid state for consuming results: {:?}", self.state);
         }
 
-        let vars = match &mut self.hiffy {
-            HiffyImpl::Debugger(vars) | HiffyImpl::NetHiffy { vars, .. } => {
-                vars
-            }
+        let (vars, debugger) = match &mut self.hiffy {
+            HiffyImpl::Debugger(vars) => (vars, true),
+            HiffyImpl::NetHiffy { vars, .. } => (vars, false),
             HiffyImpl::NetUdpRpc { results, .. } => {
                 let results = std::mem::take(results);
                 self.state = State::ResultsConsumed;
@@ -1365,18 +1373,24 @@ impl<'a> HiffyContext<'a> {
             }
         };
 
-        let mut rstack: Vec<u8> = vec![];
-        rstack.resize_with(vars.rstack.size, Default::default);
+        let mut rstack = vec![0u8; vars.rstack.size];
 
-        core.op_start()?;
+        // Read the rstack
+        if debugger {
+            // If we're a debugger, we've already checked that humility is done,
+            // so avoid halting it, and just read the rstack. Hubris won't
+            // modify this until the next kick, so it is okay to read without
+            // halting.
+            core.read_bulk_unhalted(vars.rstack.addr, rstack.as_mut_slice())?;
+        } else {
+            // Not a debugger? Do a normal stop/read/start step.
+            core.op_start()?;
+            core.read_bulk(vars.rstack.addr, rstack.as_mut_slice())?;
+            core.op_done()?;
+        };
 
         let mut rvec = vec![];
-        core.read_bulk(vars.rstack.addr, rstack.as_mut_slice())?;
-
-        core.op_done()?;
-
         let mut result = &rstack[0..];
-
         loop {
             let (rval, next) = take_from_bytes::<FunctionResult>(result)?;
 
