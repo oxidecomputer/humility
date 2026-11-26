@@ -6023,8 +6023,8 @@ dependencies = [
 
 [[package]]
 name = "turin-post-decoder"
-version = "0.4.0"
-source = "git+https://github.com/oxidecomputer/turin-post-decoder#2ced4872bdedf2a21485b1406565f6d7f97c331b"
+version = "0.5.0"
+source = "git+https://github.com/oxidecomputer/turin-post-decoder#fc6feb1746186d1c6696721933955c0ac01e00d6"
 
 [[package]]
 name = "twox-hash"
