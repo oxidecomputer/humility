@@ -517,11 +517,12 @@ fn host_post_codes(
     let count = context.call::<u32>(core, &op, &[], None, None)?;
 
     let op = hubris.get_idol_command("Sequencer.get_post_code")?;
-    let handle_value = |v| {
+    let mut decoder = turin_post_decoder::Decoder::new();
+    let mut handle_value = |v| {
         if raw {
             println!("{v:08x}");
         } else {
-            let decoded = turin_post_decoder::decode(v);
+            let decoded = decoder.decode(v);
             let detail = decoded.lines().join("\n");
             println!("{detail}");
         }
