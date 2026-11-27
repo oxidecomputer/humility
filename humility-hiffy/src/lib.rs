@@ -1212,8 +1212,16 @@ impl<'a> HiffyContext<'a> {
         data: Option<&[u8]>,
     ) -> Result<Vec<Result<Vec<u8>, IpcError>>> {
         self.start(core, ops, data)?;
+
+        // Over the debugger, `done()` polls without halting, so poll often.
+        // Over the network each poll is a round trip, so keep a somewhat
+        // longer interval there.
+        let interval = match self.hiffy {
+            HiffyImpl::Debugger(_) => Duration::from_millis(1),
+            _ => Duration::from_millis(100),
+        };
         while !self.done(core)? {
-            thread::sleep(Duration::from_millis(100));
+            thread::sleep(interval);
         }
         self.results(core)
     }
@@ -1237,12 +1245,32 @@ impl<'a> HiffyContext<'a> {
             }
         };
 
-        core.op_start()?;
-
-        let new_requests_count = core.read_word_32(vars.requests.addr)?;
-        let new_errors_count = core.read_word_32(vars.errors.addr)?;
-
-        core.op_done()?;
+        let (new_requests_count, new_errors_count) = match &self.hiffy {
+            HiffyImpl::Debugger(_) => {
+                // Reading these two counters while the target runs is safe
+                // because of hiffy's side of the protocol.
+                //
+                // See https://github.com/oxidecomputer/hubris/blob/969bac2bf47c98710842eb232fdd4a9c54e7dd7f/task/hiffy/src/main.rs#L98-L161
+                //
+                // While a HIF program runs, the debugger only reads these
+                // counters, and hiffy bumps one of them, with Release
+                // ordering, only AFTER it has finished with the return stack.
+                let mut requests = [0u8; 4];
+                let mut errors = [0u8; 4];
+                core.read_bulk_unhalted(vars.requests.addr, &mut requests)?;
+                core.read_bulk_unhalted(vars.errors.addr, &mut errors)?;
+                (u32::from_le_bytes(requests), u32::from_le_bytes(errors))
+            }
+            _ => {
+                // Non Debugger impls (e.g. net-hiffy) don't support `unhalted`
+                // reads.
+                core.op_start()?;
+                let requests = core.read_word_32(vars.requests.addr)?;
+                let errors = core.read_word_32(vars.errors.addr)?;
+                core.op_done()?;
+                (requests, errors)
+            }
+        };
 
         if kick_time.elapsed() > self.timeout {
             bail!("operation timed out");

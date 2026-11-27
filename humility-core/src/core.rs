@@ -44,6 +44,24 @@ pub trait Core {
         self.write_8(addr, data)
     }
 
+    /// Like [`Core::read_bulk`], but never halts the target.
+    ///
+    /// Only use this method for memory that has some kind of external
+    /// synchronization protocol, such as the one used for HIFFY. For an
+    /// example of where this is appropriate, see the docs here:
+    ///
+    /// https://github.com/oxidecomputer/hubris/blob/969bac2bf47c98710842eb232fdd4a9c54e7dd7f/task/hiffy/src/main.rs#L98-L161
+    ///
+    /// Defaults to "unhalted bulk reads not allowed". Requires probes to
+    /// opt-in when they support this.
+    fn read_bulk_unhalted(
+        &mut self,
+        addr: u32,
+        _data: &mut [u8],
+    ) -> Result<()> {
+        bail!("this core does not support unhalted reads (at {addr:#x})")
+    }
+
     fn halt(&mut self) -> Result<PreviousCpuState>;
     fn run(&mut self) -> Result<PreviousCpuState>;
     fn is_memory_core(&self) -> bool {
