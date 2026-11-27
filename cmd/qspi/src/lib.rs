@@ -554,10 +554,57 @@ fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
         (None, qspi_bulk_erase)
     } else if subargs.read {
         let qspi_read = context.get_function("QspiRead", 2)?;
-        ops.push(Op::Push32(subargs.addr.unwrap() as u32));
-        ops.push(Op::Push32(subargs.nbytes.unwrap() as u32));
-        ops.push(Op::Call(qspi_read.id));
-        (None, qspi_read)
+        let start_addr = subargs.addr.unwrap_or(0) as u32;
+        let mut address = start_addr;
+        let nbytes = subargs.nbytes.unwrap_or(0) as u32;
+        let end_address = address
+            .checked_add(nbytes)
+            .ok_or_else(|| anyhow!("address + nbytes overflows u32"))?;
+
+        let rstack_size = context.rstack_size() as u32;
+        let scratch_size = context.scratch_size() as u32;
+        if scratch_size == 0 {
+            bail!("scratch buffer size is 0");
+        }
+        let overhead = 1;
+        let chunk = scratch_size;
+        let max_chunks = (rstack_size / (chunk + overhead)).max(1);
+
+        let mut all_bytes = Vec::with_capacity(nbytes as usize);
+
+        while address < end_address {
+            let mut ops = vec![];
+            for _ in 0..max_chunks {
+                let len = if address + chunk > end_address {
+                    end_address - address
+                } else {
+                    chunk
+                };
+
+                if len == 0 {
+                    break;
+                }
+                ops.push(Op::Push32(address));
+                ops.push(Op::Push32(len));
+                ops.push(Op::Call(qspi_read.id));
+
+                address += len;
+            }
+            ops.push(Op::Done);
+
+            let results = context.run(core, ops.as_slice(), None)?;
+            for block_result in results {
+                match block_result {
+                    Err(err) => {
+                        bail!("operation failed: {}", qspi_read.strerror(err))
+                    }
+                    Ok(mut buf) => all_bytes.append(&mut buf),
+                }
+            }
+        }
+
+        Dumper::new().dump(&all_bytes, start_addr);
+        return Ok(());
     } else if let Some(ref write) = subargs.write {
         let addr = subargs.addr.unwrap() as u32;
         let qspi_page_program = if addr / SECTOR_SIZE == 0 {
@@ -1049,12 +1096,7 @@ fn qspi(subargs: QspiArgs, context: &mut ExecutionContext) -> Result<()> {
         bail!("operation failed: {}", func.strerror(e));
     }
 
-    if subargs.read {
-        if let Ok(results) = &results[0] {
-            Dumper::new().dump(results, subargs.addr.unwrap_or(0) as u32);
-            return Ok(());
-        }
-    } else if subargs.id {
+    if subargs.id {
         // If the response is well formatted, print it out in addition to raw hex.
         if let Ok(results) = &results[0] {
             let did = DeviceIdData::ref_from_bytes(results)
